@@ -1,117 +1,110 @@
-/* Chapter 3 — enemies, groups, guests, items and shops for Karrow Hold, the Frost Pass and the Giant's Cairn.
-   Balance: a chapter 3 party is level 8-12. Ordinary fights should cost 8-18% of the party's HP at the level
-   the player meets them; mini-bosses 25-35%; Hrimgar 35-50%. */
+/* Enemies and the groups they appear in.
+   moves: [[weight, 'attack' | abilityId], ...].  tags: 'undead', 'beast', 'goblin'.
+   immune: status ids that never stick.  loot: [[itemId, chance], ...].
+   Balance target: a normal group costs a fresh party about a quarter of its HP. */
 (function () {
   const D = G.D;
-
+  D.enemies = {
+    rat: { name: 'Giant Rat', sprite: 'rat', hp: 8, ac: 11, atk: 3, dmg: '1d4+1', spd: 3, save: 0, xp: 5, gold: [0, 2], tags: ['beast'] },
+    bat: { name: 'Cave Bat', sprite: 'bat', hp: 8, ac: 13, atk: 4, dmg: '1d4+1', spd: 6, save: 1, xp: 6, gold: [0, 1], tags: ['beast'] },
+    wolf: { name: 'Wolf', plural: 'Wolves', sprite: 'wolf', hp: 16, ac: 12, atk: 5, dmg: '1d6+2', spd: 4, save: 1, xp: 14, gold: [0, 2], tags: ['beast'], loot: [['pelt', 0.6]] },
+    alpha: { name: 'Grey Alpha', sprite: 'alpha', hp: 40, ac: 13, atk: 6, dmg: '1d8+3', spd: 4, save: 2, xp: 36, gold: [4, 8], tags: ['beast'], moves: [[3, 'attack'], [2, 'savage']], loot: [['pelt', 1]] },
+    spider: { name: 'Web Spider', sprite: 'spider', hp: 13, ac: 12, atk: 5, dmg: '1d4+2', spd: 4, save: 1, xp: 12, gold: [0, 2], tags: ['beast'], moves: [[2, 'attack'], [2, 'venombite']], loot: [['bitterroot', 0.25]] },
+    goblin: { name: 'Goblin', sprite: 'goblin', hp: 13, ac: 12, atk: 4, dmg: '1d6+1', spd: 2, save: 0, xp: 10, gold: [3, 7], tags: ['goblin'] },
+    archer: { name: 'Goblin Slinger', sprite: 'archer', hp: 11, ac: 12, atk: 5, dmg: '1d6+2', spd: 3, save: 0, xp: 12, gold: [3, 8], tags: ['goblin'] },
+    hexer: { name: 'Goblin Hexer', sprite: 'hexer', hp: 18, ac: 12, atk: 3, dmg: '1d4+1', pow: 3, spd: 2, save: 2, xp: 20, gold: [6, 12], tags: ['goblin'], moves: [[1, 'attack'], [3, 'spark'], [2, 'hex']], loot: [['tonic', 0.3]] },
+    skeleton: { name: 'Barrow Guard', sprite: 'skeleton', hp: 26, ac: 13, atk: 5, dmg: '1d8+2', spd: 1, save: 1, xp: 24, gold: [2, 6], tags: ['undead'], immune: ['asleep', 'poison'] },
+    warden: { name: 'Crypt Sentinel', sprite: 'sentinel', hp: 40, ac: 15, atk: 6, dmg: '1d10+2', spd: 1, save: 2, xp: 34, gold: [5, 10], tags: ['undead'], immune: ['asleep', 'poison'] },
+    brood: {
+      name: 'Broodmother', sprite: 'spider', scale: 4, hp: 64, ac: 13, atk: 6, dmg: '1d8+2', pow: 3, spd: 3, save: 2, xp: 70, gold: [12, 18], tags: ['beast'],
+      immune: ['asleep'], moves: [[3, 'attack'], [2, 'venombite'], [1, 'webspray']], loot: [['bitterroot', 1]]
+    },
+    brannoc: { name: 'Brannoc Vosk', sprite: 'vosk', hp: 34, ac: 12, atk: 3, dmg: '1d6+1', spd: 1, save: 1, xp: 20, gold: [10, 10], tags: ['human'], moves: [[3, 'attack'], [1, 'headbutt']] },
+    bruiser: { name: 'Vosk Bruiser', sprite: 'bruiser', hp: 12, ac: 11, atk: 2, dmg: '1d4+1', spd: 2, save: 0, xp: 8, gold: [2, 4], tags: ['human'] },
+    revenant: { name: 'Restless Dead', sprite: 'alder', hp: 52, ac: 12, atk: 6, dmg: '1d10+2', spd: 1, save: 1, xp: 30, gold: [0, 0], tags: ['undead'], immune: ['asleep', 'poison'] },
+    bonecaller: {
+      name: 'Skrit the Bonecaller', sprite: 'hexer', hp: 72, ac: 13, atk: 4, dmg: '1d6+2', pow: 4, spd: 3, save: 3, xp: 110, gold: [30, 30], tags: ['goblin'],
+      immune: ['asleep'], moves: [[1, 'attack'], [3, 'spark'], [2, 'hex'], [2, 'gravechill']], loot: [['tonic', 1]]
+    },
+    grukk: {
+      name: 'Grukk Gravepicker', sprite: 'grukk', scale: 4, hp: 290, ac: 15, atk: 7, dmg: '1d10+4', pow: 4, spd: 2, save: 3, xp: 160, gold: [60, 60], tags: ['goblin'],
+      immune: ['asleep', 'stunned'], moves: [[4, 'attack'], [2, 'sweep'], [1, 'bellow']]
+    }
+  };
+  /* Guests fight on the party's side, controlled by the game: B.start(group, { guests: ['ingrid'] }). */
+  D.guests = {
+    ingrid: { name: 'Ingrid', sprite: 'ingrid', hp: 22, ac: 13, atk: 4, dmg: '1d8+2', spd: 1, save: 2, moves: [[3, 'attack'], [1, 'hammerblow']], joinText: 'Ingrid fights beside you. She acts on her own.' }
+  };
+  D.groups = {
+    // Thornwood
+    wood_rats: { enemies: ['rat', 'rat', 'rat', 'rat'] },
+    wood_wolves: { enemies: ['wolf', 'wolf'] },
+    wood_goblins: { enemies: ['goblin', 'goblin'] },
+    wood_spiders: { enemies: ['spider', 'spider'] },
+    wood_scouts: { enemies: ['goblin', 'archer'] },
+    wolfpack: { enemies: ['wolf', 'alpha', 'wolf'], intro: 'The pack turns from the tree, hackles up.' },
+    nest: { enemies: ['spider', 'brood', 'spider'], intro: 'The webs shiver. Something the size of a cart comes down from the canopy.' },
+    lookout: { enemies: ['goblin', 'archer'], intro: 'The lookouts scramble for their slings!' },
+    // Barrow, floor 1
+    b1_rats: { enemies: ['rat', 'rat', 'bat', 'bat'] },
+    b1_bats: { enemies: ['bat', 'bat', 'bat', 'bat'] },
+    b1_goblins: { enemies: ['goblin', 'archer', 'goblin'] },
+    b1_camp: { enemies: ['goblin', 'goblin', 'goblin'], intro: 'The goblins drop their loot and grab their knives!' },
+    b1_lever: { enemies: ['goblin', 'hexer', 'archer'], intro: 'A hexer rattles a fistful of knucklebones.' },
+    // Barrow, floor 2
+    b2_guards: { enemies: ['skeleton', 'skeleton'], intro: 'Bones knit themselves upright.' },
+    b2_mixed: { enemies: ['skeleton', 'bat', 'bat', 'bat'] },
+    b2_sentinels: { enemies: ['warden', 'warden'], intro: 'The armoured dead raise their blades.' },
+    grukk: { enemies: ['hexer', 'grukk', 'goblin'], boss: true, intro: 'Grukk Gravepicker hefts his spade!' },
+    grukk_duo: { enemies: ['hexer', 'grukk'], boss: true, intro: 'Grukk Gravepicker hefts his spade!' },
+    skrit: { enemies: ['skeleton', 'bonecaller', 'skeleton'], boss: true, intro: 'Skrit rattles his knucklebones, and the dead stand up.' },
+    // The tutorial brawl. The first four party turns are guided; see B.guided in src/battle.js.
+    brawl: {
+      enemies: ['brannoc', 'bruiser', 'bruiser'], boss: true, brawl: true, retryOnly: true, music: 'battle', bg: 'tavern',
+      intro: 'Chairs scrape back. It is a brawl!', retryText: 'Runa spits out a tooth and climbs back up. Round two.',
+      guideIntro: ['The fight is played on a board: your party on the left, the Vosks on the right.', 'On a turn each piece can move and act once. HP and ability points are in the strip below.'],
+      guide: [
+        { who: 'runa', cmd: 'attack', enemy: 'brannoc', rig: 14, text: "Runa's turn. Choose Attack, then Brannoc.", sub: 'She walks up to him on her own. {a} confirms; only the highlighted choice is open for now.',
+          after: ['That blue line was the roll: d20 + Attack vs AC.', "Beat the target's Armour Class (AC) to hit. A natural 20 is a critical hit."] },
+        { who: 'dask', cmd: 'attack', enemy: 'brannoc', rig: 13, text: "Dask's turn. Attack Brannoc as well.", sub: 'Dask is quick: 4 squares. Against a foe an ally is already fighting he gets +2 and Sneak Attack.',
+          after: ['Sneak Attack! Gang up on one enemy: anyone fighting beside an ally gets +2 to hit.', 'Dask also sneak-attacks foes that are asleep, stunned or rattled, even with thrown knives.'] },
+        { who: 'maren', cmd: 'ab', ab: 'mend', ally: 'runa', text: "Maren's turn. Open Abilities, choose Mend.", sub: 'Abilities cost points from the blue bar. Maren spends Faith.', targetSub: 'Heal Runa. She took that first punch.',
+          after: ['Each hero has a pool: Fury, Cunning, Faith or Verve.', 'Defending gives 1 back. Inns and shrines refill it.'] },
+        { who: 'finch', cmd: 'ab', ab: 'barbed', enemy: 'bruiser', text: "Finch's turn. Use Barbed Verse on a bruiser.", sub: 'It deals damage, and the target is worse at hitting for a turn.',
+          after: ["That's the basics. The rest of the brawl is yours.", 'Move lets you reposition; Finch shoots from afar, Runa can throw an axe. Defend gives +4 AC. Now the Vosks act.'] }
+      ]
+    },
+    alder: { enemies: ['revenant'], intro: 'The dead man turns. There is nothing behind his eyes.' }
+  };
+  /* Enemy sprites: humanoids use the character builder, beasts are 16x16 pixel strings facing right. */
   Object.assign(D.sprites, {
-    frostacolyte: { skin: '#e0c0a0', top: '#9a9aa8', robe: 1, hood: '#d8dce8', trim: '#7fb0e8' },
-    frostzealot: { skin: '#d8a070', hair: '#3a2a1e', top: '#7a7a88', legs: '#3a3a44', helm: '#c8ccd8', trim: '#7fb0e8' },
-    wight: { skel: 1, top: '#5a6a7a', helm: '#8a9aaa' },
-    watcher: { skel: 1, robe: 1, hood: '#4a5a7a', trim: '#e8c14a' },
-    nagra: { skin: '#7a9a4a', hair: '#3a2a1e', long: 1, top: '#6a4a2a', legs: '#3a3028', trim: '#c8c8d4' },
-    giant: { skin: '#a8b8c8', hair: '#e8eef4', beard: 1, top: '#4a5a6a', legs: '#2a3a4a', helm: '#8a7a5a' },
-    bryn: { skin: '#e0a67c', hair: '#c8a050', long: 1, top: '#6a3a2a', legs: '#3a3028', trim: '#c8c8d4' },
-    shieldmaiden: { skin: '#e8b890', hair: '#8a5a2a', long: 1, top: '#4a5a3a', legs: '#3a3028', helm: '#8a8a94' }
+    goblin: { skin: '#6fae4a', bald: 1, ears: 1, eyes: '#b0202a', top: '#6b5a3a', legs: '#4a3b2e' },
+    archer: { skin: '#6fae4a', bald: 1, ears: 1, eyes: '#b0202a', top: '#4a6a3a', legs: '#3a3028', hat: '#5a4030' },
+    hexer: { skin: '#7ab85a', ears: 1, eyes: '#b0202a', top: '#5a3a7a', robe: 1, hood: '#4a2f66', trim: '#e8c14a' },
+    grukk: { skin: '#5a9a3a', bald: 1, ears: 1, eyes: '#ffe14a', top: '#7a2f2f', legs: '#3a2a22', helm: '#e8c14a', horns: 1, trim: '#b58a2a' },
+    skeleton: { skel: 1 },
+    sentinel: { skel: 1, helm: '#70747f' }
   });
-  Object.assign(D.pix, {
-    bear: { pal: { a: '#e8eef4', b: '#b8c4d0', e: '#1a1420', n: '#3a3440' }, rows: [
-      '................', '................', '...bb......bb...', '..baab....baab..', '..baaaaaaaaaab..', '..aaaeaaaaeaaa..',
-      '..aaaaannaaaaa..', '...aaaaaaaaaa...', '..aaaaaaaaaaaa..', '.aaaaaaaaaaaaaa.', '.aaaaaaaaaaaaaa.', '.aabaaaaaaaabaa.',
-      '.aab.aaaaaa.baa.', '.bb..bb..bb..bb.', '................', '................'] },
-    golem: { pal: { a: '#8d8f9c', b: '#666876', c: '#a9abb8', e: '#7fd0ff' }, rows: [
-      '................', '.....cccccc.....', '.....caeaeab....', '.....aaaaaab....', '..ccc.aaaa.ccc..', '.caaaaaaaaaaaab.',
-      '.caabaaaaaabaab.', '.aab.aaaaaa.baa.', '.aa..aaccaa..aa.', '.bb..aaaaaa..bb.', '.....aa..aa.....', '.....aa..aa.....',
-      '....caa..aac....', '....bbb..bbb....', '................', '................'] },
-    frostspirit: { pal: { w: '#ffffff', b: '#a8d8ff', c: '#4a7ab8', e: '#1a1420' }, rows: [
-      '................', '.......c........', '......cc........', '.....cbbc.......', '....cbwwbc......', '....bwwwwb......',
-      '...cbwwwwbc.....', '...bwwwwwwb.....', '...bweweewb.....', '...bwwwwwwb.....', '....bwwwwb......', '.....bbbb.......',
-      '......cc........', '.......c........', '................', '................'] }
-  });
-
-  Object.assign(D.abilities, {
-    stomp: { name: 'Stomp', target: 'allEnemies', fx: [{ t: 'damage', dice: '2d6', pow: true, save: 'half' }, { t: 'status', id: 'stunned', turns: 2, save: true, quiet: 1 }] },
-    frostbreath: { name: 'Frost Breath', target: 'allEnemies', fx: [{ t: 'damage', dice: '2d6', pow: true, save: 'half', sfx: 'magic' }] },
-    maul: { name: 'Maul', target: 'enemy', fx: [{ t: 'attack', times: 2, atkMod: -1 }] },
-    shieldwall: { name: 'Shield Wall', target: 'allAllies', fx: [{ t: 'status', id: 'guard', turns: 2, quiet: 1 }] }
-  });
-
-  const U = ['undead'], NOSLEEP = ['asleep', 'poison'];
-  Object.assign(D.enemies, {
-    frostwolf: { name: 'Frost Wolf', sprite: 'wolf', hp: 60, ac: 15, atk: 9, dmg: '1d10+5', spd: 5, save: 3, xp: 95, gold: [0, 6], tags: ['beast'], moves: [[3, 'attack'], [1, 'savage']] },
-    icewight: { name: 'Ice Wight', sprite: 'wight', hp: 80, ac: 16, atk: 9, dmg: '1d10+6', pow: 5, spd: 2, save: 4, xp: 120, gold: [6, 16], tags: U, immune: NOSLEEP, moves: [[3, 'attack'], [1, 'gravechill']] },
-    frostspirit: { name: 'Frost Spirit', sprite: 'frostspirit', hp: 42, ac: 17, atk: 9, dmg: '1d8+5', pow: 6, spd: 6, save: 3, xp: 80, gold: [0, 6], tags: U, immune: NOSLEEP, moves: [[2, 'attack'], [2, 'spark']] },
-    hlacolyte: { name: 'Pale Hand Frost-priest', sprite: 'frostacolyte', hp: 60, ac: 15, atk: 8, dmg: '1d8+5', pow: 6, spd: 3, save: 4, xp: 90, gold: [10, 20], tags: ['human'], moves: [[2, 'attack'], [2, 'spark'], [1, 'hex']], loot: [['potent', 0.15]] },
-    hlzealot: { name: 'Pale Hand Reaver', sprite: 'frostzealot', hp: 90, ac: 17, atk: 10, dmg: '1d10+6', spd: 2, save: 4, xp: 125, gold: [14, 26], tags: ['human'], moves: [[3, 'attack'], [1, 'chant']] },
-    snowgoblin: { name: 'Hill Goblin', sprite: 'goblin', hp: 45, ac: 15, atk: 8, dmg: '1d8+4', spd: 4, save: 2, xp: 60, gold: [4, 10], tags: ['goblin'] },
-    stoneguard: { name: 'Cairn Guardian', sprite: 'golem', hp: 130, ac: 18, atk: 10, dmg: '2d6+6', spd: 0, save: 5, xp: 170, gold: [0, 0], tags: ['construct'],
-      immune: ['asleep', 'poison', 'stunned'], moves: [[3, 'attack'], [1, 'crush'], [1, 'shellguard']] },
-    shieldmaiden: { name: 'Karrow Shieldmaiden', sprite: 'shieldmaiden', hp: 70, ac: 16, atk: 9, dmg: '1d8+5', spd: 2, save: 3, xp: 80, gold: [0, 0], tags: ['human'], moves: [[3, 'attack'], [1, 'shieldwall']] },
-    bryn: { name: 'Bryn Stonehand', sprite: 'bryn', hp: 150, ac: 16, atk: 10, dmg: '1d10+5', spd: 3, save: 4, xp: 180, gold: [0, 0], tags: ['human'], immune: ['asleep'], moves: [[3, 'attack'], [1, 'maul']] },
-    // mini-bosses and bosses
-    nagra: { name: 'Nagra Grukk-sister', sprite: 'nagra', hp: 160, ac: 16, atk: 10, dmg: '2d6+5', spd: 3, save: 3, xp: 220, gold: [40, 60], tags: ['goblin'], immune: ['asleep'], moves: [[3, 'attack'], [1, 'maul'], [1, 'bellow']] },
-    rimeclaw: { name: 'Rimeclaw', sprite: 'bear', scale: 4, hp: 360, ac: 16, atk: 11, dmg: '2d8+6', spd: 2, save: 4, xp: 420, gold: [0, 0], tags: ['beast'],
-      immune: ['asleep', 'stunned'], moves: [[3, 'attack'], [2, 'maul'], [1, 'bellow']], loot: [['rimecloak', 1]] },
-    watcher: { name: 'The Last Watcher', sprite: 'watcher', hp: 250, ac: 17, atk: 10, dmg: '1d10+6', pow: 7, spd: 3, save: 5, xp: 360, gold: [40, 60], tags: U,
-      immune: ['asleep', 'poison', 'stunned'], moves: [[2, 'attack'], [2, 'tolling'], [1, 'gravechill']] },
-    veyra3: { name: 'Sister Veyra', sprite: 'veyra', hp: 260, ac: 16, atk: 9, dmg: '1d8+5', pow: 8, spd: 3, save: 6, xp: 380, gold: [0, 0], tags: ['human'],
-      immune: ['asleep', 'stunned'], moves: [[1, 'attack'], [3, 'lampfire'], [2, 'hex'], [1, 'mend']] },
-    giant: { name: 'Hrimgar the Sleeper', sprite: 'giant', scale: 4, hp: 550, ac: 17, atk: 10, dmg: '2d8+6', pow: 6, spd: 1, save: 6, xp: 900, gold: [150, 150], tags: ['giant'],
-      immune: ['asleep', 'poison', 'stunned'], moves: [[3, 'attack'], [2, 'stomp'], [1, 'frostbreath'], [1, 'crush']] }
-  });
-
-  Object.assign(D.guests, {
-    bryn: { name: 'Bryn', sprite: 'bryn', hp: 110, ac: 16, atk: 10, dmg: '1d10+5', spd: 3, save: 4, moves: [[3, 'attack'], [1, 'maul']], joinText: 'Bryn Stonehand fights beside you. She acts on her own.' },
-    veyra: { name: 'Veyra', sprite: 'veyra', hp: 95, ac: 15, atk: 8, dmg: '1d8+4', pow: 8, spd: 3, save: 5, moves: [[2, 'lampfire'], [1, 'mend'], [1, 'attack']], joinText: 'Veyra fights beside you. Her lamp burns white again.' }
-  });
-
-  Object.assign(D.groups, {
-    roadwolves: { enemies: ['frostwolf', 'frostwolf', 'frostwolf'], bg: 'snow', intro: 'Frost wolves come down off the ridge, three of them, and they are hungry.' },
-    trial: { enemies: ['shieldmaiden', 'bryn', 'shieldmaiden'], bg: 'snow', brawl: true, retryOnly: true, retryText: 'Bryn hauls you up by the collar. "Again. The clan is watching."', intro: 'Bryn and two shieldmaidens step into the ring. Fists and shield-rims only.' },
-    fp_wolves: { enemies: ['frostwolf', 'frostwolf', 'frostwolf'] },
-    fp_wights: { enemies: ['icewight', 'icewight'] },
-    fp_spirits: { enemies: ['frostspirit', 'frostspirit', 'frostspirit'] },
-    fp_cult: { enemies: ['hlacolyte', 'hlzealot'] },
-    scouts: { enemies: ['hlacolyte', 'hlzealot', 'hlacolyte'], intro: 'Pale Hand scouts hold the gap in the ridge.' },
-    cairncamp: { enemies: ['hlzealot', 'hlacolyte'], waves: [['hlzealot', 'hlacolyte']], waveText: ['Their friends come out of the tents!'], intro: "The Pale Hand's camp below the Cairn turns out to meet you." },
-    nagra: { enemies: ['snowgoblin', 'nagra', 'snowgoblin'], intro: 'Nagra hefts her brother\'s cleaver.' },
-    guardians: { enemies: ['stoneguard', 'stoneguard'], bg: 'crypt', intro: 'The Cairn Guardians lift their heads.' },
-    cairnwights: { enemies: ['icewight', 'frostspirit', 'icewight'], bg: 'crypt' },
-    veyra3: { enemies: ['hlzealot', 'veyra3', 'hlzealot'], bg: 'crypt', boss: true, music: 'boss', intro: 'Veyra raises her lamp. It burns grey, and her hand is shaking.' },
-    giant: { enemies: ['giant', 'icewight'], bg: 'crypt', boss: true, intro: 'Hrimgar the Sleeper stands up, and up, and up.' },
-    ic_wolves: { enemies: ['frostwolf', 'frostwolf', 'frostwolf'] },
-    ic_wights: { enemies: ['icewight', 'icewight', 'frostspirit'] },
-    rimeclaw: { enemies: ['rimeclaw', 'frostwolf'], boss: true, intro: 'Rimeclaw rears up, white as the cave and twice as cold.' },
-    wt_spirits: { enemies: ['frostspirit', 'frostspirit'], waves: [['frostspirit', 'frostspirit']], waveText: ['The wind howls, and two more spirits take shape!'] },
-    watcher: { enemies: ['frostspirit', 'watcher', 'frostspirit'], boss: true, intro: 'The Last Watcher draws a sword that is mostly frost.' }
-  });
-
-  Object.assign(D.items, {
-    potent: { name: 'Potent Draught', price: 90, target: 'ally', field: true, desc: 'Restores 6d4+20 HP.', fx: [{ t: 'heal', dice: '6d4+20' }] },
-    // gear sold in Karrow Hold
-    karrowaxe: { name: 'Karrow Greataxe', type: 'weapon', for: ['runa'], dmg: '2d8', mods: { atk: 1 }, price: 520 },
-    wolfplate: { name: 'Wolfhide Plate', type: 'armor', for: ['runa'], mods: { ac: 5, hp: 5 }, price: 480 },
-    icepick: { name: 'Icepick Stiletto', type: 'weapon', for: ['dask'], dmg: '1d10', mods: { atk: 2, spd: 1 }, price: 460 },
-    snowcloak: { name: 'Snowcloak', type: 'armor', for: ['dask'], mods: { ac: 4, spd: 1 }, price: 420 },
-    runemace: { name: 'Rune Mace', type: 'weapon', for: ['maren'], dmg: '1d12', mods: { pow: 2 }, price: 480 },
-    oathmail: { name: 'Oath-mail', type: 'armor', for: ['maren'], mods: { ac: 6, save: 1 }, price: 520 },
-    skaldblade: { name: "Skald's Blade", type: 'weapon', for: ['finch'], dmg: '1d12', mods: { spd: 1, pow: 1 }, price: 460 },
-    furcoat: { name: 'Bear-fur Coat', type: 'armor', for: ['finch'], mods: { ac: 4, hp: 4 }, price: 400 },
-    frostward: { name: 'Frost-ward Amulet', type: 'charm', mods: { save: 3 }, price: 300 },
-    wolfcharm: { name: 'Wolf-fang Charm', type: 'charm', mods: { dmgBonus: 3 }, price: 340 },
-    // found in chapter 3
-    oathstone: { name: 'Oathstone', type: 'charm', mods: { ac: 2, save: 1 }, desc: 'A river pebble with Runa\'s name scratched in it at sixteen. Sigrid kept it.' },
-    rimecloak: { name: "Rimeclaw's Pelt", type: 'armor', for: ['dask'], mods: { ac: 5, spd: 1, hp: 5 }, desc: 'Warm, white, and enormous. Dask wears about a third of it.' },
-    watchermail: { name: "Watcher's Mail", type: 'armor', for: ['finch'], mods: { ac: 5, save: 2 }, desc: 'Mail from the watchtower of the Fifth Lamp. It rings faintly when Finch sings.' },
-    hallvardaxe: { name: "Hallvard's Axe", type: 'weapon', for: ['runa'], dmg: '2d8+1', mods: { atk: 2 }, desc: 'Old Warden Hallvard\'s axe, from the Oath-Vault. It was at the Cairn door the night he died.' },
-    clanring: { name: 'Clan Ring of Karrow', type: 'charm', mods: { hp: 8, dmgBonus: 1 }, desc: 'Bronze, worn smooth. Every Cairnwarden wore one.' },
-    giantheart: { name: "Hrimgar's Heart-stone", type: 'charm', mods: { pow: 3, dmgBonus: 2, hp: 10 }, desc: 'Cold as the deep of winter, and heavy with a giant\'s strength. The Cairn will not sleep without it.' },
-    shard3: { name: 'The Cairn Shard', type: 'key', desc: 'The third shard of the Barrow King\'s crown. It is cold enough to burn.' },
-    verse3: { name: 'The Fifth Verse, Third Stanza', type: 'key', desc: '"And when the four had kept their sleep, she found the door would not stay shut; she took the key into the deep, and turned it, and was not seen but..."' },
-    letter3: { name: "Kell's Letter", type: 'key', desc: 'Warden Kell\'s last report to the Wardens, unsent: the Cairn lamp is failing from inside, not from out.' }
-  });
-  Object.assign(D.shops, {
-    thora: { name: "Thora's Forge", blurb: 'Hill-iron, cold-forged. It does not shatter in the frost.', stock: ['karrowaxe', 'wolfplate', 'icepick', 'snowcloak', 'runemace', 'oathmail', 'skaldblade', 'furcoat'] },
-    ulf: { name: "Ulf's Furs and Sundries", blurb: 'Furs, salves, and anything that keeps you breathing up there.', stock: ['campkit', 'draught', 'greater', 'potent', 'tonic', 'salts', 'bitterroot', 'frostward', 'wolfcharm'] }
-  });
+  D.pix = {
+    wolf: { pal: { a: '#7b7f8a', b: '#4a4d57', c: '#c9ccd6', e: '#ffe14a', k: '#1a1420' }, rows: [
+      '................', '................', '...........b..b.', '...........ab.ab', '..........aaaaaa', 'b.........aaeaaa',
+      'ab.......aaaaaak', '.ab.aaaaaaaaacc.', '..aaaaaaaaaaac..', '..aaaaaaaaaaa...', '..aaccccccaaa...', '..aa.....baa....',
+      '..ab.....b.a....', '..a.b....b.a....', '..a.b....b.a....', '.bb.bb..bb.bb...'] },
+    alpha: { pal: { a: '#b9bcc6', b: '#6a6d78', c: '#f0f0f4', e: '#ff5a4a', k: '#1a1420' }, rows: [
+      '................', '...........b..b.', '...........ab.ab', '..........aaaaaa', 'b.........aaeaaa', 'ab.......aaaaaak',
+      '.ab.aaaaaaaaaacc', '.aaaaaaaaaaaaac.', '..aaaaaaaaaaaa..', '..aaaaaaaaaaa...', '..aaccccccaaa...', '..aa.....baa....',
+      '..ab.....b.a....', '..a.b....b.a....', '..a.b....b.a....', '.bb.bb..bb.bb...'] },
+    rat: { pal: { a: '#8a6f5a', b: '#5e493a', p: '#e8a0a0', e: '#1a1420' }, rows: [
+      '................', '................', '................', '................', '................', '................',
+      '..........pp....', '.........apaa...', '....aaaaaaaaea..', '...aaaaaaaaaaaap', '..aaaaaaaaaaaa..', 'p.aaaaaaaaaaa...',
+      '.paaba...abaa...', '..p.b.b...b.b...', '................', '................'] },
+    spider: { pal: { a: '#4a3a5a', b: '#2a2035', c: '#7a6a8a', e: '#ff5a4a' }, rows: [
+      '................', '................', '................', '..b..........b..', '...b...aa...b...', 'b...b.aaaa.b...b',
+      '.b...aaccaa...b.', '..bbaaccccaabb..', '....aaaaaaaa....', '..bbaeaaaaeabb..', '.b..aaaaaaaa..b.', 'b...b.aaaa.b...b',
+      '...b...bb...b...', '..b..........b..', '................', '................'] },
+    bat: { pal: { a: '#5a4a6a', b: '#2a2035', e: '#ffe14a' }, rows: [
+      '................', '................', '................', 'b..............b', 'bb...b....b...bb', 'bab..ba..ab..bab',
+      'baab.aaaaaa.baab', 'baaabaeaaeabaaab', '.baaaaaaaaaaaab.', '..baaaaaaaaaab..', '...ba.aaaa.ab...', '....b..aa..b....',
+      '................', '................', '................', '................'] }
+  };
 })();

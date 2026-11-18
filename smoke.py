@@ -32,7 +32,7 @@ async def main():
             for i in range(maxn):
                 if await ev("G.scene === 'field' && !G.busy && !G.modals.length"): return True
                 if shots and i in shots: await shot(shots[i])
-                await pg.keyboard.press('z'); await pg.wait_for_timeout(80)
+                await pg.keyboard.press('e'); await pg.wait_for_timeout(80)
             return False
         async def face(x, y, d):
             await ev("(Field.p.x = Field.p.tx = %d, Field.p.y = Field.p.ty = %d, Field.p.dir = '%s', 1)" % (x, y, d))
@@ -64,40 +64,40 @@ async def main():
         await until_free()
         ok('the door will not let you leave', await ev("G.S.map === 'tavern' && Field.p.y === 10"))
         for (x, y, d) in [(3, 8, 'up'), (4, 5, 'down'), (5, 8, 'up')]:
-            await face(x, y, d); await key('z'); await until_free()
+            await face(x, y, d); await key('e'); await until_free()
         ok('talking to all three updates the hint', await ev("G.flag('tut.talked') === 3 && /Brannoc/.test(document.querySelector('.hintbox').textContent)"))
         await shot('58_hint2.png')
         d0 = await ev("G.S.bag.draught || 0")
-        await face(16, 2, 'up'); await key('z'); await until_free()
+        await face(16, 2, 'up'); await key('e'); await until_free()
         ok('searching the cask finds two draughts', await ev("G.S.bag.draught") == d0 + 2)
         await key('x'); await pg.wait_for_timeout(250)
         for i in range(12):                                                   # find Save by name (the menu's order can change)
             if await ev("((document.querySelector('.menu .mi.sel .ml') || {}).innerText || '') === 'Save'"): break
             await key('ArrowDown')
-        await key('z'); await pg.wait_for_timeout(300)
+        await key('e'); await pg.wait_for_timeout(300)
         ok('saving is blocked during the tutorial', await ev("!localStorage.getItem(G.SAVE_KEY)"))
         await key('x'); await pg.wait_for_timeout(300)
         await ev("(G._d20 = G.d20, G.d20 = () => 15, 1)")                 # make the coat check pass
-        await face(6, 9, 'down'); await key('z')
+        await face(6, 9, 'down'); await key('e')
         await until_free(200, {6: '59_coat_check.png', 10: '60_letter.png'})
         ok('the coat check finds the letter', await ev("G.flag('tut.letter') === 1 && G.has('voskletter') === 1"))
         await ev("(G.d20 = G._d20, 1)")
-        await face(15, 4, 'left'); await key('z'); await pg.wait_for_timeout(400)
+        await face(15, 4, 'left'); await key('e'); await pg.wait_for_timeout(400)
         await shot('61_ingrid_choice.png')
-        await key('z'); await until_free()
+        await key('e'); await until_free()
         ok('showing the letter recruits Ingrid', await ev("G.flag('ingridAlly') === 1"))
 
         # ---------- the guided brawl ----------
-        await face(11, 3, 'up'); await key('z'); await pg.wait_for_timeout(400)
-        await key('ArrowDown'); await key('z')
+        await face(11, 3, 'up'); await key('e'); await pg.wait_for_timeout(400)
+        await key('ArrowDown'); await key('e')
         for i in range(60):
             if await ev("G.scene === 'battle' && !!document.querySelector('.bcmd')"): break
-            await key('z', 1, 120)
+            await key('e', 1, 120)
         await shot('62_guide_runa.png')
         ok('Runa is guided to Attack, other commands locked', await ev("B.active && B.active.id === 'runa' && B.logEl.classList.contains('guide') && document.querySelectorAll('.bcmd .mi.dis').length === 5"))
-        await key('ArrowDown'); await key('z'); await pg.wait_for_timeout(200)
+        await key('ArrowDown'); await key('e'); await pg.wait_for_timeout(200)
         ok('a locked command cannot be chosen', await ev("!!document.querySelector('.bcmd') && !document.querySelector('.bsub')"))
-        await key('ArrowUp'); await key('z'); await pg.wait_for_timeout(250)
+        await key('ArrowUp'); await key('e'); await pg.wait_for_timeout(250)
         await shot('63_guide_target.png')
         ok('only Brannoc can be targeted on the board', await ev("!!(B.ui && B.ui.valid && B.ui.valid.size === 1 && [...B.ui.valid].every(k => { const p = k.split(',').map(Number); const o = B.occupant(p[0], p[1]); return o && o.id === 'brannoc'; }))"))
         seen, steps = set(), {'dask': '64_guide_dask.png', 'maren': '65_guide_maren.png', 'finch': '66_guide_finch.png'}
@@ -106,12 +106,12 @@ async def main():
             if st in steps and st not in seen:
                 seen.add(st); await shot(steps[st])
                 if st == 'maren':
-                    await key('z'); await pg.wait_for_timeout(250); await shot('65b_mend.png')
+                    await key('e'); await pg.wait_for_timeout(250); await shot('65b_mend.png')
                     ok('Maren is guided to Mend', await ev("document.querySelector('.bsub .mi.sel') && /Mend/.test(document.querySelector('.bsub .mi.sel').textContent)"))
                     continue
             if await ev("G.scene === 'battle' && B.guide && B.guide.length === 0 && B.active && B.active.side === 0 && !B.active.guest && !!document.querySelector('.bcmd')"):
                 break
-            await key('z', 1, 110)
+            await key('e', 1, 110)
         await shot('67_free_control.png')
         ok('guided steps done, then full control', await ev("B.guide && B.guide.length === 0 && document.querySelectorAll('.bcmd .mi.dis').length <= 2"))
         ok('Ingrid fought as a guest ally', await ev("B.c.some(c => c.guest && c.id === 'ingrid')"))
@@ -124,15 +124,15 @@ async def main():
 
         # ---------- the game proper ----------
         await ev("(void Field.exec(() => Field.enter('tavern', {x: 6, y: 3}, {dir: 'up'})), 1)"); await pg.wait_for_timeout(900)
-        await key('z'); await pg.wait_for_timeout(700)
+        await key('e'); await pg.wait_for_timeout(700)
         ok('Bram offers a room after the tutorial', await ev("!!document.querySelector('.choice')"))
-        await key('ArrowDown', 2); await key('z'); await until_free()
+        await key('ArrowDown', 2); await key('e'); await until_free()
         await face(8, 10, 'down'); await hold('ArrowDown', 600); await pg.wait_for_timeout(900)
         ok('the tavern door leads to town', await ev("G.S.map") == 'brackenford')
         await ev("(void Field.exec(() => Field.enter('smithy', {x: 4, y: 3}, {dir: 'up'})), 1)"); await pg.wait_for_timeout(900)
         for _ in range(30):
             if await ev("!!document.querySelector('.pane')"): break
-            await key('z', 1, 200)
+            await key('e', 1, 200)
         ok('Ingrid opens her shop after the gift', await ev("!!document.querySelector('.pane')"))
         for _ in range(6):
             if not await ev("!!document.querySelector('.pane')"): break
@@ -140,12 +140,12 @@ async def main():
         await until_free(10)
         ok('Ingrid gives her gift at the forge', await ev("G.flag('ingridGift') === 1 && G.has('horseshoe') === 1"))
         await key('x'); await pg.wait_for_timeout(250)
-        await key('ArrowDown'); await key('z'); await pg.wait_for_timeout(250)
+        await key('ArrowDown'); await key('e'); await pg.wait_for_timeout(250)
         await ev("(G.S.party[0].hp = 3, 1)")
         d1 = await ev("G.S.bag.draught")
-        await key('z'); await pg.wait_for_timeout(200); await key('z'); await pg.wait_for_timeout(200)
+        await key('e'); await pg.wait_for_timeout(200); await key('e'); await pg.wait_for_timeout(200)
         ok('a draught heals from the menu', await ev('G.S.party[0].hp') > 3 and await ev("G.S.bag.draught") == d1 - 1)
-        await key('x'); await key('ArrowDown', 2); await key('z'); await pg.wait_for_timeout(250)
+        await key('x'); await key('ArrowDown', 2); await key('e'); await pg.wait_for_timeout(250)
         for _ in range(6):                                   # walk down the journal until the Chronicle is showing
             await key('ArrowDown'); await pg.wait_for_timeout(120)
             if await ev("!!document.querySelector('.chron')"): break
@@ -154,20 +154,20 @@ async def main():
         await key('x', 2); await pg.wait_for_timeout(300)
         ok('menu closes', await ev("!G.modals.length && !G.busy"))
         await ev("(G.S.gold = 200, void Field.exec(() => Field.enter('shop', {x: 4, y: 3}, {dir: 'up'})), 1)"); await pg.wait_for_timeout(900)
-        await key('z'); await pg.wait_for_timeout(400)
+        await key('e'); await pg.wait_for_timeout(400)
         for _ in range(14):
             if await ev("!!document.querySelector('.pane')"): break
-            await key('z'); await pg.wait_for_timeout(120)
-        await key('z'); await pg.wait_for_timeout(300)
+            await key('e'); await pg.wait_for_timeout(120)
+        await key('e'); await pg.wait_for_timeout(300)
         d2 = await ev("G.S.bag.draught")
-        await key('z'); await pg.wait_for_timeout(150)
+        await key('e'); await pg.wait_for_timeout(150)
         ok('buying takes gold and adds the item', await ev("G.S.gold") == 185 and await ev("G.S.bag.draught") == d2 + 1)
         await key('x', 2); await pg.wait_for_timeout(300)
         ok('shop closes cleanly', await ev("!G.modals.length && !G.busy && !document.querySelector('.pane')"))
         await ev("(void Field.exec(() => B.start('b1_camp', {})), 1)"); await pg.wait_for_timeout(1500)
         for i in range(900):
             if await ev("G.scene === 'field' && !G.busy"): break
-            await pg.keyboard.press('z'); await pg.wait_for_timeout(60)
+            await pg.keyboard.press('e'); await pg.wait_for_timeout(60)
         ok('an ordinary battle ends back on the field', await ev("G.scene === 'field' && !G.busy"))
         await ev("(G.save(), 1)")
         xp = await ev("G.S.xp")

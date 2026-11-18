@@ -78,11 +78,12 @@
   B.buildViewButtons = function () {
     if (B.viewEl) B.viewEl.remove();
     const el = UI.el('div', 'bview');
-    const btn = (txt, title, fn) => { const b = UI.el('button', 'bvb', txt); b.title = title; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (G.audio) G.audio.unlock(); fn(); }); el.appendChild(b); return b; };
-    B.viewBtn = btn('', 'Switch board view (' + (G.keyName ? G.keyName((G.bindings().bview || [])[0]) : 'V') + ')', () => B.toggleView());
-    B.threatBtn = btn('⚔', 'Show where enemies can strike next turn (T)', () => B.toggleThreat());
-    btn('⟲', 'Turn the board left', () => B.turnView(-1));
-    btn('⟳', 'Turn the board right', () => B.turnView(1));
+    const kb = G.bindings(), key = id => (kb[id] || [])[0] ? G.keyName(kb[id][0]) : '';
+    const btn = (txt, title, fn, id) => { const b = UI.el('button', 'bvb', txt); b.title = title + (key(id) ? ' (' + key(id) + ')' : ''); if (key(id)) b.dataset.key = key(id); b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (G.audio) G.audio.unlock(); fn(); }); el.appendChild(b); return b; };
+    B.viewBtn = btn('', 'Switch board view', () => B.toggleView(), 'bview');
+    B.threatBtn = btn('⚔', 'Show where enemies can strike next turn', () => B.toggleThreat(), 'threat');
+    btn('⟲', 'Turn the board left', () => B.turnView(-1), 'rot_l');
+    btn('⟳', 'Turn the board right', () => B.turnView(1), 'rot_r');
     UI.root.appendChild(el); B.viewEl = el; B.refreshView();
   };
   B.refreshView = function () {
@@ -91,7 +92,7 @@
     B.viewEl.classList.toggle('flat', !iso);
     if (B.threatBtn) B.threatBtn.classList.toggle('on', !!G.opts.threat);
     B.viewBtn.textContent = iso ? '▦' : '◆';
-    B.viewBtn.title = iso ? 'Switch to the flat board' : 'Switch to the diamond board';
+    B.viewBtn.title = (iso ? 'Switch to the flat board' : 'Switch to the diamond board') + (B.viewBtn.dataset.key ? ' (' + B.viewBtn.dataset.key + ')' : '');
   };
   // Arrow keys move the cursor by screen direction: up goes up and to the right, as on the flat board at the
   // opening angle; after a turn, whichever grid direction now points that way.
@@ -277,8 +278,8 @@
     const turning = B.isoTurning(), gcv = ground();
     if (turning) slab(c); else {
       const bc = baseCache;
-      if (!bc || bc.g !== gcv || bc.rot !== B.rot || bc.bg !== B.bg || bc.rev !== B.boardRev) {
-        const cv = bc && bc.cv || document.createElement('canvas'); cv.width = 320 * B.RES; cv.height = 240 * B.RES;
+      if (!bc || bc.g !== gcv || bc.rot !== B.rot || bc.bg !== B.bg || bc.rev !== B.boardRev || bc.cv.width !== Math.round(320 * B.RES)) {
+        const cv = bc && bc.cv || document.createElement('canvas'); cv.width = Math.round(320 * B.RES); cv.height = Math.round(240 * B.RES);
         const cc = cv.getContext('2d'); cc.setTransform(B.RES, 0, 0, B.RES, 0, 0); slab(cc);
         baseCache = { cv, g: gcv, rot: B.rot, bg: B.bg, rev: B.boardRev };
       }

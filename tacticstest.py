@@ -68,7 +68,7 @@ async def main():
         await pg.keyboard.press('5'); await pg.wait_for_timeout(300)
         await pg.screenshot(path='/tmp/tac_threat.png')
         for k in ['ArrowRight', 'ArrowRight']: await pg.keyboard.press(k); await pg.wait_for_timeout(120)
-        await pg.keyboard.press('z'); await pg.wait_for_timeout(1500)
+        await pg.keyboard.press('e'); await pg.wait_for_timeout(1500)
         moved = await pg.evaluate("[B.active.gx, B.active.gy, [...document.querySelectorAll('.bcmd .mi')].map(e => e.textContent.trim())]")
         await pg.keyboard.press('u'); await pg.wait_for_timeout(400)
         back = await pg.evaluate("[B.active.gx, B.active.gy]")

@@ -23,7 +23,7 @@
     ]],
     ['Combat', [
       ['Turns and moving',
-        'Each round, everyone rolls a d20 plus their speed, highest first.\n\nOn your turn, move and act once each, in either order. Changed your mind? Undo the move ({bt_undo}) before you act.\n\nHow far you move: speed 4 or more, 4 squares; speed 0 or less, 2; otherwise 3. Rough ground and shallows cost 2 squares to enter.'],
+        'At the start of a fight, everyone rolls a d20 plus their speed. That order holds for the whole fight; anyone who joins later rolls and takes their place.\n\nOn your turn, move and act once each, in either order. Changed your mind? Undo the move ({bt_undo}) before you act.\n\nHow far you move: speed 4 or more, 4 squares; speed 0 or less, 2; otherwise 3. Rough ground and shallows cost 2 squares to enter.'],
       ['Attacking',
         'An attack is a d20 plus your attack bonus, against the target\'s AC. Aiming shows your chance to hit and the damage before you commit.\n\n· A natural 20 is a critical hit: damage dice are doubled. A natural 1 always misses.\n· Flanking: if an ally already stands beside the target, melee gets +2. Dask gets it at any range, and his Sneak Attack works on such a target.\n· Shooting with an enemy right beside you: -2.'],
       ['Holding ground',

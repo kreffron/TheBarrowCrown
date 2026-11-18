@@ -1,272 +1,240 @@
-/* Chapter 2 — the Drowned Abbey (two floors), the sea cave under Saltmere light, and the Mirefen bell tower. */
+/* Chapter 4 — the Catacombs under Highmoor (two floors), Orrin's vault at night, and the Cathedral undercrypt. */
 (function () {
   const D = G.D, M = D.maps;
 
-  /* ---------- the Drowned Abbey, upper floor ----------
-     Two ways in: the flooded nave (the Drowned Choir waits there) or the cloister garden door
-     (open with abbeyHint, or Dask picks it, or Runa breaks it). The crypt gate opens when the
-     outer levers are up and the middle one is down: "two lamps at his hands, none on his heart". */
-  const lever = (id, name) => ({
-    type: 'obj', gfx: 'lever', gfxIf: ['ab1.' + id, 'leverOn'], script: [['if', 'ab1.gate', [['note', 'The ' + name + ' lever is rusted fast now. The gate is open.']], [
-      ['sfx', 'lever'],
-      ['if', 'ab1.' + id, [['set', 'ab1.' + id, 0], ['note', 'You push the ' + name + ' lever back down.']], [['set', 'ab1.' + id], ['note', 'You haul the ' + name + ' lever up.']]],
-      ['if', 'ab1.l&ab1.o&!ab1.m', [
-        ['shake', 450], ['set', 'ab1.gate'],
-        ['note', 'Chains rattle inside the walls. In the middle of the hall, the crypt gate grinds open.'],
-        ['xp', 40]
-      ]]
-    ]]]
+  /* ---------- the Catacombs, floor 1 ----------
+     Four lamps in a row. Lighting one flips it and its neighbours. All four lit opens the stair.
+     "Light the ends, and the middle will follow." */
+  const flip = n => ['if', 'cl.' + n, [['set', 'cl.' + n, 0]], [['set', 'cl.' + n, 1]]];
+  const lamp4 = n => ({
+    type: 'obj', gfx: 'lampDead', gfxIf: ['cl.' + n, 'shrine'], script: [['if', 'cl.open', [['note', 'The lamps burn steady now.']], [
+      ['sfx', 'magic'], flip(n)].concat(n > 1 ? [flip(n - 1)] : [], n < 4 ? [flip(n + 1)] : [], [
+      ['note', 'The lamp flares, and so do its neighbours: the lit ones go dark, the dark ones catch.'],
+      ['if', 'cl.1&cl.2&cl.3&cl.4', [['shake', 500], ['set', 'cl.open'], ['note', 'All four lamps burn together. At the north end of the ossuary, the stair gate grinds open.'], ['xp', 150]]]
+    ])]]
   });
-
-  M.abbey1 = {
-    name: 'The Drowned Abbey', ground: 'stone', ground2: 'cave', music: 'dungeon', bg: 'crypt', dark: 0.7,
-    encounters: { rate: 0.05, min: 10, groups: [['abbey_drowned', 1]] },
-    onEnter: [['if', 'q.main2<4', [['quest', 'main2', 4]]]],
+  M.catacombs1 = {
+    name: 'The Catacombs', ground: 'stone', ground2: 'cave', music: 'dungeon', bg: 'crypt', dark: 0.7,
+    legend: { '#': 'niches', '=': 'coffin', '&': 'skulls' },
     rows: [
       '##############################',
-      '#############.z.##############',
+      '##############z###############',
       '##############g###############',
-      '#.l.....m...........p......o.#',
-      '#...................h........#',
-      '#...I......I.....I.....I.....#',
-      '#####.########..########.#####',
-      '#.........##~~<<~~###........#',
-      '#.KK....A.##~~<<~~###........#',
-      '#.....%...##~~<<~~###..""""..#',
-      '#.........##~~n<~~###..""""..#',
-      '#####r######~~<<~~###.."<<"..#',
-      '#.........##~~<<~~###.."<<"..#',
-      '#....Q....##~~<<~~###.."<<"..#',
-      '#.c.....d.##~~<<~~###.."<<"..#',
-      '#.........##~~<<~~###.."<<"..#',
-      '##########..........#..""""..#',
-      '##########..h.......#..""""..#',
-      '##########..........k........#',
-      '##########.I......I.#........#',
-      '##########..........#........#',
+      '##&........................&##',
+      '##....1....2......3....4....##',
+      '##..........................##',
+      '##..........................##',
+      '##...........................#',
+      '##..=....................=..d#',
+      '#........=..........=.......##',
+      '#c..........................##',
+      '#...........................##',
+      '##..=........&..&........=..##',
+      '##..........................##',
+      '##############n.##############',
+      '##############..##############',
+      '############......############',
+      '############...p..############',
+      '############......############',
+      '############......############',
+      '############......############',
       '##############x###############'
     ],
     things: {
-      x: { type: 'warp', to: 'mirefen', at: 'a', gfx: 'daylight', out: 'up' },
-      z: { type: 'warp', to: 'abbey2', at: 'u', gfx: 'stairsDown', out: 'down' },
-      n: {
-        type: 'foe', sprite: 'drownedman', dir: 'down', script: [
-          ['if', 'abbeyHint', [['say', 'Maren', 'Do not go in by the nave. She told us. Too late now.']]],
-          ['note', 'The black water of the nave heaves. Twelve drowned monks once prayed here. Some of them are still at it.'],
-          ['battle', 'choir'], ['remove'],
-          ['if', '!abbeyRoute', [['set', 'abbeyRoute', 1]]]
-        ]
+      x: { type: 'warp', to: 'undercroft', at: 'a', gfx: 'daylight', out: 'up' },
+      z: { type: 'warp', to: 'catacombs2', at: 'u', gfx: 'stairsDown', out: 'down' },
+      g: { type: 'obj', gfx: 'gate', unless: 'cl.open', script: [['note', 'A stair gate, shut. Four dark lamps hang along the ossuary wall.']] },
+      n: { type: 'foe', sprite: 'boneknight', dir: 'down', script: [['note', 'Two Bone Knights stand guard at the ossuary door. Their niches are empty.'], ['battle', 'ossuary'], ['remove']] },
+      p: { type: 'sign', gfx: 'notice', text: 'Carved over the door: "FOUR LAMPS FOR FOUR WHO WENT BEFORE. LIGHT THE ENDS, AND THE MIDDLE WILL FOLLOW."' },
+      1: lamp4(1), 2: lamp4(2), 3: lamp4(3), 4: lamp4(4),
+      c: { type: 'chest', gold: 180, items: { elixir: 1 } },
+      d: { type: 'chest', lock: 18, gold: 240, items: { silverbell: 1 } }
+    }
+  };
+
+  /* ---------- the Catacombs, floor 2: the fourth tomb ---------- */
+  M.catacombs2 = {
+    name: 'The Fourth Tomb', ground: 'stone', music: 'dungeon', bg: 'crypt', dark: 0.72,
+    legend: { '#': 'niches', '=': 'coffin' },
+    rows: [
+      '############################',
+      '#############u##############',
+      '#############.##############',
+      '#############.##############',
+      '#############w##############',
+      '#############.##############',
+      '#############.##############',
+      '##...........t............##',
+      '##.=....................=.##',
+      '##...I......m.o......I....##',
+      '##........................##',
+      '##...........l............##',
+      '##..v..................k..##',
+      '##...........s............##',
+      '##......=.........=.......##',
+      '##........................##',
+      '##........................##',
+      '##...I...............I....##',
+      '##.=.........c..........=.##',
+      '##........................##',
+      '#############e##############',
+      '############################'
+    ],
+    things: {
+      u: { type: 'warp', to: 'catacombs1', at: 'z', gfx: 'stairsUp', out: 'down' },
+      w: { type: 'foe', sprite: 'ghoul', dir: 'up', script: [['note', 'The tomb\'s dead are awake, and hungry.'], ['battle', 'tombghouls'], ['remove']] },
+      t: { type: 'trigger', script: [['run', 'unmask']] },
+      l: {
+        type: 'obj', gfx: 'lampDead', gfxIf: [['lampLit4', 'shrine'], ['cs.c4lit', 'shrine']], script: [['if', 'cc.done', [
+          ['note', 'The Catacomb lamp burns blue-white.'],
+          ['choice', null, 'Go back up to Highmoor?', [['Return to the city', [['run', 'catacombsHome']]], ['Not yet', []]]]
+        ], [['note', 'The Catacomb lamp. Dark, and still warm.']]]]
       },
-      k: {
-        type: 'obj', gfx: 'lockedDoor', under: 'stone', script: [
-          ['note', 'A small door, half-hidden by ivy. The cloister garden.'],
-          ['if', 'abbeyHint', [
-            ['say', 'Dask', 'The little garden door. Just like we were told. And look: oiled hinges. Somebody uses this a lot.'],
-            ['sfx', 'door'], ['remove'], ['if', '!abbeyRoute', [['set', 'abbeyRoute', 2]]], ['xp', 60]
-          ], [
-            ['choice', null, 'The door is barred from the inside.', [
-              ['Dask: work the bar loose', [['check', 'dask', 16, [
-                ['say', 'Dask', 'A knife-blade through the crack, lift, and... there.'], ['sfx', 'door'], ['remove'], ['if', '!abbeyRoute', [['set', 'abbeyRoute', 2]]], ['xp', 60]
-              ], [['hurt', 'dask', '1d4'], ['say', 'Dask', 'Splinters. In places I will not describe.']]]]],
-              ['Runa: break it down', [['check', 'runa', 16, [
-                ['sfx', 'hit'], ['shake', 300], ['note', 'Runa goes through the door, and most of the frame goes with her.'], ['remove'], ['if', '!abbeyRoute', [['set', 'abbeyRoute', 2]]], ['xp', 60]
-              ], [['hurt', 'runa', '1d4'], ['say', 'Runa', 'Old oak. Older than me. Not for long.']]]]],
-              ['Leave it', []]
+      s: { type: 'obj', gfx: 'sarcophagus', script: [['if', 'cc.done', [['note', 'The fourth tomb. Empty now, but for an old Warden\'s bones.']], [['note', 'A sarcophagus. Something on it glints.']]]] },
+      m: { type: 'npc', sprite: 'hand', if: 'cs.c4open', dir: 'up' },
+      o: { type: 'npc', sprite: 'orrin', if: 'cs.c4open', dir: 'up' },
+      c: { type: 'npc', sprite: 'corr', if: 'cs.corr', dir: 'up' },
+      v: { type: 'npc', sprite: 'veyra', if: 'cs.veyra4', dir: 'right' },
+      k: { type: 'obj', gfx: 'skulls', unless: 'cc.done', script: [['note', 'A great heap of bones.']] },
+      e: { type: 'mark' }
+    }
+  };
+
+  /* ---------- Orrin's vault, at night (optional) ---------- */
+  M.h_vault = {
+    name: "Orrin's Vault", ground: 'marble', music: 'undercroft', bg: 'crypt', dark: 0.6,
+    legend: { '=': 'papers', '&': 'coins', '>': 'gearwork' },
+    rows: [
+      '########################',
+      '#.u....######>........>#',
+      '#........g.............#',
+      '#......######.....h....#',
+      '#.......#####..........#',
+      '#######.#####..........#',
+      '#######m#########.######',
+      '#######.#########l######',
+      '#......................#',
+      '#..===............==.c.#',
+      '#......................#',
+      '#.e........k...........#',
+      '#......................#',
+      '#.&........b.........&.#',
+      '#......................#',
+      '########################'
+    ],
+    things: {
+      u: { type: 'warp', to: 'h_counting', at: 'v', gfx: 'stairsUp', out: 'down' },
+      g: { type: 'foe', sprite: 'automaton', dir: 'left', script: [['note', 'Two brass automatons stand in the passage, ticking.'], ['battle', 'vaultguards'], ['remove']] },
+      m: { type: 'obj', gfx: 'crack', script: [
+        ['note', 'An old coal chute, bricked over badly. It runs under the guard passage.'],
+        ['check', 'dask', 19, [['say', 'Dask', 'Every vault has a coal chute. Every builder forgets it.'], ['sfx', 'door'], ['remove'], ['xp', 300]],
+          [['hurt', 'dask', '1d8'], ['say', 'Dask', 'Every builder forgets it. This one did not.']]]
+      ] },
+      h: { type: 'obj', gfx: 'table', script: [['if', 'engineHint', [['note', 'The night clerk\'s schedule.']], [
+        ['note', 'The night clerk\'s desk. A schedule: "Engine winds down at the twelfth bell. Do not be in the vault when it winds up."'],
+        ['say', 'Dask', 'So it has a timer. Things with timers can be late.'],
+        ['set', 'engineHint'], ['xp', 40]
+      ]]] },
+      l: { type: 'obj', gfx: 'lockedDoor', script: [
+        ['note', 'The vault door. Seven tumblers and a clockwork dial.'],
+        ['check', 'dask', 18, [['sfx', 'door'], ['say', 'Dask', 'Orrin bought the best lock in Highmoor. I was in Highmoor when it was made.'], ['remove']],
+          [['hurt', 'dask', '1d8'], ['say', 'Dask', 'It pinched. Locks should not pinch.']]]
+      ] },
+      k: { type: 'foe', sprite: 'automaton', dir: 'down', script: [
+        ['note', 'In the middle of the vault, the Collector Engine wakes: a brass giant made of ledgers, scales and steam.'],
+        ['if', 'engineHint', [['say', 'Dask', 'Twelfth bell. It is still warming up. Hit it now.']]],
+        ['battle', 'engine'], ['remove']
+      ] },
+      b: {
+        type: 'obj', gfx: 'brazier', script: [['if', 'heist', [['note', 'The vault brazier.']], [
+          ['note', 'Every debt-paper in Highmoor, stacked to the ceiling. Wren\'s is on top. So, until tonight, was Dask\'s.'],
+          ['choice', null, 'What do you do with the debt-papers of Highmoor?', [
+            ['Burn them, all of them', [
+              ['say', 'Dask', 'Every chain in this city. Into the fire.'],
+              ['note', 'It takes an hour. The vault fills with smoke and the smell of eleven years of interest.'],
+              ['set', 'heist', 1], ['xp', 300], ['bond', 'maren', 1], ['bond', 'finch', 1]
+            ]],
+            ['Take them', [
+              ['say', 'Dask', 'Leverage. Against Corr. Every lord in Highmoor owes on one of these.'],
+              ['say', 'Maren', 'That is exactly what Orrin would have said.'],
+              ['give', 'debtpapers'], ['gold', 600], ['set', 'heist', 2], ['xp', 300], ['bond', 'maren', -1]
             ]]
-          ]]
-        ]
+          ]],
+          ['quest', 'heist', 2]
+        ]]]
       },
+      c: { type: 'chest', gold: 250, items: { elixir: 2 } },
+      e: { type: 'chest', gold: 120, items: { duelistring: 1 } }
+    }
+  };
+
+  /* ---------- the Cathedral undercrypt (optional) ---------- */
+  const ask = (q, opts, right, then) => ['choice', null, q, opts.map(o => [o, o === right ? then : [['sfx', 'bad'], ['note', 'The door groans. A cold wind knocks the party back.'], ['hurt', 'all', '2d6']]])];
+  M.h_crypt = {
+    name: 'The Undercrypt', ground: 'stone', music: 'dungeon', bg: 'crypt', dark: 0.65,
+    legend: { '=': 'coffin' },
+    rows: [
+      '########################',
+      '##########.k.c##########',
+      '##########....##########',
+      '###########r############',
+      '##....................##',
+      '##.=..=..........=..=.##',
+      '##......p......h......##',
+      '##.=................=.##',
+      '##....................##',
+      '###########..###########',
+      '###########w.###########',
+      '###########..###########',
+      '###########..###########',
+      '##########....##########',
+      '##########....##########',
+      '##########....##########',
+      '##########.u..##########',
+      '########################'
+    ],
+    things: {
+      u: { type: 'warp', to: 'h_cathedral', at: 'z', gfx: 'stairsUp', out: 'left' },
+      w: { type: 'foe', sprite: 'shade', dir: 'down', script: [['note', 'Shades drift between the tombs, a little cold light each.'], ['battle', 'cryptshades'], ['remove']] },
+      p: { type: 'sign', gfx: 'notice', text: '"Here lie the High Wardens of the Lamp. The first of us sealed the last door, and asked to be buried by it."' },
+      h: { type: 'obj', gfx: 'shrine', script: [['note', 'A small lamp by the High Wardens\' tombs. Someone still trims it.'], ['run', 'campsite']] },
       r: {
         type: 'obj', gfx: 'lockedDoor', script: [
-          ['note', 'An iron-bound door. Above it, carved in the lintel: THE PRIOR\'S TREASURY.'],
-          ['if', 'item.treasurykey', [['sfx', 'door'], ['say', 'Dask', 'Brannoc\'s key. Some days the world is kind.'], ['remove']],
-            [['check', 'dask', 17, [['sfx', 'door'], ['say', 'Dask', 'Monks. They always buy the expensive locks and then never oil them.'], ['remove']],
-              [['hurt', 'dask', '1d4'], ['say', 'Dask', 'This one is good. Too good. Maybe there is a key somewhere.']]]]]
+          ['note', 'A door with a face carved in it. As you come close, the face speaks.'],
+          ['if', 'verse1&verse2&verse3', [['say', 'Finch', 'Questions about the fifth verse? Oh, I know this one.']], [['say', 'Maren', 'Answer carefully. I think it knows when we guess.']]],
+          ask('"What was the fifth lamp set to do?"', ['Shut the gate', 'Hold the gate', 'Burn the gate'], 'Hold the gate', [
+            ask('"How did she keep the keeping?"', ['With the other four', 'With a crown', 'All alone'], 'All alone', [
+              ask('"Where did she take the key?"', ['To the King', 'Into the deep', 'Up the mountain'], 'Into the deep', [
+                ['sfx', 'door'], ['note', 'The face closes its eyes, and the door swings open.'], ['remove'], ['xp', 150]
+              ])
+            ])
+          ])
         ]
       },
-      c: { type: 'chest', items: { drownedkris: 1, greater: 1 } },
-      d: { type: 'chest', gold: 90, items: { censer: 1 } },
-      l: lever('l', 'left'), m: lever('m', 'middle'), o: lever('o', 'right'),
-      p: { type: 'sign', gfx: 'notice', text: '"Two lamps burned at Prior Anselm\'s hands, and none upon his heart, that the dark might keep him."' },
-      h: { type: 'obj', gfx: 'shrine', script: [['note', 'An old wayshrine of the Lamplighter, its glass cracked but its wick still dry. Maren lights it, and the party gathers its breath.'], ['run', 'campsite']] },
-      g: { type: 'obj', gfx: 'gate', unless: 'ab1.gate', script: [['note', 'An iron gate across the crypt stair. Chains run from it into the walls, toward three levers along the hall.']] }
-    }
-  };
-
-  /* ---------- the Drowned Abbey, crypt ----------
-     The fork: save the fishermen (west) or chase Veyra (east), or trade the Thane's shard if the
-     party carries it. Then the tomb gate opens and the Drowned Prior rises. */
-  M.abbey2 = {
-    name: 'The Abbey Undercroft', ground: 'stone', music: 'dungeon', bg: 'crypt', dark: 0.75,
-    rows: [
-      '##########################',
-      '############u#############',
-      '############.#############',
-      '############.#############',
-      '#........###.###.........#',
-      '#<<<<<<<<###.###.........#',
-      '#<f<<<<<<###.###.......Q.#',
-      '#<<<<<<<<...t............#',
-      '#<f<<w<<<............v.l.#',
-      '#<<<<<<<<................#',
-      '#<f<<<<<<###.###.......h.#',
-      '#<<<<<<<<###y###.........#',
-      '#######...........########',
-      '#######.I......%I.########',
-      '#######...........########',
-      '#######..M..k...c.########',
-      '#######...........########',
-      '##########################'
-    ],
-    things: {
-      u: { type: 'warp', to: 'abbey1', at: 'z', gfx: 'stairsUp', out: 'down' },
-      t: { type: 'trigger', script: [['run', 'abChoice']] },
-      f: { type: 'npc', sprite: 'fisher', unless: 'hostagesLost', dir: 'right', script: [['if', 'ab.done', [
-        ['if', 'priorDead', [['say', 'Fisherman', 'Is it over? Is it really over? Get us home. Please.']], [['say', 'Fisherman', 'Something is down there, past that gate. We heard it singing.']]]
-      ], [['say', 'Fisherman', 'Help us! The water is coming in!']]]] },
-      w: { type: 'npc', sprite: 'hask', unless: 'ab.done', dir: 'right', script: [['say', 'Warden Hask', 'Stay back. The tide decides.']] },
-      v: { type: 'npc', sprite: 'veyra', unless: 'veyraGone', dir: 'left', script: [['say', 'Veyra', 'Choose, Maren.']] },
-      h: { type: 'obj', gfx: 'altar', script: [['note', 'An altar to the Lamplighter, above the waterline. Maren kneels a moment, and the party breathes easier.'], ['run', 'campsite']] },
-      y: { type: 'obj', gfx: 'gate', unless: 'ab.done', script: [['note', 'The gate to the Prior\'s tomb. It will not move.']] },
       k: {
-        type: 'foe', sprite: 'prior', dir: 'up', script: [
-          ['say', 'The Drowned Prior', 'Who... rings... for me?'],
-          ['say', 'Maren', 'No one, Prior Anselm. We have come to put you back to sleep.'],
-          ['say', 'The Drowned Prior', 'I kept the door. A hundred years I kept it, under the water, under the lamp. Now the shard is gone, and the lamp is cold, and I am so... thirsty.'],
-          ['battle', 'prior'], ['remove'], ['run', 'priorDown']
-        ]
-      },
-      c: { type: 'chest', gold: 60, items: { greater: 2 } },
-      l: {
-        type: 'obj', gfx: 'lampDead', gfxIf: ['lampLit2', 'shrine'], script: [['if', 'lampLit2', [
-          ['note', 'The Abbey lamp burns steady and blue. The water is going down.'],
-          ['choice', null, 'Head back to Saltmere?', [['Return to Saltmere', [['run', 'abbeyHome']]], ['Not yet', []]]]
-        ], [['if', 'priorDead', [
-          ['say', 'Maren', 'Lamplighter, who keeps the door: here is a little light for those who go.'],
-          ['sfx', 'magic'], ['set', 'lampLit2'], ['heal'],
-          ['note', 'The Abbey lamp catches, and burns blue-white. All through the undercroft the water sighs, and falls.'],
-          ['say', 'Finch', 'For those who go. That is from the verse.'],
-          ['say', 'Maren', 'It is from the old rite. I wonder now which came first.'],
-          ['xp', 60],
-          ['choice', null, 'The tide is falling. The fen road will be clear until dawn.', [['Return to Saltmere', [['run', 'abbeyHome']]], ['Not yet', []]]]
-        ], [['note', 'The Abbey ward-lamp. Cold. Veyra\'s work.']]]]]]
-      }
-    }
-  };
-  D.scripts.abbeyHome = [
-    ['fade', 'out', 500],
-    ['if', 'hostagesSaved', [['note', 'You lead the fishermen back across Mirefen by the light of the falling tide.']], [['note', 'You cross Mirefen in silence.']]],
-    ['warp', 'saltmere', 'u', 'up']
-  ];
-
-  /* ---------- the sea cave under the lighthouse (optional) ---------- */
-  D.scripts.pipSaved = [
-    ['say', 'Pip', 'You killed it! You killed Old Snapjaw! Da said nobody could.'],
-    ['say', 'Runa', 'Your da is waiting for you.'],
-    ['say', 'Pip', 'I got the oil. I just could not get past the crab. Here, you carry it. It is heavy.'],
-    ['give', 'oil'], ['quest', 'light', 2], ['set', 'pipSafe'], ['bond', 'runa', 1]
-  ];
-  M.seacave = {
-    name: 'Sea Cave', ground: 'mud', music: 'dungeon', bg: 'cave', dark: 0.7,
-    encounters: { rate: 0.05, min: 10, groups: [['seacrabs', 1], ['seadrowned', 1]] },
-    rows: [
-      '##########################',
-      '#``````````#`````~~~~~~~~#',
-      '#`u``````X`#`````~~~~~~~~#',
-      '#``````````#``U``~~~~~~~~#',
-      '#`````r````#`````~~~~~~~~#',
-      '#``````````#`````````````#',
-      '#```%``````````````````c`#',
-      '#``````````#```d`````````#',
-      '#``````````#`````````````#',
-      '#~~~~~~~~~```````````````#',
-      '#~~~~~~~~~########b#######',
-      '#~~~~~~~~~```````````````#',
-      '#~~~~~~~~~``````k`````p``#',
-      '#~~~~~~~~~````o``````````#',
-      '#~~~~~~~~~```````````````#',
-      '##########################'
-    ],
-    things: {
-      u: { type: 'warp', to: 'saltmere', at: 'v', gfx: 'daylight', out: 'up' },
-      r: { type: 'foe', sprite: 'crab', dir: 'down', script: [['note', 'Shore crabs, big as cart-wheels, sidle out of a crack in the rock.'], ['battle', 'seacrabs'], ['remove']] },
-      d: { type: 'foe', sprite: 'drownedman', dir: 'left', script: [['note', 'Drowned smugglers, still guarding their casks.'], ['battle', 'seadrowned'], ['remove'], ['give', 'tag']] },
-      c: { type: 'chest', gold: 45, items: { greater: 1 } },
-      o: { type: 'chest', gold: 30, items: { tonic: 1 }, script: [['note', 'Smugglers\' casks. Most hold brandy. Dask approves.']] },
-      b: {
-        type: 'obj', gfx: 'rubble', script: [
-          ['note', 'A rockfall chokes the passage. Through the gaps you can hear clicking, and a child crying.'],
-          ['check', 'runa', 12, [['sfx', 'lever'], ['shake', 350], ['note', 'Runa heaves the rocks aside.'], ['remove']],
-            [['hurt', 'runa', '1d4'], ['say', 'Runa', 'Hold on, child. One more go.']]]
-        ]
-      },
-      k: { type: 'foe', sprite: 'crab', dir: 'right', script: [['run', 'snapjawFight']] },
-      p: { type: 'npc', sprite: 'pip', unless: 'pipSafe', dir: 'left', script: [['if', 'x.seacave.k', [['run', 'pipSaved']], [
-        ['say', 'Pip', 'Behind you! It is waking up!'], ['run', 'snapjawFight']
-      ]]] }
-    }
-  };
-  D.scripts.snapjawFight = [
-    ['note', 'The heap of barnacled rock by the oil casks unfolds into a crab the size of a fishing boat.'],
-    ['say', 'Dask', 'That is not a crab. That is a building with claws.'],
-    ['battle', 'snapjaw'], ['remove', 'seacave.k'], ['run', 'pipSaved']
-  ];
-
-  /* ---------- the Mirefen bell tower (optional) ---------- */
-  const bell = (id, n, name) => ({
-    type: 'obj', gfx: 'bell', gfxIf: ['bt.n>=' + n, 'bellRung'], script: [['if', 'bt.open', [['note', 'The ' + name + ' hangs still.']], [
-      ['sfx', 'bell'],
-      ['if', 'bt.n=' + (n - 1), [
-        ['set', 'bt.n', n], ['note', 'You ring the ' + name + '. The note hangs in the air, and does not fade.'],
-        ['if', 'bt.n=4', [['shake', 500], ['set', 'bt.open'], ['note', 'All four notes ring together. Above you, the belfry hatch swings open.'], ['xp', 60]]]
-      ], [
-        ['set', 'bt.n', 0], ['note', 'You ring the ' + name + '. The notes jangle against each other and the tower shudders. Something cold rushes through the party.'],
-        ['hurt', 'all', '1d4']
-      ]]
-    ]]]
-  });
-  M.belltower = {
-    name: 'The Sunken Bell Tower', ground: 'stone', music: 'dungeon', bg: 'crypt', dark: 0.65,
-    rows: [
-      '##################',
-      '#######k..c#######',
-      '########h#########',
-      '#..l..........m..#',
-      '#................#',
-      '#.......p........#',
-      '#..o..........q..#',
-      '#................#',
-      '#<<<<<<<<<<<<<<<<#',
-      '#<<<<<<<..<<<<<<<#',
-      '#<<<<<<<w.<<<<<<<#',
-      '#<<<<<<<..<<<<<<<#',
-      '#<<<<<<<u.<<<<<<<#',
-      '##################'
-    ],
-    things: {
-      u: { type: 'warp', to: 'mirefen', at: 'z', gfx: 'daylight', out: 'up' },
-      w: { type: 'foe', sprite: 'marshlight', dir: 'down', script: [['note', 'Marsh lights crowd the drowned stair, a dozen little green flames.'], ['battle', 'belllights'], ['remove']] },
-      l: bell('l', 1, 'great bell'), m: bell('m', 2, 'sea-bell'), o: bell('o', 3, 'small bell'), q: bell('q', 4, 'cracked bell'),
-      p: { type: 'sign', gfx: 'notice', script: [
-        ['note', 'Words cut into the floor, under the four bells: "Speak first for the deep, where the dead lie down. Then for the sea, that took them."'],
-        ['note', '"Then small, for the children who waited. Last, broken, for the one who kept the door alone."'],
-        ['if', 'bellHint', [['say', 'Finch', 'Deep, sea, small, cracked. Mother Brine\'s order. The verse was here all along.']]]
-      ] },
-      h: { type: 'obj', gfx: 'lockedDoor', unless: 'bt.open', script: [['note', 'A hatch in the belfry ceiling, sealed fast. The four bells hang silent around you.']] },
-      k: {
-        type: 'foe', sprite: 'wraith', dir: 'down', script: [
-          ['note', 'In the belfry, something wearing a bell for a helm turns its head.'],
-          ['say', 'Finch', 'Ah. The bell-ringer.'],
-          ['battle', 'bellwraith'], ['remove']
+        type: 'foe', sprite: 'hollowwarden', dir: 'down', script: [
+          ['say', 'The Hollow Warden', 'I sealed the last door. She asked me to. She took the key into the dark and told me to wall it up behind her, and I did.'],
+          ['say', 'The Hollow Warden', 'Three hundred years I have lain here, listening for her knock. It never came.'],
+          ['if', 'verse3', [
+            ['choice', null, 'The first High Warden raises an unlit lamp.', [
+              ['Finch: sing her the third stanza', [
+                ['say', 'Finch', '"And when the four had kept their sleep, she found the door would not stay shut; she took the key into the deep, and turned it, and was not seen but..."'],
+                ['say', 'The Hollow Warden', '...but by the dead she kept beside. Yes. That is the rest of it. She is still holding it. I can rest now.'],
+                ['note', 'The Hollow Warden lays down her lamp, and is only bones.'],
+                ['xp', 900], ['bond', 'finch', 1], ['remove']
+              ]],
+              ['Fight', [['battle', 'hollowwarden'], ['remove']]]
+            ]]
+          ], [['battle', 'hollowwarden'], ['remove']]]
         ]
       },
       c: {
-        type: 'chest', items: { bellmail: 1, verse2: 1 }, script: [
-          ['note', 'Inside the bell-ringer\'s chest: mail rung out of old bronze, and a strip of vellum wrapped in oilcloth.'],
-          ['say', 'Finch', '"She held it through the longest night, and asked no crown, and took no throne; she kept the door, she kept the light, and kept the keeping all alone."'],
-          ['say', 'Finch', 'She. The fifth Lamp was a woman. And she kept the door alone.'],
-          ['say', 'Maren', 'Kept it from which side, I wonder.'],
-          ['set', 'verse2'], ['bond', 'finch', 1]
+        type: 'chest', items: { lanternshield: 1, verse4: 1 }, script: [
+          ['note', 'In the first High Warden\'s chest: her mail, with a little lamp worked into it, and a strip of vellum.'],
+          ['say', 'Finch', '"...and was not seen but by the dead she kept beside; and there she holds the door, and will, until the last lamp lights her home."'],
+          ['say', 'Finch', 'She is still there. The Fifth Lamp. She has been holding the door of the Hollow Barrow from the inside for three hundred years.'],
+          ['say', 'Maren', 'Until the last lamp lights her home. Lamplighter. The fifth lamp is HER.'],
+          ['set', 'verse4'], ['quest', 'crypt', 2], ['bond', 'finch', 1]
         ]
       }
     }

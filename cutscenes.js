@@ -1,167 +1,127 @@
-/* Chapter 2 — the opening (the Highmoor counting-house, the south road) and the close
-   (Quill's reckoning, the night at the Gull and Lantern, and Veyra's return to Highmoor).
-   Started from the mended south bridge in Brackenford once Chapter 1 is done. */
+/* Chapter 3 — the opening (a dream of the Barrow King, the road north, Runa's story) and the close
+   (Sigrid's reckoning, the night in the Longhall, and the Duke's invitation). Started from Saltmere's north
+   road or Brackenford's south bridge once Chapter 2 is done. */
 (function () {
   const D = G.D, M = D.maps;
 
-  M.v_highmoor = {
-    name: 'Highmoor', ground: 'wood', music: 'omen', bg: 'town', dark: 0.45, light: [6, 4],
+  M.v_snowroad = {
+    name: 'The North Road', ground: 'snow', ground2: 'drift', music: 'frost', bg: 'snow',
     rows: [
-      '##############',
-      '#KK..KK..KK.Y#',
-      '#............#',
-      '#......o.....#',
-      '#.....AA.....#',
-      '#.....m......#',
-      '#...VVVVVV...#',
-      '#.....c..v...#',
-      '##############'
-    ],
-    things: {
-      c: { type: 'mark' },
-      m: { type: 'npc', sprite: 'hand', dir: 'up' },
-      o: { type: 'npc', sprite: 'orrin', dir: 'down' },
-      v: { type: 'npc', sprite: 'veyra', if: 'cs.veyraNorth', dir: 'up' }
-    }
-  };
-
-  // the south road, two days out of Brackenford: only ever seen through ['scene', ...], never saved on
-  M.v_road = {
-    name: 'The South Road', ground: 'grass', ground2: 'flowers', music: 'field', bg: 'forest',
-    rows: [
-      'TTTTTTTTTT::TTTTTTTTTT',
-      'TTTB..,...::.....BTTTT',
-      'TT....R...::...,....TT',
-      'TT.B......::.....R..TT',
-      'T.....,...::..B......T',
-      'T..R......c:.........T',
-      'T.........::...,..B..T',
-      'TT..B.....::.........T',
-      'TT....,...::..R.....TT',
-      'TTTT......::.....BTTTT',
-      'TTTTTTTTTT::TTTTTTTTTT'
+      '{{{{{{{{{{::{{{{{{{{{{',
+      '{.........::,{,...,.{{',
+      '{..,......::.,{{,....{',
+      '{...,.....::.,,...,..{',
+      '{,,{,.,.,.::,......,,{',
+      '{,..{{....c:...,...,,{',
+      '{...,.,..,::,,....,..{',
+      '{....{..,,::...,..,..{',
+      '{...{.,..,::.,..,....{',
+      '{,........::..,.,.,..{',
+      '{{{{{{{{{{::{{{{{{{{{{'
     ],
     things: { c: { type: 'mark', under: 'path' } }
   };
-
-  Object.assign(D.groups, {
-    roadscouts: { enemies: ['acolyte', 'zealot', 'acolyte'], bg: 'forest', intro: 'Grey robes on the road north, and they know your faces.' }
+  M.v_dream = Object.assign({}, M.v_hollow, {
+    name: 'A Dream',
+    rows: ['##############', '#I...+&.+...I#', '#.....k......#', '#............#', '#I..........I#', '#.....v......#', '#............#', '#.....c......#', '##############'],
+    things: Object.assign({}, M.v_hollow.things, { v: { type: 'npc', sprite: 'veyra', dir: 'up' } })
   });
 
-  D.scripts.ch2road = [['choice', null, 'The mended bridge. The south road runs on to Saltmere and the fens.', [
-    ['Take the road south', [['if', 'chapter>=2', [['warp', 'saltmere', 'n', 'down']], [['run', 'ch2start']]]]],
-    ['North into the hills, to Karrow Hold', [['run', 'ch3road']], 'ch2done'],
-    ['The road to Highmoor', [['run', 'ch4road']], 'ch3done'],
-    ['East, to Ashfall and the Ashen Road', [['run', 'ch5road']], 'ch4done'],
-    ['Not yet', []]
-  ]]];
+  D.scripts.ch3road = [['if', 'chapter>=3', [['warp', 'karrow', 'n', 'up']], [['run', 'ch3start']]]];
 
-  D.scripts.ch2start = [
+  D.scripts.ch3start = [
     ['cutscene', [
       ['fade', 'out', 600],
-      ['set', 'chapter', 2],
-      ['scene', 'v_highmoor', 'c', 'up', true],
-      ['note', 'Highmoor. The counting-house of Orrin and Sons, long after the clerks have gone home.'],
-      ['say', 'Orrin', 'The Thornwood account, my lord. Closed, at a loss.'],
-      ['say', 'Hooded Man', 'Losses are a cost of doing business, Master Orrin. You taught me that.'],
-      ['if', 'shardAt=2', [
-        ['say', 'Orrin', "They carry the Thane's shard with them, south, toward Saltmere."],
-        ['say', 'Hooded Man', 'Then the road will collect it for us. Send the grey ones to meet them.']
-      ], [
-        ['say', 'Orrin', "The Thane's shard stays in Brackenford, under the old priest's lamp."],
-        ['say', 'Hooded Man', 'Then the Vosks will fetch it. Old men sleep eventually.']
+      ['set', 'chapter', 3],
+      ['scene', 'v_dream', 'c', 'up', true],
+      ['note', 'Somewhere between sleeping and waking, Sister Veyra stands in a hall she has never seen, before a throne she knows too well.'],
+      ['if', 'shardTraded', [['say', 'The Barrow King', 'Sister. You carry two of me now. I can feel you coming closer.']],
+        [['say', 'The Barrow King', 'Sister. You carry one of me now. I can feel you coming closer.']]],
+      ['if', 'veyraDoubt', [
+        ['say', 'The Barrow King', 'You opened a sluice in the Abbey. Six fishermen. Do you think they will thank you, when they die anyway?'],
+        ['say', 'Veyra', 'Some of them might.']
       ]],
-      ['if', 'ledger', [
-        ['say', 'Orrin', 'There is a further matter. They have one of my ledgers. And one of them owes this house a great deal of money. A halfling, Dask.'],
-        ['say', 'Hooded Man', 'Then he is ours already, in a small way. Keep his paper close.']
-      ]],
-      ['say', 'Orrin', 'The Saltmere tide tables, as the Sister asked. Low water falls in four days.'],
-      ['say', 'Hooded Man', 'Then in four days the Prior walks, and the second shard comes home to us. Veyra will see to it.'],
-      ['say', 'Orrin', "And the Wardens' pets?"],
-      ['say', 'Hooded Man', 'Let them come. The fen is very large, and very hungry.'],
+      ['say', 'Veyra', 'You promised an end to graves.'],
+      ['say', 'The Barrow King', 'I promised an end to dying. Graves are a different matter.'],
+      ['say', 'The Barrow King', 'The third of me sleeps under a giant, in the north, behind a clan that keeps its oaths. Wake him. Bring me home.'],
+      ['say', 'Veyra', 'And if I will not?'],
+      ['say', 'The Barrow King', 'Then someone else will. There is always someone else, Sister. That is the one thing death has taught me.'],
       ['fade', 'out', 800],
-      ['card', 'Chapter Two', 'The Drowned Abbey']
+      ['card', 'Chapter Three', 'The Oath of Stone']
     ]],
-    ['quest', 'main2', 1],
-    ['scene', 'v_road', 'c', 'down'],
-    ['if', 'shardAt=2', [
-      ['note', 'Two days down the south road, in the hills above the fens, the ditch stands up.'],
-      ['battle', 'roadambush'],
-      ['say', 'Dask', 'They knew exactly what we were carrying. Somebody is keeping very good books on us.'],
-      ['say', 'Maren', "Keep the shard close. Closer than that."]
-    ], [
-      ['note', 'Two days down the south road, you meet Hobb the carter heading north.'],
-      ['say', 'Hobb', 'You heard? The Vosks came back for the old priest\'s shard. Tobias met them on the temple steps with his lamp held up, and they ran off with their beards smoking.'],
-      ['say', 'Hobb', 'And there are grey robes on this road, heading north. Mind yourselves.'],
-      ['note', 'That afternoon, you meet them.'],
-      ['battle', 'roadscouts'],
-      ['say', 'Runa', 'Heading for Brackenford. For the shard.'],
-      ['say', 'Maren', 'Tobias held off the Vosks. He will not hold off the Hand forever. We finish this quickly.']
+    ['quest', 'main3', 1],
+    ['scene', 'v_snowroad', 'c', 'up'],
+    ['note', 'The road north climbs into the hills. On the fourth day the snow starts, and does not stop.'],
+    ['say', 'Runa', 'Karrow Hold is over the next ridge.'],
+    ['say', 'Maren', 'Runa. Before we go in. Orrin said there is a price on your head there.'],
+    ['say', 'Runa', 'At sixteen I swore the Oath of Stone. Seven winters keeping the watch on the Giant\'s Cairn.'],
+    ['say', 'Runa', 'In my second winter an avalanche buried a hunting party in the pass. My cousin Bryn was in it. I left my post and dug.'],
+    ['say', 'Runa', 'That night the Cairn lamp guttered and the dead came up. Old Hallvard held the door alone, and died holding it. I got Bryn out. Then I ran.'],
+    ['say', 'Runa', 'The price is not gold. It is a summons. Come home and answer.'],
+    ['choice', null, 'The others are quiet a moment. Then:', [
+      ['Maren: "Then we stand with you."', [['say', 'Maren', 'Then you will not answer alone. We stand with you, whatever they ask.'], ['bond', 'maren', 1]]],
+      ['Dask: "How much is the price, exactly?"', [['say', 'Dask', 'I only ask because I am the one who will end up paying it. Somehow it is always me.'], ['say', 'Runa', 'It is not gold, Dask.'], ['say', 'Dask', 'Everything is gold, eventually.'], ['bond', 'dask', 1]]],
+      ['Finch: "Every ballad needs a homecoming."', [['say', 'Finch', 'Every ballad needs a homecoming, and most of the good ones need an apology. You are well placed for both.'], ['bond', 'finch', 1]]]
     ]],
-    ['warp', 'saltmere', 'n', 'down'],
-    ['note', 'Saltmere. Salt on the wind, nets drying on the sand, and on the point, a lighthouse with no light in it.'],
+    ['battle', 'roadwolves'],
+    ['warp', 'karrow', 'n', 'up'],
+    ['note', 'Karrow Hold. Stone houses under deep snow, a longhall with smoke coming out of every crack, and above it all, the dark shape of the Cairn.'],
+    ['say', 'Clan Guard', 'Halt. ...Runa Stonehand. Oathbreaker. The Chief will want to see you. Straight to the Longhall.'],
     ['save']
   ];
 
-  D.scripts.ch2end = [
-    ['say', 'Harbourmaster Quill', 'You are back. And the Abbey bell has stopped. Tell me.'],
-    ['if', 'hostagesSaved', [
-      ['say', 'Harbourmaster Quill', "Jory Fenn walked into his mother's kitchen an hour ago, wet to the neck and asking for soup. Six men home. Six."]
-    ], [
-      ['say', 'Harbourmaster Quill', '...All six. I see.'],
-      ['note', 'Quill takes off his hat and holds it a while.'],
-      ['say', 'Harbourmaster Quill', 'You stopped it, though. No more will go. It will have to be enough.']
+  D.scripts.ch3end = [
+    ['say', 'Sigrid', 'You came down. All of you. Kell?'],
+    ['if', 'kellDead', [
+      ['say', 'Maren', 'He held the Cairn to the end, Chief. He asked us to say it was kept.'],
+      ['say', 'Sigrid', 'Then it was.']
     ]],
-    ['if', 'ab.choice=3', [['say', 'Harbourmaster Quill', 'Whatever you paid for them, I will not ask. I can see on your faces it was dear.']]],
-    ['if', 'lampLit2', [['say', 'Harbourmaster Quill', 'And the Abbey lamp is burning. I saw it from the harbour wall. First time in my life.']]],
-    ['if', 'lightLit', [['say', 'Harbourmaster Quill', 'Two lights on the water now. The boats go out at dawn.']]],
-    ['if', 'coll=1', [['say', 'Harbourmaster Quill', 'Brother Coll is in my cells, by the by. The widows put him there. I only turned the key.']]],
-    ['if', 'coll=2', [['say', 'Harbourmaster Quill', 'No sign of that Brother Coll. Gone to the Abbey and not come back. Good riddance.']]],
-    ['if', 'coll=3', [['say', 'Harbourmaster Quill', 'Brother Coll came to the chapel this morning, white as a sheet, and confessed the lot to Sister Ysolde. She is keeping him busy.']]],
-    ['say', 'Harbourmaster Quill', 'Two hundred, as promised. Saltmere pays its debts.'],
-    ['gold', 200], ['xp', 200], ['quest', 'main2', 7],
-    ['if', 'knowsCairn', [['say', 'Maren', "Veyra said she was going north, to the Giant's Cairn. The third lamp."]],
-      [['say', 'Maren', 'Veyra has two lamps out and the shards to show for it. She will go for the third next. Wherever it is.']]],
-    ['run', 'camp2'],
-    ['run', 'ch2stinger']
+    ['if', 'giant=1', [['say', 'Sigrid', 'And the lamp is lit. I saw it from the gate, the first time this winter. The old one sleeps?'], ['say', 'Finch', 'Like a baby. A baby the size of a barn.']],
+      [['say', 'Sigrid', 'The lamp is dark and the Cairn is empty. You did what you had to. The clan will remember it, one way or the other.']]],
+    ['if', 'allyVeyra', [['say', 'Sigrid', 'Bryn says the grey Sister fought beside you.'], ['say', 'Maren', 'She did.'], ['say', 'Sigrid', 'Strange winter.']]],
+    ['if', 'veyra3=3', [['say', 'Sigrid', 'Bryn says the grey Sister got away bleeding. She will be back. Her kind always come back.']]],
+    ['if', 'prisoner=3', [['say', 'Sigrid', 'You let my prisoner walk, Warden. I hope your trust was worth more than he was.']]],
+    ['if', 'prisoner=1', [['say', 'Sigrid', 'Your grey robe went south on a sledge. The snow let him live. Lucky him.']]],
+    ['if', 'tunnelOpen&!grukk3=3', [['say', 'Sigrid', 'And there are goblins in my pass telling everyone you are their friends. I do not know what to do with that.']]],
+    ['if', 'runaOath=4', [['say', 'Sigrid', 'Five winters, Runa. I will hold you to them. Come home when the crown is broken.']]],
+    ['if', 'runaOath=2', [['say', 'Sigrid', 'The clan took your silver. Some of them will want more than silver, one day.']]],
+    ['if', 'runaOath=1', [['say', 'Sigrid', 'Hallvard would have been proud of you. So would your mother.']]],
+    ['if', 'runaOath=3', [['say', 'Sigrid', 'The singer was right, niece. You kept it. You only kept it in the wrong place.']]],
+    ['say', 'Sigrid', 'The Hold pays its debts. Take this.'],
+    ['gold', 300], ['xp', 450], ['quest', 'main3', 7],
+    ['if', 'knowsCourt', [['say', 'Dask', 'A man at the Duke\'s court, paying Orrin, paying the Pale Hand. Highmoor. It is always Highmoor.']],
+      [['say', 'Dask', 'Orrin and Sons keeps the Pale Hand\'s books. Highmoor next. It is always Highmoor.']]],
+    ['note', 'That night Karrow Hold feasts the four of you, and the skalds sing until the fire is ash.'],
+    ['run', 'camp3'],
+    ['run', 'ch3stinger']
   ];
 
-  D.scripts.ch2stinger = [
+  D.scripts.ch3stinger = [
     ['cutscene', [
       ['fade', 'out', 600],
-      ['set', 'cs.veyraNorth'],
+      ['set', 'cs.veyraNorth', 0],
       ['scene', 'v_highmoor', 'c', 'up', true],
       ['note', 'Highmoor. The counting-house of Orrin and Sons.'],
-      ['move', 'v', 'uu'], ['turn', 'v', 'left'], ['turn', 'm', 'right'],
-      ['say', 'Hooded Man', 'Sister.'],
-      ['if', 'ab.choice=3', [
-        ['say', 'Veyra', "Two shards. The Abbey's, and the Thane's. They paid for six fishermen with it."],
-        ['say', 'Hooded Man', 'Sentiment. The most reliable currency there is.']
+      ['say', 'Orrin', 'The Cairn shard is lost, my lord. The Wardens\' pets have it.'],
+      ['if', 'allyVeyra', [
+        ['say', 'Orrin', 'And the Sister fought beside them. Our Reavers saw it with their own eyes.'],
+        ['say', 'Hooded Man', 'Then the Sister has made her choice. We will make ours.']
       ], [
-        ['say', 'Veyra', "The Abbey shard."],
-        ['say', 'Hooded Man', "And the Wardens' pets?"],
-        ['say', 'Veyra', 'Alive. They put the Prior back to sleep and lit the lamp again.']
+        ['say', 'Orrin', 'The Sister is wounded. She has gone to ground somewhere in the hills.'],
+        ['say', 'Hooded Man', 'Let her bleed. She will come back. They always come back to the light, and I am the one holding it.']
       ]],
-      ['if', 'veyraDoubt', [
-        ['say', 'Veyra', 'I opened the sluice. Six men lived who were meant to drown. I wanted you to hear it from me.'],
-        ['say', 'Hooded Man', 'You are tired, Sister. Tired people are kind. It passes.'],
-        ['say', 'Veyra', 'Does it.']
-      ]],
-      ['if', 'veyra2=3', [
-        ['say', 'Hooded Man', 'You are hurt.'],
-        ['say', 'Veyra', 'Maren struck me. I did not think she had it in her.']
-      ]],
-      ['say', 'Hooded Man', "The third lamp burns in the Giant's Cairn, under the mountains past Karrow Hold."],
-      ['say', 'Orrin', 'Karrow Hold, my lord. The barbarian woman is from Karrow Hold. They still have a price on her head there.'],
-      ['say', 'Hooded Man', 'Then the road north will be crowded. Good. I am tired of waiting.'],
+      ['say', 'Hooded Man', 'So the Wardens\' pets carry the shards for us, through the snow, at their own expense. How thoughtful.'],
+      ['say', 'Hooded Man', 'The Duke will give a feast for the heroes of Saltmere and Karrow Hold. Send them an invitation. On good paper.'],
+      ['say', 'Orrin', 'And the halfling\'s debt, my lord?'],
+      ['say', 'Hooded Man', 'Forgive it. Publicly. Gratitude is a leash, Master Orrin, and it costs nothing to hold.'],
       ['fade', 'out', 800],
-      ['card', 'End of Chapter Two', 'The Drowned Abbey'],
-      ['recap', 'What you chose', 2],
-      ['card', 'Coming next', 'Chapter Three: The Oath of Stone']
+      ['card', 'End of Chapter Three', 'The Oath of Stone'],
+      ['recap', 'What you chose', 3],
+      ['card', 'Coming next', 'Chapter Four: The Pale Hand']
     ]],
-    ['set', 'cs.veyraNorth', 0], ['set', 'ch2done'],
-    ['warp', 'saltmere', 'u', 'up'],
-    ['note', 'That is the end of Chapter Two. Explore as long as you like. When you are ready, take the north road out of Saltmere to begin Chapter Three.'],
+    ['set', 'ch3done'],
+    ['warp', 'karrow', 'a', 'down'],
+    ['note', 'That is the end of Chapter Three. Explore as long as you like. When you are ready, take the south road out of Karrow Hold to Highmoor to begin Chapter Four.'],
     ['save']
   ];
 })();

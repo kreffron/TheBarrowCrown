@@ -116,7 +116,7 @@ B.run = async function (grp, o) {
   G.audio.sfx('encounter');
   await UI.fade(true, 170);
   G.scene = 'battle'; G.scenePress = null;
-  if (G.cv) { G.cv.width = 320 * B.RES; G.cv.height = 240 * B.RES; }
+  B.fitRes();
   B.buildUI();
   G.audio.music(grp.music || (B.boss ? 'boss' : 'battle'));
   await UI.fade(false, 170);
@@ -148,7 +148,10 @@ B.run = async function (grp, o) {
     }
     if (round === 1) B.quipAny(B.boss ? 'boss' : 'start');
     result = await B.objectiveRound(round); if (result) break;
-    let order = B.c.filter(x => !x.down).map(x => ({ x, i: G.d20() + x.spd + G.rand() * 0.5 })).sort((a, b) => b.i - a.i).map(e => e.x);
+    // Initiative is rolled once a fight (a d20 plus speed; ties split at random) and kept, as at the table. Anyone who
+    // joins later (reinforcements, a boss's summons, waves) rolls when they first appear and takes their place.
+    for (const x of B.c) if (x.init == null) x.init = G.d20() + x.spd + G.rand() * 0.5;
+    let order = B.c.filter(x => !x.down).sort((a, b) => b.init - a.init);
     if (round === 1 && grp.guide && !G.auto) {                       // tutorial: the party goes first, in the guide's order
       const party = B.c.filter(x => x.side === 0 && !x.guest);
       order = party.concat(B.c.filter(x => x.guest), B.c.filter(x => x.side === 1));
@@ -188,7 +191,7 @@ B.run = async function (grp, o) {
   else { G.audio.sfx('cancel'); await B.msg('The party gets away.'); }
   await UI.fade(true, 170);
   B.clearUI(); G.scene = 'field'; G.scenePress = Field.press;
-  if (G.cv) { G.cv.width = 320; G.cv.height = 240; }
+  if (G.cv) { G.cv.width = 320; G.cv.height = 240; G.cv.classList.remove('smooth'); }
   G.audio.music(prevMusic);
   await UI.fade(false, 170);
   return result;

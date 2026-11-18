@@ -1,6 +1,6 @@
 /* Pieces: the board and its figures. Characters stand on the board as carved, chess-like pieces on round bases
    (blue for the party, green for allies, red for enemies), painted at double resolution from the same specs as
-   the field sprites (D.sprites plus D.looks). Beasts stand on a base as their pixel sprite, doubled. */
+   the field sprites (D.sprites plus D.looks). Beasts are painted in the same hand by beasts.js (any left without a painter stand as their pixel sprite, smoothed). */
 (function () {
   const cache = {};
   const BASE = { 0: ['#34508f', '#1e3060', '#e8c14a'], 1: ['#8a3030', '#521a1a', '#d8dce8'], 2: ['#2f7a52', '#1a4a30', '#e8c14a'] };
@@ -17,9 +17,9 @@
     }
     c.putImageData(im, 0, 0);
   }
-  // One figure, facing right. Drawn in smooth shapes at 3x a 40x64 layout (20x32 on the board), so it stays crisp
+  // One figure, facing right. Drawn in smooth shapes at 4x a 40x64 layout (20x32 on the board), so it stays crisp
   // when the battle canvas scales it: rounded limbs, shaded cloth, soft outlines, a lacquered base.
-  const HD = 3;
+  const HD = 4;
   // Scale2x (EPX): doubles pixel art while rounding its diagonals, so beasts look smooth rather than blocky.
   function epx(src) {
     const w = src.width, h = src.height, sc = src.getContext('2d').getImageData(0, 0, w, h).data;
@@ -63,11 +63,17 @@
     ell(20, 52, 10.5, 3, lin(10, 0, 30, 0, [[0, shade(b, 40)], [0.5, b], [1, shade(b, -24)]]));
     c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 0.6; c.beginPath(); c.ellipse(20, 52, 9, 2.2, 0, 3.5, 4.9); c.stroke();
     const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
+    const paint = (!G.D.sprites[name] && B.beastPainter && B.beastPainter(name)) || (B.heroPainter && B.heroPainter(name));
+    if (paint) {                                                // a beast painted to match the heroes (beasts.js)
+      const after = paint(c), fin = softOutline(cv, '#1a1420', 2.2 * HD / 3); lightHD(fin);
+      if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(fc); fc.restore(); }
+      cache[k] = fin; return fin;
+    }
     if (!G.D.sprites[name] && pixIm) {
       const big = epx(epx(pixIm));
       c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
       c.drawImage(big, 0, 0, big.width, big.height, 4, 18, 32, 32);
-      const fin = softOutline(cv, '#1a1420', 2.2); lightHD(fin); cache[k] = fin; return fin;
+      const fin = softOutline(cv, '#1a1420', 2.2 * HD / 3); lightHD(fin); cache[k] = fin; return fin;
     }
     const T = s.short ? 8 : 0, big = s.big ? 2 : 0, yT = 26 + T, yB = 50, hy = 16 + T;
     const sk = s.skel ? '#e6e0cc' : (s.skin || '#e8b890'), skD = shade(sk, -30), skL = shade(sk, 18);
@@ -167,7 +173,7 @@
     else if (h === 'rod') { line(hx, yT - 20, hx, yT + 20, 1, '#8a6a42'); c.strokeStyle = 'rgba(220,226,240,.8)'; c.lineWidth = 0.35; c.beginPath(); c.moveTo(hx, yT - 20); c.quadraticCurveTo(hx + 5, yT - 10, hx + 3, yT - 2); c.stroke(); }
     else if (h === 'shield') { const sg = c.createRadialGradient(hx - 2, yT + 7, 1, hx, yT + 10, 9); sg.addColorStop(0, '#c8955a'); sg.addColorStop(1, '#5a3a20'); ell(hx, yT + 10, 7, 9, '#4a2e18'); ell(hx, yT + 10, 6, 8, sg); ell(hx, yT + 10, 2, 2, GOLD); }
     else ell(hx, hy2, 1.8, 1.8, skD);
-    const fin = softOutline(cv, '#1a1420', 2.2);
+    const fin = softOutline(cv, '#1a1420', 2.2 * HD / 3);
     lightHD(fin);
     cache[k] = fin; return fin;
   };
@@ -324,13 +330,22 @@
       c.beginPath(); c.moveTo(x + w / 2, y + h * 0.26); c.lineTo(x + w / 2, y + h * 0.74); c.moveTo(x + w * 0.36, y + h * 0.42); c.lineTo(x + w * 0.64, y + h * 0.42); c.stroke();
     }
   }
-  B.RES = 4;                                                  // the battle canvas is drawn at 4x the game's 320x240
+  B.RES = 4;                                                  // the battle canvas is drawn at RES times the game's 320x240
+  // Match the battle canvas to the screen pixels it fills (2x to 6x), so the board and figures are painted at the size
+  // they are seen and never stretched or squeezed into blocky, jagged edges. Called when a fight starts and on resize.
+  B.fitRes = function () {
+    const cv = G.cv; if (!cv) return;
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const res = r.width > 0 ? Math.max(2, Math.min(6, Math.round(r.width * dpr / 320 * 4) / 4)) : 4;
+    if (res !== B.RES || cv.width !== Math.round(320 * res)) { B.RES = res; B.boardCache = null; cv.width = Math.round(320 * res); cv.height = Math.round(240 * res); }
+    cv.classList.add('smooth');
+  };
   B.boardCache = null;
   function boardCanvas() {
     const th = B.THEME[B.bg] || B.THEME.forest, bc = B.boardCache;
     if (bc && bc.floor === B.floor && bc.walls === B.walls && bc.bg === B.bg && bc.n === (B.walls ? B.walls.size : 0) && bc.t === B.terrain && bc.tn === (B.terrain ? B.terrain.size : 0) && bc.rev === B.boardRev && bc.N === B.N && bc.voids === B.voids) return bc.cv;
     const key = (B.gid || '') + '|' + B.bg + '|' + (B.floor ? B.floor.map(r => r.map(v => v.join('.')).join(',')).join(';') : '') + '|' + (B.walls ? [...B.walls.keys()].join(';') : '') + '|' + (B.terrain ? [...B.terrain].filter(e => e[1] !== 'fire').join(';') : '');
-    const cv = (bc && bc.cv) || document.createElement('canvas'); cv.width = 320 * B.RES; cv.height = 240 * B.RES;   // (setting the size clears it)
+    const cv = (bc && bc.cv) || document.createElement('canvas'); cv.width = Math.round(320 * B.RES); cv.height = Math.round(240 * B.RES);   // (setting the size clears it)
     const c = cv.getContext('2d'), S = 2, TW = B.TW * S, TH = B.TH * S, X0 = B.BX * S, Y0 = B.BY * S, W = B.N * TW, H = B.N * TH;
     c.scale(B.RES / 2, B.RES / 2);
     const r = rnd(([...key].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7)));
@@ -406,8 +421,8 @@
   // The scene behind the board, by setting.
   const bgCache = {};
   function backdrop(bg) {
-    if (bgCache[bg]) return bgCache[bg];
-    const cv = document.createElement('canvas'); cv.width = 320 * B.RES; cv.height = 240 * B.RES; const c = cv.getContext('2d'); c.scale(B.RES / 2, B.RES / 2);
+    if (bgCache[bg] && bgCache[bg].width === Math.round(320 * B.RES)) return bgCache[bg];
+    const cv = bgCache[bg] = document.createElement('canvas'); cv.width = Math.round(320 * B.RES); cv.height = Math.round(240 * B.RES); const c = cv.getContext('2d'); c.scale(B.RES / 2, B.RES / 2);
     const col = B.BG[bg] || B.BG.forest, r = rnd(bg.length * 977 + bg.charCodeAt(0));
     const g = c.createLinearGradient(0, 0, 0, 480); g.addColorStop(0, col[0]); g.addColorStop(0.55, col[1]); g.addColorStop(1, col[2]); c.fillStyle = g; c.fillRect(0, 0, 640, 480);
     const dark = (a) => 'rgba(0,0,0,' + a + ')', sil = (a, fn) => { c.fillStyle = dark(a); c.beginPath(); fn(); c.fill(); };
@@ -716,7 +731,7 @@
   function drawLight(c, dt) {
     const amb = B.ambient(), t = G.time / 1000, torches = B.torches();
     if (!amb) return;
-    const Wd = 320 * B.RES, Hd = 240 * B.RES;
+    const Wd = Math.round(320 * B.RES), Hd = Math.round(240 * B.RES);
     if (!lightCv || lightCv.width !== Wd) { lightCv = document.createElement('canvas'); lightCv.width = Wd; lightCv.height = Hd; }
     const l = lightCv.getContext('2d'), glows = [];
     l.setTransform(1, 0, 0, 1, 0, 0); l.globalCompositeOperation = 'source-over'; l.clearRect(0, 0, Wd, Hd);
@@ -808,9 +823,9 @@
     const k = sprite + ':' + side; if (faces[k]) return faces[k];
     const pc = B.piece(sprite, side), cv = document.createElement('canvas'); cv.width = 48; cv.height = 48;
     const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-    const isBeast = !G.D.sprites[sprite];
-    const sx = 4 * 3, sy = (isBeast ? 16 : 3) * 3, sw = 32 * 3;             // the head and shoulders
-    c.drawImage(pc, sx, sy, sw, sw, 0, 0, 48, 48);
+    const isBeast = !G.D.sprites[sprite], box = isBeast && B.beastFace && B.beastFace(sprite);
+    const [sx, sy, sw] = box || [4, isBeast ? 16 : 3, 32];                // the head and shoulders, in the piece's 40x64 layout
+    c.drawImage(pc, sx * HD, sy * HD, sw * HD, sw * HD, 0, 0, 48, 48);
     return (faces[k] = cv.toDataURL());
   }
   B.faceURL = face;
@@ -827,7 +842,7 @@
       if (c === B.active) h += '<span class="tarrow">▸</span>';
     });
     const now = B.active ? B.active.name : '';
-    const next = order.slice(ti + 1).find(c => !c.down);
+    const next = order.slice(ti + 1).find(c => !c.down) || order.find(c => !c.down && c !== B.active);   // the order holds: round's end wraps to the top
     h += '<span class="tnow">' + (now ? UI.esc(now) + "'s turn" : '') + (next ? ' · next: ' + UI.esc(next.name) : '') + '</span>';
     el.innerHTML = h;
   };

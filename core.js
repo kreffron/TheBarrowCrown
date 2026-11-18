@@ -273,7 +273,13 @@ G.loadOpts = () => {
       k.a = ['e'].concat((k.a || ['z', 'Enter']).filter(x => G.normKey(x) !== 'e')).slice(0, 3);
     }
   }
-  G.opts.keysV = 2;
+  // Z and C became the battle board's turn keys. Saved bindings get them once, unless the player has given them
+  // to another board key.
+  if (G.opts.keys && (G.opts.keysV || 0) < 3) {
+    const k = G.opts.keys, onBoard = key => G.BOARD_KEYS.some(id => (k[id] || []).map(G.normKey).includes(key));
+    for (const [id, key] of [['rot_l', 'z'], ['rot_r', 'c']]) if (Array.isArray(k[id]) && !onBoard(key)) k[id] = [key].concat(k[id]).slice(0, 3);
+  }
+  G.opts.keysV = 3;
 };
 // '{a}', '{b}', '{menu}' and so on in a message become the key bound to that action ('Press {a}' -> 'Press E').
 G.keyText = s => String(s).replace(/\{([a-z_]+)\}/g, (m, id) => { const k = (G.bindings()[id] || [])[0]; return k ? G.keyName(k) : m; });
@@ -291,11 +297,15 @@ G.ACTIONS = [
   ['bt_attack', 'Attack', ['1']], ['bt_shot', 'Shoot / throw', ['2']], ['bt_skills', 'Skills', ['3']], ['bt_items', 'Battle items', ['4']],
   ['bt_move', 'Move', ['5']], ['bt_defend', 'Defend', ['6']], ['bt_end', 'End turn / flee', ['7', 'n']],
   ['bt_undo', 'Undo move', ['u', '8']],
-  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['[', ',']], ['rot_r', 'Turn board right', [']', '.']], ['threat', 'Show enemy reach', ['t']]
+  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['threat', 'Show enemy reach', ['t']]
 ];
 // Headings for the Controls screen: the first action of each group.
 G.ACTION_GROUPS = { up: 'Moving and choosing', menu: 'Menus (while exploring)', switch: 'Exploring', bt_attack: 'Battle commands', bview: 'Battle board' };
 G.REQUIRED = ['up', 'down', 'left', 'right', 'a', 'b'];         // these always keep at least one key
+// The battle board's keys only work in a fight, and there they come first, so they can share keys with exploring:
+// Z and C turn the board in battle, while Z is still OK and C still switches leader everywhere else.
+G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat'];
+G.keyLayer = id => G.BOARD_KEYS.includes(id) ? 1 : 0;
 G.normKey = k => (k && k.length === 1 ? k.toLowerCase() : k);
 G.keyName = k => ({ Shift: 'Shift', ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Backspace: 'Bksp', Enter: 'Enter' }[k] || (k && k.length === 1 ? k.toUpperCase() : k) || '—');
 G.defaultKeys = () => Object.fromEntries(G.ACTIONS.map(a => [a[0], a[2].slice()]));
@@ -305,13 +315,14 @@ G.bindings = () => {
   return def;
 };
 G.buildKeymap = () => {
-  const b = G.bindings(); G.KEYMAP = {};
-  for (const id in b) for (const k of b[id]) G.KEYMAP[G.normKey(k)] = id;
+  const b = G.bindings(); G.KEYMAP = {}; G.BKEYMAP = {};
+  for (const id in b) for (const k of b[id]) (G.keyLayer(id) ? G.BKEYMAP : G.KEYMAP)[G.normKey(k)] = id;
 };
-// Binds key to slot n of action id; the key is taken off any other action. Returns the action it was taken from.
+// Binds key to slot n of action id; the key is taken off any other action of the same kind (battle board keys and
+// the rest are kept apart). Returns the action it was taken from.
 G.bindKey = (id, n, key) => {
   key = G.normKey(key); const b = G.bindings(); let took = null;
-  for (const other in b) { const at = b[other].map(G.normKey).indexOf(key); if (at >= 0 && !(other === id && at === n)) { b[other].splice(at, 1); took = other; } }
+  for (const other in b) { if (G.keyLayer(other) !== G.keyLayer(id)) continue; const at = b[other].map(G.normKey).indexOf(key); if (at >= 0 && !(other === id && at === n)) { b[other].splice(at, 1); took = other; } }
   const list = b[id]; while (list.length < n) list.push(null); list[n] = key; b[id] = list.filter(Boolean).slice(0, 3);
   G.opts.keys = b; G.buildKeymap(); G.saveOpts();
   return took;
@@ -323,7 +334,8 @@ G.clearKey = (id, n) => {
 G.resetKeys = id => { const b = G.bindings(), d = G.defaultKeys(); if (id) b[id] = d[id]; G.opts.keys = id ? b : undefined; if (!id) delete G.opts.keys; G.buildKeymap(); G.saveOpts(); };
 G.missingKeys = () => G.REQUIRED.filter(id => !G.bindings()[id].length);
 G.HOTKEYS = ['menu', 'map', 'items', 'party', 'gear', 'journal', 'options', 'save', 'guide'];
-G.KEYMAP = {};
+G.KEYMAP = {}; G.BKEYMAP = {};
+G.keyAction = key => { key = G.normKey(key); return (G.scene === 'battle' && G.BKEYMAP[key]) || G.KEYMAP[key]; };
 G.dirOrder = [];   // most recent direction last
 G.press = function (btn) {
   G.audio.unlock();
@@ -370,10 +382,10 @@ G.initInput = function () {
     const t = e.target && e.target.tagName;
     if (t === 'TEXTAREA' || t === 'INPUT') return;
     if (G.keyCapture) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) G.keyCapture(e.key); return; }
-    const b = G.KEYMAP[G.normKey(e.key)]; if (!b) return;
+    const b = G.keyAction(e.key); if (!b) return;
     e.preventDefault(); G.down(b, e.repeat);
   });
-  window.addEventListener('keyup', e => { const b = G.KEYMAP[G.normKey(e.key)]; if (b) G.up(b); });
+  window.addEventListener('keyup', e => { const k = G.normKey(e.key); for (const b of [G.KEYMAP[k], G.BKEYMAP[k]]) if (b) G.up(b); });
   window.addEventListener('blur', () => { G.held = {}; G.dirOrder = []; });
   // touch pad
   document.querySelectorAll('[data-btn]').forEach(el => {
@@ -396,6 +408,7 @@ G.layout = function () {
   s = Math.max(0.75, s);
   document.documentElement.style.fontSize = s + 'px';
   G.scale = s;
+  if (G.scene === 'battle' && typeof B !== 'undefined' && B.fitRes) B.fitRes();   // a turned phone or a resized window: repaint the board at the new size
 };
 
 /* ---------- main loop ---------- */

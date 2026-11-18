@@ -1,361 +1,329 @@
-/* Chapter 1 — quests, the chronicle of choices, shared scripts and the cast's sprites.
+/* Chapter 3 — The Oath of Stone. Quests, the chronicle of choices, the cast, and the shared scripts.
+   Levels 8-12 (cap 12). Main story alone ends one level below the cap; side content earns level 12.
 
    Decision flags set in this chapter (later chapters read them):
-     pay 90|30, deal 1          how the fee was settled
-     rite, knowsVeyra           what Tobias taught the party
-     knowsGrey, knowsGarrick    evidence that someone in grey is paying the goblins
-     snik 1 spared and talked | 2 scared off | 3 killed
-     alder 1 sung to rest | 2 cut down | 3 found at peace;  pellTruth | pellLie
-     silver 1 returned | 2 sold to Odo | 3 given to Grukk
-     grukk 1 turned on Skrit and left | 2 bought off | 3 killed
-     veyra 1 mercy | 2 judgment | 3 curiosity;  abbeyHint, knowsBrother
-     shardAt 1 under Brackenford's lamp | 2 carried
-     camp 1 Dask | 2 Maren | 3 Finch | 4 alone;  daskDebt, marenHope, finchSong 1|2;  confide.<name>
-     bond.<name>                companion approval, raised and lowered by choices
-     Opening (data/ch1/prologue.js): tut.letter, ingridAlly, haldaLetter, vosksGone, ingridGift */
+     chapter 3                       set on the north road
+     brynTalk, astaTalk              evidence for Finch's argument
+     runaOath 1 trial | 2 paid | 3 argued | 4 renewed (owes five winters);  brynAlly (Bryn fights the Giant)
+     prisoner 1 handed to the clan | 2 questioned (knowsCourt) | 3 set free (veyraWarned)
+     grukk3 1 helped | 2 hired | 3 fought Nagra | 4 talked Nagra down;  tunnelOpen
+     scouts3 1 fought | 2 bluffed | 3 bribed
+     shardBearer 1 Maren | 2 Runa | 3 Dask | 4 Finch  (only if the Thane's shard is still carried);  shardWeak
+     veyra3 1 allied (she asked) | 2 allied (Maren's plea) | 3 fought;  allyVeyra, veyraTurning
+     giant 1 sang to sleep | 2 heart-stone taken;  lampLit3
+     knowsGiant, veyraOrder, kellDead, verse3, arnSafe, camp3 1-4 */
 (function () {
   const D = G.D;
-  D.quests = Object.assign(D.quests || {}, {
-    main: {
-      name: "The Thane's Barrow", short: "Thane's Barrow", done: 6, stages: {
-        1: "Reeve Halda wants the goblins driven out of the Thane's Barrow. Take the north gate out of Brackenford and follow the road through Thornwood.",
-        2: 'An iron gate blocks the way deeper into the barrow. Its chain runs off to the west. There must be a lever.',
-        3: 'The gate is open. Find the stairs down.',
-        4: 'The ward-lamp is out and the dead are walking. Find the goblin chief in the crypt.',
-        5: 'The barrow is quiet and the crown shard is yours. Return to Reeve Halda at the Crooked Lantern.',
-        6: 'Halda has settled up. Warden Tobias wants to see the shard.'
+  Object.assign(D.quests, {
+    main3: {
+      name: 'The Oath of Stone', short: 'Oath of Stone', ch: 3, done: 7, stages: {
+        1: 'Karrow Hold. Chief Sigrid is waiting in the Longhall.',
+        2: 'No oathbreaker may set foot on the Cairn. Runa must answer her oath before the clan. Speak to Sigrid when she is ready.',
+        3: "Runa has answered. Take the north gate into the Frost Pass and climb to the Giant's Cairn. Warden Kell went up and has not come back.",
+        4: "The Giant's Cairn. Find Warden Kell, and the way down.",
+        5: 'Veyra is below, at the dark Cairn lamp, and the Giant is waking.',
+        6: 'The Cairn shard is yours. Return to Sigrid in Karrow Hold.',
+        7: 'Karrow Hold has feasted you. The road leads south, to Highmoor.'
       }
     },
-    wood: {
-      name: 'The Missing Woodcutter', short: 'Woodcutter', done: 3, stages: {
-        1: "Wenna's husband Garrick went into Thornwood two days ago. He cuts west of the forest road.",
-        2: 'Garrick is safe and limping home. Tell Wenna in Brackenford.',
-        3: "Wenna gave you Garrick's old axe, Timberfall."
+    bear: {
+      name: 'The White Bear', short: 'White Bear', ch: 3, done: 3, stages: {
+        1: 'Eydis the huntress, whose hut is in the south-west of the Frost Pass, says a great white bear dragged her partner Arn into the ice caves under the west cliffs.',
+        2: 'Arn is alive and on his way home. Tell Eydis.',
+        3: 'Arn is home, and Rimeclaw is dead.'
       }
     },
-    mush: {
-      name: 'Palecaps for Odo', short: 'Palecaps', done: 2, stages: {
-        1: 'Odo wants three palecap mushrooms from Thornwood. They grow off the road, in the quiet corners.',
-        2: 'Odo paid in draughts and coin.'
+    watcher: {
+      name: "The Watcher's Song", short: "Watcher's Song", ch: 3, done: 3, stages: {
+        1: 'Skald Hrolf says the Fifth Lamp kept a watchtower above the frozen lake in the Frost Pass, and that her song is still up there.',
+        2: 'Finch has the third stanza. Skald Hrolf will want to hear it.',
+        3: 'Hrolf has heard the third stanza. Karrow Hold will sing it at the feast.'
       }
     },
-    bounty: {
-      name: 'Wolf Bounty', short: 'Wolf Bounty', done: 2, stages: {
-        1: 'Hobb at the north gate pays a bounty on Thornwood wolves. Bring him three Wolf Pelts. Wolves keep off the forest road.',
-        2: 'Hobb paid the bounty. Extra pelts still sell at the shops.'
+    prisoner: {
+      name: 'The Prisoner', short: 'The Prisoner', ch: 3, done: 2, stages: {
+        1: 'The clan holds a Pale Hand prisoner in the cells. Sigrid will let you decide what becomes of him.',
+        2: 'The prisoner has been dealt with.'
       }
     },
-    nest: {
-      name: 'The Broodmother', short: 'Broodmother', done: 3, stages: {
-        1: 'A farmer in Brackenford says a spider as big as a cart nests in a hollow in north-west Thornwood, past the old oaks where Garrick cuts.',
-        2: 'The Broodmother is dead. The farmer in Brackenford will want to know.',
-        3: 'The farmer paid what he could.'
-      }
-    },
-    grave: {
-      name: 'The Empty Grave', short: 'Empty Grave', done: 3, stages: {
-        1: "A grave in Brackenford's churchyard was opened from the inside. Old Pell says it was his brother Alder's. Whatever called him, it called from the barrow.",
-        2: 'The dead man from the crypt will not walk again. Old Pell, by the churchyard in Brackenford, should see the tin ring he wore.',
-        3: "Old Pell has his brother's ring."
+    goblins: {
+      name: "Grukk's Kin", short: "Grukk's Kin", ch: 3, done: 2, stages: {
+        1: 'There are goblins camped in the Frost Pass, west of the trail between the ridges. They look like Grukk\'s people.',
+        2: "Grukk's kin have been dealt with, and their tunnel past the Pale Hand camp is open."
       }
     }
   });
 
-  /* Shown in the journal and on the end-of-chapter card: [condition, line]. */
-  D.chronicle = [
-    ['tut.letter', "Dask lifted the Vosks' orders, signed with a pale hand."],
-    ['ingridAlly', 'Ingrid the smith fought beside you in the Crooked Lantern.'],
-    ['joined&!ingridAlly', 'You threw the Vosk brothers out of the Crooked Lantern on your own.'],
-    ['deal=1', 'You took the reeve\'s job without haggling.'],
-    ['pay=90', 'Finch talked the fee up to ninety gold.'],
-    ['pay=30', 'Dask took half the fee up front.'],
-    ['rite', 'Maren learned the full lamp-rite from Tobias.'],
-    ['q.wood>=2', 'Garrick the woodcutter came home alive.'],
-    ['snik=1', 'Snik the lookout was let go, and talked.'],
-    ['snik=2', 'The goblin lookouts were frightened off.'],
-    ['snik=3', 'The goblin lookouts were cut down.'],
-    ['alder=1', 'Maren sang Alder Pell back to rest.'],
-    ['alder=2', 'Alder Pell was put down by force.'],
-    ['alder=3', 'Alder Pell was found at peace under the relit lamp.'],
-    ['pellTruth', 'Old Pell was told the truth about his brother.'],
-    ['pellLie', 'Old Pell was told a kinder story about his brother.'],
-    ['lampLit', "The barrow's ward-lamp burns again."],
-    ['grukk=1', 'Grukk Gravepicker turned on the Pale Hand and led his goblins north.'],
-    ['grukk=2', 'Grukk was bought off with the grave silver.'],
-    ['grukk=3', "Grukk Gravepicker died in the Thane's crypt."],
-    ['silver=1', "The grave silver went back to Brackenford's churchyard."],
-    ['silver=2', 'The grave silver was sold to Odo.'],
-    ['veyra=1', 'Maren asked Veyra to come home.'],
-    ['veyra=2', 'Maren told Veyra there is no coming back.'],
-    ['veyra=3', 'Maren asked Veyra what the King had promised her.'],
-    ['shardAt=1', "The crown shard rests under Brackenford's ward-lamp."],
-    ['shardAt=2', 'The crown shard travels with the party.'],
-    ['camp=1', 'Runa sat up late with Dask.'],
-    ['camp=2', 'Runa sat up late with Maren.'],
-    ['camp=3', 'Runa sat up late with Finch.'],
-    ['camp=4', 'Runa kept her own company.']
-  ].concat(D.chronicle || []);
+  D.chronicle = (D.chronicle || []).concat([
+    ['runaOath=1', 'Runa stood the trial in the Ring of Stones, and Bryn walked out of it beside her.', 3],
+    ['runaOath=2', 'Runa paid the stone-price. The clan took it and said nothing kind.', 3],
+    ['runaOath=3', 'Finch argued that Runa kept her oath the night she dug Bryn out of the snow, and the clan agreed.', 3],
+    ['runaOath=4', 'Runa swore the Oath of Stone again. When the crown is broken, she owes the Cairn five more winters.', 3],
+    ['prisoner=1', 'You gave the Pale Hand prisoner to the clan.', 3],
+    ['prisoner=2', 'You questioned the prisoner, and learned the Hand has a friend at the Duke\'s court.', 3],
+    ['prisoner=3', 'Maren set the prisoner free, with a message for Veyra.', 3],
+    ['grukk3=1', 'Grukk paid his debt, and showed you the tunnel past the Pale Hand camp.', 3],
+    ['grukk3=2', 'You paid Grukk for his tunnel. He counted it twice.', 3],
+    ['grukk3=3', "You fought Nagra for her brother's camp.", 3],
+    ['grukk3=4', "Finch talked Nagra out of her brother's blood-debt.", 3],
+    ['q.bear>=3', 'Rimeclaw is dead, and Arn is home with Eydis.', 3],
+    ['verse3', 'Finch found the third stanza in the watchtower of the Fifth Lamp: she took the key into the deep.', 3],
+    ['shardBearer=1', "The Thane's shard whispered to Maren in the Cairn. She kept it.", 3],
+    ['shardBearer=2', "The Thane's shard whispered in the Cairn. Runa carries it now.", 3],
+    ['shardBearer=3', "The Thane's shard whispered in the Cairn. Dask carries it now.", 3],
+    ['shardBearer=4', "The Thane's shard whispered in the Cairn. Finch carries it now.", 3],
+    ['veyra3=1', 'Veyra asked for your help against the Giant, and fought beside you. Then she let you take the shard.', 3],
+    ['veyra3=2', 'Maren talked Veyra into fighting beside you. Then she let you take the shard.', 3],
+    ['veyra3=3', 'You fought Veyra in the Cairn, and she fled wounded.', 3],
+    ['giant=1', 'Finch sang Hrimgar the Sleeper back to sleep, and the Cairn lamp burns again.', 3],
+    ['giant=2', "You took Hrimgar's heart-stone. The Cairn will not sleep again.", 3],
+    ['camp3=1', 'In Karrow Hold, Runa sat up with Dask.', 3],
+    ['camp3=2', 'In Karrow Hold, Runa sat up with Maren.', 3],
+    ['camp3=3', 'In Karrow Hold, Runa sat up with Finch.', 3],
+    ['camp3=4', "In Karrow Hold, Runa sat alone by her mother's cairn.", 3]
+  ]);
 
-  Object.assign(D.speakers, { Grukk: '#9bd06a', Snik: '#9bd06a', Skrit: '#c59be8', Veyra: '#d6d6e4', Halda: '#9cc4ff' });
+  Object.assign(D.speakers, {
+    Sigrid: '#e8c8a0', Bryn: '#e8a868', Ragna: '#f0b890', Thora: '#c8c8d4', Ulf: '#b8a888', 'Skald Hrolf': '#d8c8f0', Asta: '#d0d8e8',
+    Eydis: '#a8d8c8', Arn: '#c8b898', 'Warden Kell': '#f2e3a0', Grukk: '#a8c860', Nagra: '#98c070', 'Hrimgar': '#a8c8e8',
+    'Clan Guard': '#c8b8a8', 'The Barrow King': '#c8b8e8', Prisoner: '#d6d6e4', 'The Last Watcher': '#a8b8d8'
+  });
   Object.assign(D.sprites, {
-    halda: { skin: '#e2b088', hair: '#6b3f2a', long: 1, top: '#2f4f7a', legs: '#2a2a3a', trim: '#e8c14a' },
-    bram: { skin: '#e8b890', bald: 1, beard: 1, hair: '#8a5a3a', top: '#c9b890', legs: '#4a3b2e' },
-    odo: { skin: '#d8a070', hair: '#2a2a2a', top: '#c8a040', legs: '#3a3028', hat: '#3a7a4a' },
-    ingrid: { skin: '#e8b890', hair: '#d8d0c0', top: '#5a5a66', legs: '#3a3028', trim: '#8a5d38' },
-    tobias: { skin: '#d8a880', hair: '#f0f0f0', beard: 1, top: '#d8cfae', robe: 1, trim: '#e8c14a' },
-    pell: { skin: '#d0a078', hair: '#8a8a8a', top: '#5a5048', legs: '#3a342e', hat: '#4a4038' },
-    tam: { skin: '#f0c8a0', hair: '#a8672e', top: '#d86a3a', legs: '#3a4a6a' },
-    wenna: { skin: '#e8b890', hair: '#a8672e', long: 1, top: '#7a9a5a', robe: 1 },
-    hobb: { skin: '#e0a67c', hair: '#3a2a1e', top: '#8a2f2f', legs: '#3a3a44', helm: '#70747f' },
-    farmer: { skin: '#d8a070', hair: '#6b4a2b', top: '#6a8a4a', legs: '#5a4a3a', hat: '#d8b860' },
-    merchant: { skin: '#f0c8a0', hair: '#2a2a2a', beard: 1, top: '#4a7a8a', legs: '#2a2a3a', hat: '#8a2f4a' },
-    soldier: { skin: '#c98e62', hair: '#b0b0b0', beard: 1, top: '#6a6a50', legs: '#3a3a30' },
-    garrick: { skin: '#e0a67c', hair: '#6b3f2a', beard: 1, top: '#8a3a2a', legs: '#4a3b2e' },
-    veyra: { skin: '#e8dcd0', hair: '#8a8a94', top: '#8a8a94', robe: 1, hood: '#70707c' },
-    alder: { skin: '#a9b8a2', hair: '#6a6a60', top: '#8a8676', robe: 1 }
+    sigrid: { skin: '#e0a67c', hair: '#d8d0c0', long: 1, top: '#5a2a2a', robe: 1, trim: '#e8c14a' },
+    ragna: { skin: '#e8b890', hair: '#c8572e', long: 1, top: '#6a4a3a', robe: 1 },
+    thora: { skin: '#c98e62', hair: '#2a1a12', top: '#4a4a54', legs: '#3a3028', trim: '#8a5d38' },
+    ulf: { skin: '#e8b890', bald: 1, beard: 1, hair: '#c8a050', top: '#7a5a3a', legs: '#3a3028' },
+    hrolf: { skin: '#e0a67c', hair: '#e8e8e8', beard: 1, top: '#4a3a6a', robe: 1 },
+    asta: { skin: '#e0c0a0', hair: '#d8d8d0', long: 1, top: '#3a4a5a', robe: 1 },
+    eydis: { skin: '#e0a67c', hair: '#3a2a1e', long: 1, top: '#5a6a4a', legs: '#3a3028' },
+    arn: { skin: '#e8b890', hair: '#8a5a2a', beard: 1, top: '#6a5a4a', legs: '#3a3028' },
+    kell: { skin: '#d8b090', hair: '#8a8a8a', top: '#d8d4c8', robe: 1, trim: '#e8c14a' },
+    clanguard: { skin: '#e0a67c', hair: '#6b3f2a', beard: 1, top: '#5a3a2a', legs: '#3a3028', helm: '#8a8a94' },
+    kid3: { skin: '#e8b890', hair: '#e8c14a', top: '#7a3a3a', legs: '#3a3028' },
+    hunter3: { skin: '#c98e62', hair: '#2a1a12', beard: 1, top: '#5a4a3a', legs: '#3a3028', hat: '#7a6a5a' }
   });
 
-  /* ---------- opening ---------- */
-  D.scripts.intro = [                       // Halda's offer, played inside the closing scene of the tutorial
-    ['say', 'Halda', "I'm Halda, reeve of Brackenford. I have a job, and it seems the only sellswords in town are now lying in the street."],
-    ['say', 'Halda', "Graves robbed in the churchyard. Sheep gone. And now Garrick the woodcutter hasn't come home."],
-    ['say', 'Runa', 'Goblins?'],
-    ['say', 'Halda', "The tracks say so. They've holed up in the old Thane's Barrow, north through Thornwood."],
-    ['say', 'Dask', 'And the pay?'],
-    ['say', 'Halda', "Sixty gold when it's done, and whatever you find up there that wasn't ours to begin with."],
-    ['choice', null, 'Sixty gold, for a barrow full of goblins. How does the party answer?', [
-      ['Take the job as offered', [
-        ['say', 'Runa', "Sixty is fair. We'll take it."],
-        ['say', 'Halda', "No haggling? Then you're the first sellswords I've liked all year. Here. For the road."],
-        ['give', 'draught', 2], ['set', 'deal', 1], ['bond', 'maren', 1]
-      ]],
-      ['Finch: talk the price up', [['check', 'finch', 12, [
-        ['say', 'Finch', 'Sixty for the goblins, certainly. But the woodcutter, the graves, the sheep? That is four jobs, reeve, and I have only counted the verses once.'],
-        ['say', 'Halda', '...Ninety. And not one verse about how I haggled.'],
-        ['set', 'pay', 90], ['bond', 'dask', 1]
+  /* ---------- Runa's oath, before the clan ---------- */
+  D.scripts.oath = [
+    ['say', 'Sigrid', 'Then answer, Runa Stonehand. The clan is listening.'],
+    ['choice', null, 'How does Runa answer her oath?', [
+      ['Stand the trial in the Ring', [['run', 'oathTrial']]],
+      ['Pay the stone-price (300 gold)', [
+        ['gold', -300],
+        ['say', 'Runa', 'Three hundred. Count it.'],
+        ['say', 'Sigrid', 'The clan takes the price. The clan does not have to like it.'],
+        ['set', 'runaOath', 2], ['xp', 340], ['bond', 'dask', -1]
+      ], 'gold>=300'],
+      ['Dask: haggle the stone-price down', [['check', 'dask', 16, [
+        ['say', 'Dask', 'Three hundred for an oath sworn at sixteen, by a child, under duress, with no written terms? I would not pay that for a horse.'],
+        ['say', 'Sigrid', '...Two hundred. And I will remember your face, halfling.'],
+        ['gold', -200], ['set', 'runaOath', 2], ['xp', 340], ['bond', 'dask', 1]
       ], [
-        ['say', 'Finch', 'Surely Brackenford values its dead more highly than sixty...'],
-        ['say', 'Halda', 'Brackenford values its dead. It values its treasury too. Sixty.']
+        ['say', 'Sigrid', 'Three hundred, halfling, or the Ring. Choose.'],
+        ['run', 'oath']
+      ]]], 'gold>=200'],
+      ['Finch: argue that the oath was kept', [['check', 'finch', [18, ['brynTalk', -3], ['astaTalk', -3], ['knowsGiant', -1]], [
+        ['say', 'Finch', 'Chief. What is the Oath of Stone for? To keep the dead in the Cairn, so the living stay living.'],
+        ['say', 'Finch', 'On the night Runa left her post, the living were under the snow. She kept the oath. She just kept it in the wrong place.'],
+        ['if', 'astaTalk', [['say', 'Asta', 'Hallvard said the same, the night before he died. He said the girl did right.']]],
+        ['if', 'brynTalk', [['say', 'Bryn', 'I was under that snow. I say she kept it.']]],
+        ['say', 'Sigrid', '...The clan has heard. The oath is answered. Welcome home, niece.'],
+        ['set', 'runaOath', 3], ['set', 'brynAlly'], ['bond', 'finch', 1], ['xp', 340]
+      ], [
+        ['say', 'Finch', 'Chief, consider what an oath is really for...'],
+        ['say', 'Sigrid', 'Pretty words, singer. The clan does not eat words. The Ring, then.'],
+        ['run', 'oathTrial']
       ]]]],
-      ['Dask: ask for half up front', [
-        ['say', 'Dask', "Half now. Dead adventurers don't collect, and I've a superstition about being one."],
-        ['say', 'Halda', 'Thirty now, thirty after. And if you run, I know what a halfling looks like.'],
-        ['gold', 30], ['set', 'pay', 30], ['bond', 'dask', 1]
+      ['Runa: swear the oath again', [
+        ['say', 'Runa', 'I broke the Oath of Stone. I will not buy it back and I will not argue it.'],
+        ['say', 'Runa', 'I swear it again. Five winters on the Cairn, when the crown is broken for good. My word, before the clan.'],
+        ['say', 'Maren', 'Runa...'],
+        ['say', 'Sigrid', 'Five winters. Witnessed.'],
+        ['note', 'Sigrid opens her fist. In it is a river pebble with RUNA scratched into it in a child\'s hand.'],
+        ['say', 'Sigrid', 'You left this on the Cairn step the night you ran. I kept it. Carry it until you come back.'],
+        ['give', 'oathstone'], ['set', 'runaOath', 4], ['set', 'brynAlly'], ['xp', 340]
       ]]
     ]],
-    ['say', 'Maren', "The barrow's ward-lamp. Is it still lit?"],
-    ['say', 'Halda', 'Ask Warden Tobias at the temple. He frets over it daily, and he will talk as long as you let him.'],
-    ['if', 'ingridAlly', [['say', 'Ingrid', "Come by the forge before you go up that hill. I'll see you're not walking into a barrow in rags."]]],
-    ['say', 'Halda', 'Rest here tonight. Odo and Ingrid will take your coin in the morning, and the north gate leads to Thornwood.']
+    ['quest', 'main3', 3],
+    ['say', 'Sigrid', 'Now. The Cairn. Take the north gate and climb. Find Kell, and find out who is killing my lamp.']
+  ];
+  D.scripts.oathTrial = [
+    ['say', 'Runa', 'I will stand in the Ring.'],
+    ['say', 'Sigrid', 'Bryn. You have waited eleven years for this.'],
+    ['say', 'Bryn', 'I have.'],
+    ['battle', 'trial'],
+    ['say', 'Bryn', '...You still hit like a rockslide.'],
+    ['say', 'Bryn', 'You dug me out with your hands. You left before I could thank you. That is what I was angry about. Only that.'],
+    ['say', 'Sigrid', 'The clan has seen. The oath is answered.'],
+    ['set', 'runaOath', 1], ['set', 'brynAlly']
   ];
 
-  /* ---------- the goblin lookout ---------- */
-  D.scripts.snikFight = [
-    ['battle', 'lookout'], ['set', 'snik', 3], ['remove', 'thornwood.k'],
-    ['say', 'Dask', '"Grukk says." So there is a Grukk. Good to know who to bill.']
-  ];
-  D.scripts.snikTalks = [
-    ['say', 'Snik', '...Snik will say. Then Snik goes, and nobody tells Grukk.'],
-    ['say', 'Snik', "Grukk was good chief. Then grey lady comes, pays silver for digging. Grukk digs up dead Thane, puts on dead Thane's hat. Now Grukk says he IS Thane. Talks to the walls."],
-    ['say', 'Snik', 'And the bone-rattler, Skrit. Skrit is not ours. Skrit came with the grey lady and stayed. Skrit watches Grukk like Snik watches stew.'],
-    ['say', 'Maren', 'This grey lady. Did she do something to a lamp, deep inside?'],
-    ['say', 'Snik', 'Blew it out, like a candle. Then the dead ones started getting up. Snik asked for lookout duty that same day.'],
-    ['say', 'Snik', 'Gate inside is chained. Lever is west. Snik is going now.'],
-    ['set', 'snik', 1], ['set', 'knowsGrey'], ['xp', 25], ['remove', 'thornwood.k'],
-    ['say', 'Finch', 'He will be telling that story in a different forest by nightfall.']
-  ];
-
-  /* ---------- Alder Pell ---------- */
-  D.scripts.alderFell = [
-    ['note', "What is left of him is very small. The tin ring rolls to a stop against Maren's boot."],
-    ['give', 'tinring'], ['set', 'alder', 2], ['quest', 'grave', 2]
-  ];
-  D.scripts.pellRing = [
-    ['say', 'Old Pell', 'That is... that is his ring. Where did you get that?'],
-    ['if', 'alder=2', [
-      ['choice', null, 'Alder came at you, and you cut him down. What do you tell his brother?', [
-        ['The truth', [
-          ['say', 'Runa', 'He was up and walking. He came at us. We ended it quick.'],
-          ['say', 'Old Pell', "...Quick. Well. He'd have wanted quick. Thank you for not dressing it up."],
-          ['set', 'pellTruth'], ['bond', 'maren', 1]
-        ]],
-        ['A kinder story', [
-          ['say', 'Finch', 'He was lying by the lamp when we found him, peaceful as a Sunday. He only needed someone to bring him home.'],
-          ['say', 'Old Pell', 'Peaceful. Aye. That sounds like him. He never did anything in a hurry.'],
-          ['set', 'pellLie'], ['bond', 'finch', 1], ['bond', 'maren', -1]
-        ]]
-      ]]
-    ], [
-      ['say', 'Maren', 'He is at rest, Pell. Properly, this time. He was not alone at the end.'],
-      ['say', 'Old Pell', 'Not alone. No. Well. That is more than I managed for him.']
+  /* ---------- the whisper of the Thane's shard (only if the party still carries it) ---------- */
+  D.scripts.whisper = [
+    ['note', "The Thane's shard turns cold, then hot. A voice that is not a voice: \"Little Warden. Three of me, so close. Bring me home.\""],
+    ['choice', 'Maren', '(The shard is whispering to Maren.)', [
+      ['Maren: hold on to it, and resist', [['check', 'maren', [16, ['marenHope=1', -2], ['rite', -2], ['verse2', -1]], [
+        ['say', 'Maren', 'No. I know your voice now. Be quiet.'],
+        ['note', 'The shard goes still.'],
+        ['set', 'shardBearer', 1], ['bond', 'maren', 1]
+      ], [
+        ['say', 'Maren', '...Runa. I can hear him. He sounds so tired.'],
+        ['note', 'The voice fills the barrow. Every one of you hears it now. It leaves you shaking.'],
+        ['set', 'shardBearer', 1], ['set', 'shardWeak']
+      ]]]],
+      ['Runa takes it', [['say', 'Runa', 'Give it here. He can shout at me. I have been shouted at by better.'], ['lose', 'shardworn'], ['give', 'shardworn'], ['set', 'shardBearer', 2]]],
+      ['Dask takes it', [['say', 'Dask', 'I have been ignoring creditors for six years. One more voice in my head will not matter.'], ['lose', 'shardworn'], ['give', 'shardworn'], ['set', 'shardBearer', 3], ['bond', 'dask', 1]]],
+      ['Finch takes it', [['say', 'Finch', 'A dead king who wants to talk? Finally, an audience.'], ['lose', 'shardworn'], ['give', 'shardworn'], ['set', 'shardBearer', 4], ['bond', 'finch', 1]]]
     ]],
-    ['say', 'Old Pell', 'Take the bell. I rang it for every one of them, so they would know somebody was coming. You will have more use for it than I will.'],
-    ['take', 'tinring'], ['give', 'gravebell'], ['gold', 25], ['xp', 40], ['quest', 'grave', 3]
+    ['if', 'shardBearer>=2', [['note', 'The shard is in the bag now. Equip it from the Gear menu if you want its power.']]]
   ];
 
-  /* ---------- Grukk ---------- */
-  D.scripts.grukkFight = [
-    ['if', 'snik=1', [
-      ['note', 'Grukk bellows for his guards. Nobody comes. Word from the lookouts has got around.'],
-      ['battle', 'grukk_duo']
-    ], [['battle', 'grukk']]],
-    ['set', 'grukk', 3], ['remove', 'barrow2.9'], ['run', 'shardScene']
+  /* ---------- the barrow: Veyra, the Giant ---------- */
+  D.scripts.cairnScene = [
+    ['quest', 'main3', 5],
+    ['note', 'The barrow of the Giant. On a bier of blue ice lies a man the size of a cottage, and over him, a lamp that has gone dark.'],
+    ['note', 'Veyra stands at the lamp with two Reavers. The Giant\'s chest is rising. Slowly. Then less slowly.'],
+    ['if', 'brynAlly', [['say', 'Bryn', 'I followed you up. Somebody had to keep the Cairn with you.']]],
+    ['if', 'shardAt=2&!shardTraded', [['run', 'whisper']]],
+    ['if', 'veyraDoubt', [['run', 'veyraAsks']], [['if', 'prisoner=3', [['run', 'veyraAsks']], [['run', 'veyraStands']]]]],
+    ['shake', 600], ['sfx', 'hit'],
+    ['say', 'Hrimgar', 'WHO... PUT OUT... MY LAMP?'],
+    ['if', 'allyVeyra', [['say', 'Veyra', 'Not me. I swear it, Maren. Not this one.']]],
+    ['if', 'brynAlly&allyVeyra', [['battle', 'giant', { guests: ['bryn', 'veyra'] }]], [
+      ['if', 'brynAlly', [['battle', 'giant', { guests: ['bryn'] }]], [
+        ['if', 'allyVeyra', [['battle', 'giant', { guests: ['veyra'] }]], [['battle', 'giant']]]
+      ]]
+    ]],
+    ['run', 'giantDown']
   ];
-  D.scripts.grukkTurns = [
-    ['say', 'Finch', 'Great Thane. When the digging is done, what does the grey lady need a digger for? She did not leave her own creature at your elbow to keep you company.'],
-    ['say', 'Grukk', '...Skrit. Why does Skrit never dig?'],
-    ['say', 'Skrit', 'Lady said the diggers are done when the digging is done. Lady said it would be soon.'],
-    ['note', 'The hexer throws back his hood. Under it he wears a collar of grey cloth, stitched with a pale open hand.'],
-    ['say', 'Grukk', 'Grukk is THANE! Nobody is done with Grukk!'],
-    ['note', 'Grukk swings. Skrit is already gone from under the spade, rattling his knucklebones, and the alcoves answer.'],
-    ['battle', 'skrit'],
-    ['note', "Skrit's bones scatter across the flagstones. Grukk looks at them for a long moment. Then he lifts the Thane's helm off his own head."],
-    ['say', 'Grukk', 'Hat made Grukk hear things. Dead-king things. Take it. Take the shiny bit. Grukk takes his people north, where nobody pays silver for anything.'],
-    ['say', 'Runa', 'Go, then. If I see you south of the hills, we finish this.'],
-    ['say', 'Grukk', 'Fair.'],
-    ['set', 'grukk', 1], ['xp', 70], ['bond', 'finch', 1], ['remove', 'barrow2.9'], ['run', 'shardScene']
-  ];
-  D.scripts.grukkBought = [
-    ['say', 'Dask', "Chief. Thane. Whatever the hat says. This is every scrap of silver your lot dug up. Take it, take your people and go, and nobody has to bleed on the Thane's nice floor."],
-    ['say', 'Maren', 'Dask. That is not ours to give.'],
-    ['say', 'Dask', 'No. But it is ours to spend.'],
-    ['say', 'Grukk', '...All the silver. And Grukk keeps the hat?'],
-    ['say', 'Runa', 'The hat stays.'],
-    ['say', 'Grukk', 'Hat was heavy anyway.'],
-    ['say', 'Skrit', 'No. NO. Lady said the diggers hold the hill until she comes back for the last of it!'],
-    ['note', 'The hexer throws back his hood. Under it, a collar of grey cloth stitched with a pale open hand. Grukk is already walking. Skrit rattles his knucklebones, and the alcoves answer.'],
-    ['battle', 'skrit'],
-    ['take', 'silver'], ['set', 'silver', 3], ['set', 'grukk', 2], ['xp', 40],
-    ['bond', 'dask', 1], ['bond', 'maren', -1], ['remove', 'barrow2.9'], ['run', 'shardScene']
-  ];
-
-  /* ---------- the shard and Veyra ---------- */
-  D.scripts.shardScene = [
-    ['if', 'grukk=3', [['note', "Grukk topples. The Thane's helm rolls off and rings on the flagstones."]],
-      [['note', "The goblins go out past you in a long quiet file, carrying their young. The Thane's helm sits on the flagstones where Grukk left it."]]],
-    ['note', "In the sarcophagus, folded in the Thane's dead hands, lies a sliver of black iron. It hums."],
-    ['give', 'shard'],
-    ['sfx', 'magic'], ['set', 'veyraHere'], ['wait', 600],
-    ['say', 'Veyra', 'Maren. Of all the Wardens they might have sent.'],
-    ['if', 'knowsVeyra', [['say', 'Maren', 'Veyra. I hoped Tobias was wrong.']], [['say', 'Maren', 'Veyra. It was you. You put out the lamp.']]],
-    ['say', 'Veyra', 'I put out a lie. Three hundred years of burying people and calling it mercy. The King found a door out of death, and we bricked it shut.'],
-    ['say', 'Runa', 'From here it looks like a door in.'],
-    ['choice', 'Maren', '(She was the best pupil you ever had. What do you say to her?)', [
-      ['"Come home, Veyra."', [
-        ['say', 'Maren', 'You were the best of us. You still could be. Come home, and we will find another way to grieve.'],
-        ['say', 'Veyra', "...Don't. Don't be kind to me. I had it all so clear."],
-        ['say', 'Veyra', 'The Abbey floods at dusk. Do not go in by the nave. That is all the kindness I have left.'],
-        ['set', 'veyra', 1], ['set', 'abbeyHint'], ['bond', 'maren', 1]
+  D.scripts.veyraAsks = [
+    ['say', 'Veyra', 'Maren. I hoped it would be you.'],
+    ['if', 'prisoner=3', [['say', 'Veyra', 'Your prisoner found me. He said you sent him with a message: that you would come in peace, if I let you.']]],
+    ['say', 'Veyra', 'Someone has been feeding this lamp grey oil for a year. Not me. I came for the shard, and I find I cannot let him walk.'],
+    ['choice', null, 'Veyra is asking for help.', [
+      ['Fight beside her', [
+        ['say', 'Maren', 'Then stand with me. Like you used to.'],
+        ['note', 'Veyra sends her Reavers away. They go, glancing back.'],
+        ['set', 'veyra3', 1], ['set', 'allyVeyra'], ['bond', 'maren', 1], ['xp', 600]
       ]],
-      ['"There is no coming back from this."', [
-        ['say', 'Maren', 'You put out a ward-lamp, and the dead of Brackenford got up out of the ground. There is no door back from that.'],
-        ['say', 'Veyra', 'Then we are done being teacher and pupil. Good. That will make it easier.'],
-        ['set', 'veyra', 2], ['bond', 'dask', 1]
+      ['Refuse, and take the shard from her', [
+        ['say', 'Dask', 'Not a chance. You have lied to us twice.'],
+        ['say', 'Veyra', 'Three times, if you count the sluice. Very well.'],
+        ['run', 'veyraFight']
+      ]]
+    ]]
+  ];
+  D.scripts.veyraStands = [
+    ['say', 'Veyra', 'Stay back, all of you. The shard is mine, and the Giant is not your concern.'],
+    ['choice', null, 'Veyra will not move from the lamp.', [
+      ['Maren: plead with her', [['check', 'maren', [17, ['veyra=1', -3], ['marenHope=1', -2], ['knowsBrother', -2], ['hostagesSaved', -1], ['verse2', -1], ['veyraOrder', -2]], [
+        ['say', 'Maren', 'Look at him, Veyra. If he wakes, the Hold dies first. Odric\'s sister does not let a village die.'],
+        ['say', 'Veyra', '...How do you know his name?'],
+        ['say', 'Maren', 'I read it on his grave. You left flowers.'],
+        ['note', 'Veyra lowers her lamp. She sends her Reavers away.'],
+        ['say', 'Veyra', 'Then help me hold him down. After that, we will see.'],
+        ['set', 'veyra3', 2], ['set', 'allyVeyra'], ['bond', 'maren', 2], ['xp', 600]
+      ], [
+        ['say', 'Maren', 'Veyra, please. Look at what is waking.'],
+        ['say', 'Veyra', 'I see it. I see you, too. No.'],
+        ['run', 'veyraFight']
+      ]]]],
+      ['Fight her', [['run', 'veyraFight']]]
+    ]]
+  ];
+  D.scripts.veyraFight = [
+    ['battle', 'veyra3'],
+    ['note', 'Veyra goes down on one knee. Grey lamplight flares, and when it clears she is at the far door, bleeding.'],
+    ['say', 'Veyra', 'Keep the shard, then. Keep him asleep, if you can. I could not.'],
+    ['note', 'She is gone. Behind you, the ice on the bier cracks.'],
+    ['say', 'Maren', 'Breathe. All of you. Quickly.'],
+    ['heal'],
+    ['set', 'veyra3', 3], ['set', 'veyraGone3'], ['bond', 'dask', 1]
+  ];
+  D.scripts.giantDown = [
+    ['note', 'Hrimgar goes down on one knee, and the barrow shakes. His eyes are the grey of old ice, and very tired.'],
+    ['say', 'Hrimgar', 'The Lamp of the North... sang me down... a long time ago. I liked her song. I liked the dark.'],
+    ['choice', null, 'Hrimgar is beaten. What now?', [
+      ['Finch: sing him back to sleep', [
+        ['if', 'verse1&verse2', [
+          ['say', 'Finch', 'Four lamps they lit to bar the way, and four still burn where kings lie low...'],
+          ['say', 'Finch', 'She held it through the longest night, and asked no crown, and took no throne...'],
+          ['say', 'Hrimgar', '...Her song. That is her song.'],
+          ['bond', 'finch', 1]
+        ], [['check', 'finch', [16, ['knowsGiant', -3], ['verse1', -2], ['verse2', -2]], [
+          ['say', 'Finch', 'Hush now, old one. The lamps are lit and the door is kept. Sleep.'],
+          ['say', 'Hrimgar', '...Not her song. But kind.']
+        ], [
+          ['say', 'Finch', 'Hush now... ah. I do not know her words.'],
+          ['say', 'Maren', 'Then sing his, and I will say the rite under it.'],
+          ['note', 'Between them, it is enough.']
+        ]]]],
+        ['note', 'Hrimgar lies back on the ice. He opens one great hand. In the palm is the third shard of the crown.'],
+        ['give', 'shard3'],
+        ['say', 'Maren', 'Lamplighter, who keeps the door: here is a little light for one who sleeps.'],
+        ['sfx', 'magic'], ['set', 'lampLit3'], ['heal'],
+        ['note', 'The Cairn lamp catches and burns blue-white. The Giant sleeps.'],
+        ['set', 'giant', 1], ['xp', 100]
       ]],
-      ['"What did the King promise you?"', [
-        ['say', 'Maren', 'Not the sermon. Tell me what he promised you.'],
-        ['say', 'Veyra', 'No more graves, Maren. Not one. I buried my brother with my own hands and said your words over him, and they were only words.'],
-        ['say', 'Veyra', 'The crown holds a soul past death. One soul, so far. I mean to find out whether it can hold more.'],
-        ['say', 'Finch', '(Under his breath.) More than one. Lamplighter keep us.'],
-        ['set', 'veyra', 3], ['set', 'knowsBrother'], ['bond', 'finch', 1], ['xp', 30]
+      ["Take his heart-stone", [
+        ['say', 'Dask', 'That stone in his chest. It is keeping him alive. And it is worth more than Highmoor.'],
+        ['if', 'runaOath=4', [['say', 'Runa', 'I swore to keep him. ...Do it. He is suffering.']], [['say', 'Runa', 'Do it quickly.']]],
+        ['note', 'Hrimgar does not fight it. He sighs, and the sigh goes on until it is only wind, and then there is only ice where he was.'],
+        ['note', 'In the ice: a heart-stone the size of a fist, and the third shard.'],
+        ['give', 'giantheart'], ['give', 'shard3'],
+        ['say', 'Maren', 'The lamp will not take. There is nothing left here for it to keep.'],
+        ['set', 'giant', 2], ['xp', 100]
       ]]
     ]],
-    ['say', 'Veyra', 'Keep the shard, for now. Carry it carefully. There are four more, and I am already on the road to Saltmere.'],
-    ['set', 'veyraHere', 0], ['sfx', 'magic'], ['wait', 400],
-    ['say', 'Finch', 'Well. Every ballad needs a villain with a point.'],
-    ['say', 'Dask', "Every ballad needs a payday. Let's see the reeve."],
-    ['quest', 'main', 5], ['save']
-  ];
-
-  D.scripts.tobiasShard = [
-    ['say', 'Tobias', 'Let me hold it. ...Yes. Cold as the day it was buried.'],
-    ['say', 'Tobias', "The Barrow King bound his soul into his crown. The Five Lamps broke it in five and buried each piece under a ward-lamp. Oswin's barrow was the least of them."],
-    ['say', 'Maren', 'Veyra knows where the other four lie. I taught her the old maps myself.'],
-    ['say', 'Tobias', 'Then you know where she is going. The Drowned Abbey, in the fens past Saltmere.'],
-    ['say', 'Tobias', 'Which leaves this. It cannot go back in the barrow. Leave it here under my lamp, or carry it with you.'],
-    ['say', 'Maren', 'Under a lamp is where it belongs.'],
-    ['say', 'Dask', 'Under a lamp is where she found the last one. I say it stays where we can see it.'],
-    ['say', 'Runa', 'If they come for it, I would rather they came to me than to an old man.'],
-    ['say', 'Finch', 'For the record, it has been humming in my pack all day, and I do not care for the tune.'],
-    ['choice', null, 'What becomes of the crown shard?', [
-      ["Leave it under Brackenford's lamp", [
-        ['take', 'shard'], ['set', 'shardAt', 1],
-        ['say', 'Tobias', 'Then I will sit up with it. I do not sleep much anyway. Take this in trade. It was lit from the lamp, and it does not blow out.'],
-        ['give', 'vigil'], ['bond', 'maren', 1]
-      ]],
-      ['Carry it with you', [
-        ['take', 'shard'], ['set', 'shardAt', 2],
-        ['say', 'Tobias', 'Then carry it close, and never carry it alone. It will make itself useful to whoever holds it. That is how it starts.'],
-        ['give', 'shardworn'], ['bond', 'dask', 1]
-      ]]
+    ['if', 'allyVeyra', [
+      ['say', 'Veyra', 'Keep it. The shard. Before I change my mind.'],
+      ['say', 'Maren', 'Come with us.'],
+      ['say', 'Veyra', 'Not yet. I need to think, somewhere very far from Highmoor. Someone there wants all five, and I am no longer sure it is for the reason he told me.'],
+      ['note', 'She goes up the stair alone.'],
+      ['set', 'veyraTurning'], ['set', 'veyraGone3']
     ]],
-    ['say', 'Tobias', 'The Highmoor carpenters say the south bridge will be mended within the week. Rest tonight. You have earned one quiet evening.'],
-    ['run', 'campfire'],
-    ['set', 'ch1done'],
-    ['run', 'epilogue']
+    ['set', 'cr2.done'], ['quest', 'main3', 6], ['save']
+  ];
+  D.scripts.cairnHome = [
+    ['fade', 'out', 500],
+    ['note', 'You come down out of the Frost Pass in the blue hour, and Karrow Hold has every lamp lit to meet you.'],
+    ['warp', 'karrow', 'a', 'down']
   ];
 
-  /* ---------- the night at the Crooked Lantern ---------- */
-  D.scripts.campfire = [
-    ['warp', 'tavern', 'p', 'up'],
-    ['note', 'That night the Crooked Lantern is loud with a town that has decided to stop being afraid. The four of you get the table by the fire.'],
-    ['choice', null, 'It is late, and the room is thinning out. Who does Runa sit up with?', [
+  /* ---------- the night in the Longhall ---------- */
+  D.scripts.camp3 = [
+    ['warp', 'k_hall', 'p', 'up'],
+    ['note', 'The feast goes on until the fire is low. Then it is only the four of you, and the snow at the shutters.'],
+    ['choice', null, 'Who does Runa sit up with?', [
       ['Dask', [
-        ['say', 'Dask', "You're staring. I counted it twice. Your share's right."],
-        ['say', 'Runa', 'You count everything.'],
-        ['say', 'Dask', 'I owe everything. There is a counting-house in Highmoor that holds paper on me, and it does not forgive round numbers.'],
-        ['if', 'bond.dask>=2', [
-          ['say', 'Dask', "You've not once looked at my purse, so I'll tell you the rest. It wasn't my debt to start with. It was my sister's. I signed it over so she could leave the city."],
-          ['set', 'confide.dask']
-        ]],
-        ['choice', 'Runa', '(What do you tell him?)', [
-          ['"When they come to collect, they collect from four."', [['say', 'Dask', "...That is terrible arithmetic, Stonehand. I'll take it."], ['set', 'daskDebt', 1]]],
-          ['"Then pay it, and be free of them."', [['say', 'Dask', "That's the plan. That has been the plan for six years."], ['set', 'daskDebt', 2]]]
-        ]],
-        ['set', 'camp', 1], ['boon', 'dask', 'atk', 1]
+        ['say', 'Dask', 'Highmoor next. Orrin and Sons. My paper, my sister, and a counting-house that pays the Pale Hand\'s bills.'],
+        ['if', 'daskDebt=1', [['say', 'Dask', 'You said when they come to collect, they collect from four. I am going to hold you to that, Stonehand.']],
+          [['say', 'Dask', 'You told me to pay it and be free. I have the gold now. I am not sure paying is what I want any more.']]],
+        ['say', 'Runa', 'We walk in together.'],
+        ['say', 'Dask', 'Together. And out again. That part is important.'],
+        ['set', 'camp3', 1], ['boon', 'dask', 'spd', 1]
       ]],
       ['Maren', [
-        ['say', 'Maren', "I keep trying to remember the day she changed, and there isn't one. She only asked better questions every year."],
-        ['say', 'Runa', 'You blame yourself.'],
-        ['say', 'Maren', 'I taught her that death is a door we hold shut for everyone. I never taught her what to do when someone she loved was on the other side of it.'],
-        ['if', 'bond.maren>=2', [
-          ['say', 'Maren', 'Her brother died the winter before she left us. I told her grief was a lamp, too. I think that may be the most foolish thing I have ever said to anyone.'],
-          ['set', 'confide.maren']
-        ]],
-        ['choice', 'Runa', '(What do you tell her?)', [
-          ['"She can still be turned."', [['say', 'Maren', 'I want to believe that more than is wise. Hold me to it.'], ['set', 'marenHope', 1]]],
-          ['"She made her choice. Don\'t let it make yours."', [['say', 'Maren', 'No. You are right. You are right, and I hate it.'], ['set', 'marenHope', 2]]]
-        ]],
-        ['set', 'camp', 2], ['boon', 'maren', 'pow', 1]
+        ['if', 'allyVeyra', [['say', 'Maren', 'She fought beside me, Runa. Like she used to. And then she walked away again.']],
+          [['say', 'Maren', 'She bled on the Cairn stair. I keep wondering who bound it for her.']]],
+        ['if', 'marenHope=1', [['say', 'Maren', 'You told me she could still be turned. I think she is turning. I think it is going to hurt her very much.']],
+          [['say', 'Maren', 'You told me not to let her choice make mine. I am trying.']]],
+        ['set', 'camp3', 2], ['boon', 'maren', 'save', 1]
       ]],
       ['Finch', [
-        ['say', 'Finch', 'I have been trying to rhyme "Gravepicker" for an hour. I believe the goblin did it on purpose.'],
-        ['say', 'Runa', 'Why are you really here, singer?'],
-        ['say', 'Finch', 'There is a ballad of the Five Lamps. Everyone knows four verses. My grandmother knew a fifth, and would never sing it, and died not singing it. I should like to know how it ends.'],
-        ['if', 'bond.finch>=2', [
-          ['say', 'Finch', 'She did say one line of it, once, when she thought I was asleep. "And the fifth lamp was the one who held the door." Held it, Runa. Not shut it.'],
-          ['set', 'confide.finch']
-        ]],
-        ['choice', 'Runa', '(What do you tell him?)', [
-          ['"Then we will find the ending."', [['say', 'Finch', '"We." Oh, that is going in.'], ['set', 'finchSong', 1]]],
-          ['"Some songs end badly."', [['say', 'Finch', 'The good ones usually do. One sings them anyway.'], ['set', 'finchSong', 2]]]
-        ]],
-        ['set', 'camp', 3], ['boon', 'finch', 'sp', 2]
+        ['if', 'verse3', [['say', 'Finch', '"She took the key into the deep, and turned it, and was not seen but..." But what? The stanza stops. My grandmother stopped there too.']],
+          [['say', 'Finch', 'Three shards, three barrows, and I still do not know how the song ends.']]],
+        ['if', 'finchSong=1', [['say', 'Finch', 'You said we would find the ending. We are close. I can feel it in my teeth.']],
+          [['say', 'Finch', 'You said some songs end badly. I am beginning to think this one ends in a door.']]],
+        ['set', 'camp3', 3], ['boon', 'finch', 'save', 1]
       ]],
-      ['No one. Sharpen the axe.', [
-        ['note', "Runa takes her axe out to the yard. The whetstone says what she doesn't. Home is north, and she owes it something."],
-        ['note', 'Some time past midnight, somebody leaves a mug of something hot on the fence post and does not mention it.'],
-        ['set', 'camp', 4], ['boon', 'runa', 'hp', 4]
+      ["No one. Walk to her mother's cairn.", [
+        ['note', "Runa's mother is buried on the hill above the Hold, under a cairn Runa helped build at twelve. The snow has never quite covered it."],
+        ['if', 'runaOath=4', [['note', 'Five more winters. Runa finds she does not mind. It is the first promise she has made in eleven years that she means to keep.']],
+          [['note', 'The clan has let her come home. She is not sure yet that she is staying.']]],
+        ['set', 'camp3', 4], ['boon', 'runa', 'hp', 8]
       ]]
     ]],
     ['inn', 0]
-  ];
-
-  D.scripts.riddleWrong = [
-    ['sfx', 'bad'],
-    ['note', "The statue's eyes kindle. On either side of the hall, the armoured dead step out of their alcoves."],
-    ['battle', 'b2_sentinels'],
-    ['note', 'With the sentinels broken, the door swings open on its own.'],
-    ['set', 'riddle']
   ];
 })();
