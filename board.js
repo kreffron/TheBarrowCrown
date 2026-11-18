@@ -645,7 +645,8 @@
     const st = document.getElementById('stage');
     if (!st) return;
     const at = e => { if (e.target.closest && e.target.closest('.win, .bview')) return null; const r = st.getBoundingClientRect(); return B.tileAt((e.clientX - r.left) / r.width * 320, (e.clientY - r.top) / r.height * 240); };
-    st.addEventListener('pointermove', e => { if (G.scene !== 'battle' || !B.pointer) return; const t = at(e); if (t) B.pointer(t[0], t[1], false); });
+    st.addEventListener('pointermove', e => { if (G.scene !== 'battle') return; const t = at(e); B.hoverCell = t ? { x: t[0], y: t[1] } : null; if (t && B.pointer) B.pointer(t[0], t[1], false); });
+    st.addEventListener('pointerleave', () => { B.hoverCell = null; });
     st.addEventListener('pointerdown', e => { if (G.scene !== 'battle' || !B.pointer) return; const t = at(e); if (t) { e.preventDefault(); e.stopPropagation(); B.pointer(t[0], t[1], true); } });
   });
 })();

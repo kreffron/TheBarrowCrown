@@ -82,7 +82,7 @@ RAW = os.environ.get('RAW') == '1'          # RAW=1 lifts the level cap to measu
 SETUP = r"""
 G.fast = true; G.auto = true; G.opts.sfx = false; G.opts.music = false;
 G.save = () => true;
-window.T = { log: [], losses: 0, fights: 0, prefs: [], checks: null, picks: [], tm: { lines: 0, chars: 0, rounds: 0, maps: {}, entries: 0, choices: 0 } };
+window.T = { glv: {}, gmap: {}, qlv: {}, log: [], losses: 0, fights: 0, prefs: [], checks: null, picks: [], tm: { lines: 0, chars: 0, rounds: 0, maps: {}, entries: 0, choices: 0 } };
 { const _say = UI.say; UI.say = function (who, text, keep) { T.tm.lines++; T.tm.chars += String(text || '').length; return _say.apply(this, arguments); }; }
 { const _enter = Field.enter; Field.enter = async function (id) { const r = await _enter.apply(this, arguments); if (Field.map) { T.tm.entries++; T.tm.maps[id] = Field.map.w + Field.map.h; } return r; }; }
 G.autoPick = o => {
@@ -97,6 +97,7 @@ G.autoPick = o => {
   for (const p of T.prefs) { const i = open.find(i => new RegExp(p).test(labs[i])); if (i !== undefined) { T.picks.push(labs[i]); return val(i); } }
   return val(open[0]);
 };
+{ const _sf = G.setFlag; G.setFlag = function (n, v) { if (/^q\./.test(n) && !G.S.flags[n] && !(n.slice(2) in T.qlv)) T.qlv[n.slice(2)] = G.S.level; return _sf.apply(this, arguments); }; }
 const _check = G.check;
 G.check = async (who, dc) => { G.dc(dc); return T.checks === null ? _check(who, dc) : T.checks; };
 T.levelFor = (xp, cap) => { let L = 1; while (L < cap && xp >= G.D.xpTable[L]) L++; return L; };
@@ -104,6 +105,7 @@ const _gain = G.gainXp;
 G.gainXp = function (n) { const L = G.S.level, out = _gain(n); if (G.S.level > L) T.lv.push('L' + G.S.level + ' at ' + (T.where || G.S.map) + ' (' + G.S.xp + ' XP)'); if (G.S.level >= 30 && L < 30 && !G.flag('ch5mid')) T.early30 = 1; return out; };
 window._start = B.start;
 B.start = async function (g, o) {            // on a loss: count it, patch the party up, try again (max 6)
+  if (typeof g === 'string') { T.glv[g] = Math.max(T.glv[g] || 0, G.S.level); (T.gmap[g] = T.gmap[g] || {})[G.S.map] = 1; }
   for (let i = 0; i < 6; i++) {
     T.fights++;
     const r = await _start(g, o); T.tm.rounds += B.rounds || 0;
@@ -752,13 +754,14 @@ async def main():
                 r = ROUTES[name]
                 mode = r.get('mode', 'full')
                 await pg.reload(); await pg.wait_for_timeout(300); await pg.evaluate(SETUP + '; void 0')
+                if os.environ.get('PATCH'): await pg.evaluate(os.environ['PATCH'] + '; void 0')
                 res = await pg.evaluate('(' + PLAY + ')(%s, %s, %s, %s)' % (json.dumps(r['prefs']), json.dumps(r['checks']), json.dumps(mode), json.dumps(RAW)))
+                if os.environ.get('LEVELS_OUT'): open(os.environ['LEVELS_OUT'], 'a').write(json.dumps({'route': name, 'd': await pg.evaluate('({ glv: T.glv, gmap: T.gmap, qlv: T.qlv })')}) + '\n')
                 done = res['quests'].get('ch1done') == 1 and res['quests'].get('q.main') == 6 and res['quests'].get('bridgeMended') == 1 and not res['quests'].get('cs.farewell') and not res['err']
-                if not RAW and res['xp'] > 1327: done = False; print('  BANKED XP OVER HALF A LEVEL: %d' % res['xp'])
                 if not RAW:                       # the level rules the chapter promises: main 4, some side content 5, all of it 6
-                    if res['level'] > 6: done = False; print('  LEVEL OVER THE CAP: %d' % res['level'])
+                    if res['level'] > 7: done = False; print('  LEVEL WELL PAST THE OLD CAP: %d' % res['level'])
                     if mode == 'main' and res['level'] != 4: done = False; print('  MAIN STORY ENDED AT LEVEL %d' % res['level'])
-                    if mode == 'full' and res['level'] != 6: done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
+                    if mode == 'full' and res['level'] not in (6, 7): done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
                 bad += 0 if done else 1
                 print('=== route %s (%s): %s — level %d, %d XP, %d fights, %d losses' % (name, mode, 'COMPLETE' if done else 'DID NOT FINISH', res['level'], res['xp'], res['fights'], res['losses']))
                 print('  tm: ' + json.dumps(res.get('tm')))
@@ -776,13 +779,14 @@ async def main():
             for name in names:
                 r = ROUTES5[name]
                 await pg.reload(); await pg.wait_for_timeout(300); await pg.evaluate(SETUP + '; void 0')
+                if os.environ.get('PATCH'): await pg.evaluate(os.environ['PATCH'] + '; void 0')
                 try:
                     res = await pg.evaluate('(' + PLAY5 + ')(%s, %s, %s, %s, %s)' % (json.dumps(r['prefs']), json.dumps(r['checks']), json.dumps(r['mode']), json.dumps(r['start']), json.dumps(RAW)))
+                    if os.environ.get('LEVELS_OUT'): open(os.environ['LEVELS_OUT'], 'a').write(json.dumps({'route': name, 'd': await pg.evaluate('({ glv: T.glv, gmap: T.gmap, qlv: T.qlv })')}) + '\n')
                 except Exception as e:
                     print('=== route %s: CRASHED %s' % (name, str(e)[:900])); bad += 1; continue
                 done = res['quests'].get('ch5done') == 1 and res['quests'].get('q.main5') == 7 and not res['err']
                 if not RAW:
-                    if res['early30']: done = False; print('  REACHED LEVEL 30 BEFORE THE WAR-LINE')
                     if r['mode'] == 'main' and r['start'] == 'hi' and res['level'] != 27: done = False; print('  MAIN STORY (FROM A FULL CHAPTER) ENDED AT LEVEL %d' % res['level'])
                     if r['mode'] == 'main' and res['level'] > 27: done = False; print('  MAIN STORY ENDED AT LEVEL %d' % res['level'])
                     if r['mode'] == 'full' and res['level'] != 30: done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
@@ -804,17 +808,18 @@ async def main():
             for name in names:
                 r = ROUTES4[name]
                 await pg.reload(); await pg.wait_for_timeout(300); await pg.evaluate(SETUP + '; void 0')
+                if os.environ.get('PATCH'): await pg.evaluate(os.environ['PATCH'] + '; void 0')
                 try:
                     res = await pg.evaluate('(' + PLAY4 + ')(%s, %s, %s, %s, %s)' % (json.dumps(r['prefs']), json.dumps(r['checks']), json.dumps(r['mode']), json.dumps(r['start']), json.dumps(RAW)))
+                    if os.environ.get('LEVELS_OUT'): open(os.environ['LEVELS_OUT'], 'a').write(json.dumps({'route': name, 'd': await pg.evaluate('({ glv: T.glv, gmap: T.gmap, qlv: T.qlv })')}) + '\n')
                 except Exception as e:
                     print('=== route %s: CRASHED %s' % (name, str(e)[:900])); bad += 1; continue
                 done = res['quests'].get('ch4done') == 1 and res['quests'].get('q.main4') == 7 and not res['err']
                 if not RAW:
-                    if res['level'] > 24: done = False; print('  LEVEL OVER THE CAP: %d' % res['level'])
-                    if res['xp'] > 24990: done = False; print('  BANKED XP OVER HALF A LEVEL: %d' % res['xp'])
+                    if res['level'] > 25: done = False; print('  LEVEL WELL PAST THE OLD CAP: %d' % res['level'])
                     if r['mode'] == 'main' and r['start'] == 'hi' and res['level'] != 21: done = False; print('  MAIN STORY (FROM A FULL CHAPTER) ENDED AT LEVEL %d' % res['level'])
                     if r['mode'] == 'main' and res['level'] > 21: done = False; print('  MAIN STORY ENDED AT LEVEL %d' % res['level'])
-                    if r['mode'] == 'full' and res['level'] != 24: done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
+                    if r['mode'] == 'full' and res['level'] not in (24, 25): done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
                 bad += 0 if done else 1
                 print('=== route %s (%s from %s): %s — level %d, %d XP, %d gold, %d fights, %d losses' % (name, r['mode'], r['start'], 'COMPLETE' if done else 'DID NOT FINISH', res['level'], res['xp'], res['gold'], res['fights'], res['losses']))
                 print('  tm: ' + json.dumps(res.get('tm')))
@@ -833,17 +838,18 @@ async def main():
             for name in names:
                 r = ROUTES3[name]
                 await pg.reload(); await pg.wait_for_timeout(300); await pg.evaluate(SETUP + '; void 0')
+                if os.environ.get('PATCH'): await pg.evaluate(os.environ['PATCH'] + '; void 0')
                 try:
                     res = await pg.evaluate('(' + PLAY3 + ')(%s, %s, %s, %s, %s)' % (json.dumps(r['prefs']), json.dumps(r['checks']), json.dumps(r['mode']), json.dumps(r['start']), json.dumps(RAW)))
+                    if os.environ.get('LEVELS_OUT'): open(os.environ['LEVELS_OUT'], 'a').write(json.dumps({'route': name, 'd': await pg.evaluate('({ glv: T.glv, gmap: T.gmap, qlv: T.qlv })')}) + '\n')
                 except Exception as e:
                     print('=== route %s: CRASHED %s' % (name, str(e)[:900])); bad += 1; continue
                 done = res['quests'].get('ch3done') == 1 and res['quests'].get('q.main3') == 7 and not res['err']
                 if not RAW:
-                    if res['level'] > 18: done = False; print('  LEVEL OVER THE CAP: %d' % res['level'])
-                    if res['xp'] > 13255: done = False; print('  BANKED XP OVER HALF A LEVEL: %d' % res['xp'])
+                    if res['level'] > 19: done = False; print('  LEVEL WELL PAST THE OLD CAP: %d' % res['level'])
                     if r['mode'] == 'main' and r['start'] == 'hi' and res['level'] != 15: done = False; print('  MAIN STORY (FROM A FULL CHAPTER) ENDED AT LEVEL %d' % res['level'])
                     if r['mode'] == 'main' and res['level'] > 15: done = False; print('  MAIN STORY ENDED AT LEVEL %d' % res['level'])
-                    if r['mode'] == 'full' and res['level'] != 18: done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
+                    if r['mode'] == 'full' and res['level'] not in (18, 19): done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
                 bad += 0 if done else 1
                 print('=== route %s (%s from %s): %s — level %d, %d XP, %d gold, %d fights, %d losses' % (name, r['mode'], r['start'], 'COMPLETE' if done else 'DID NOT FINISH', res['level'], res['xp'], res['gold'], res['fights'], res['losses']))
                 print('  tm: ' + json.dumps(res.get('tm')))
@@ -862,17 +868,18 @@ async def main():
             for name in names:
                 r = ROUTES2[name]
                 await pg.reload(); await pg.wait_for_timeout(300); await pg.evaluate(SETUP + '; void 0')
+                if os.environ.get('PATCH'): await pg.evaluate(os.environ['PATCH'] + '; void 0')
                 try:
                     res = await pg.evaluate('(' + PLAY2 + ')(%s, %s, %s, %s, %s)' % (json.dumps(r['prefs']), json.dumps(r['checks']), json.dumps(r['mode']), json.dumps(r['start']), json.dumps(RAW)))
+                    if os.environ.get('LEVELS_OUT'): open(os.environ['LEVELS_OUT'], 'a').write(json.dumps({'route': name, 'd': await pg.evaluate('({ glv: T.glv, gmap: T.gmap, qlv: T.qlv })')}) + '\n')
                 except Exception as e:
                     print('=== route %s: CRASHED %s' % (name, str(e)[:600])); bad += 1; continue
                 done = res['quests'].get('ch2done') == 1 and res['quests'].get('q.main2') == 7 and not res['err']
                 if not RAW:
-                    if res['level'] > 12: done = False; print('  LEVEL OVER THE CAP: %d' % res['level'])
-                    if res['xp'] > 5360: done = False; print('  BANKED XP OVER HALF A LEVEL: %d' % res['xp'])
+                    if res['level'] > 13: done = False; print('  LEVEL WELL PAST THE OLD CAP: %d' % res['level'])
                     if r['mode'] == 'main' and r['start'] == 'hi' and res['level'] != 9: done = False; print('  MAIN STORY (FROM A FULL CHAPTER) ENDED AT LEVEL %d' % res['level'])
                     if r['mode'] == 'main' and res['level'] > 9: done = False; print('  MAIN STORY ENDED AT LEVEL %d' % res['level'])
-                    if r['mode'] == 'full' and res['level'] != 12: done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
+                    if r['mode'] == 'full' and res['level'] not in (12, 13): done = False; print('  FULL ROUTE ENDED AT LEVEL %d' % res['level'])
                 bad += 0 if done else 1
                 print('=== route %s (%s from %s): %s — level %d, %d XP, %d gold, %d fights, %d losses' % (name, r['mode'], r['start'], 'COMPLETE' if done else 'DID NOT FINISH', res['level'], res['xp'], res['gold'], res['fights'], res['losses']))
                 print('  tm: ' + json.dumps(res.get('tm')))

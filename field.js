@@ -274,7 +274,9 @@ Field.arrive = function (from) {
   const enc = Field.map.def.encounters;
   if (enc && !(enc.unless && G.cond(enc.unless)) && !G.D.tiles[Field.tile(p.x, p.y)].safe) {
     Field.danger++;
-    if (Field.danger > (enc.min || 7) * (Field.map.roamers ? 1.5 : 1) && G.rand() < enc.rate * (Field.map.roamers ? 0.5 : 1)) {
+    // two or more levels above the area, the wildlife gives the party a wide berth: half as many random fights
+    const wary = G.mapLevel(G.S.map) && G.S.level >= G.mapLevel(G.S.map) + 2 ? 0.5 : 1;
+    if (Field.danger > (enc.min || 7) * (Field.map.roamers ? 1.5 : 1) && G.rand() < enc.rate * (Field.map.roamers ? 0.5 : 1) * wary) {
       Field.danger = 0;
       const g = G.wpick(enc.groups);
       Field.exec(async () => { await B.start(g, {}); });

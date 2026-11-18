@@ -17,7 +17,7 @@
     }
     c.putImageData(im, 0, 0);
   }
-  // One figure, facing right. Drawn in smooth shapes at 4x a 40x64 layout (20x32 on the board), so it stays crisp
+  // One figure, facing right (the four heroes have their own painters in heroes.js). Drawn in smooth shapes at 4x a 40x64 layout (20x32 on the board), so it stays crisp
   // when the battle canvas scales it: rounded limbs, shaded cloth, soft outlines, a lacquered base.
   const HD = 4;
   // Scale2x (EPX): doubles pixel art while rounding its diagonals, so beasts look smooth rather than blocky.
@@ -75,106 +75,12 @@
       c.drawImage(big, 0, 0, big.width, big.height, 4, 18, 32, 32);
       const fin = softOutline(cv, '#1a1420', 2.2 * HD / 3); lightHD(fin); cache[k] = fin; return fin;
     }
-    const T = s.short ? 8 : 0, big = s.big ? 2 : 0, yT = 26 + T, yB = 50, hy = 16 + T;
-    const sk = s.skel ? '#e6e0cc' : (s.skin || '#e8b890'), skD = shade(sk, -30), skL = shade(sk, 18);
-    const hr = s.bald ? sk : (s.hair || '#4a3020'), hrL = shade(hr, 28), hrD = shade(hr, -24);
-    const tp = s.skel ? '#3a3440' : (s.top || '#3a6ea5'), tpL = shade(tp, 30), tpD = shade(tp, -40);
-    const lg = s.skel ? '#b9b29b' : (s.legs || '#3b3340');
-    const mc = s.mus === 1 || s.goatee === 1 ? (s.bald && s.hair ? s.hair : hr) : (s.mus || s.goatee);
-    const BROWN = '#6b4a2b', BROWN_L = '#8f6a42', STEEL = '#a8aab4', STEEL_L = '#eef2fa', GOLD = '#e8c14a', INK = '#1a1420';
-    const legTop = Math.round(yT + (yB - yT) * 0.62);
-    // pack and cape go behind
-    if (s.held === 'pack') { R(6.5, yT + 1, 9, 16, '#8a6a42', 2); R(6.5, yT + 1, 9, 3, '#a8854f', 1.5); line(9, yT + 6, 9, yT + 15, 0.6, '#5a4028'); }
-    if (s.cape) { c.fillStyle = lin(8, 0, 32, 0, [[0, shade(s.cape, 8)], [1, shade(s.cape, -36)]]); c.beginPath(); c.moveTo(20 - 8 - big, yT - 1); c.quadraticCurveTo(20 - 13 - big, yB - 6, 20 - 12 - big, yB); c.lineTo(20 + 12 + big, yB); c.quadraticCurveTo(20 + 13 + big, yB - 6, 20 + 8 + big, yT - 1); c.closePath(); c.fill(); }
-    // body: a shaped column, a robe flaring out to the base
-    const sw = 6.5 + big, bw = s.robe ? 12.5 + big : 9 + big;
-    const body = new Path2D();
-    body.moveTo(20 - sw, yT + 1.5); body.quadraticCurveTo(20 - sw, yT - 1, 20 - sw + 3, yT - 1); body.lineTo(20 + sw - 3, yT - 1); body.quadraticCurveTo(20 + sw, yT - 1, 20 + sw, yT + 1.5);
-    body.quadraticCurveTo(20 + sw + 0.6, legTop - 4, 20 + (s.robe ? bw : sw + 1), s.robe ? yB : legTop); body.lineTo(20 - (s.robe ? bw : sw + 1), s.robe ? yB : legTop);
-    body.quadraticCurveTo(20 - sw - 0.6, legTop - 4, 20 - sw, yT + 1.5); body.closePath();
-    if (!s.robe) {
-      // legs, then boots
-      const lw = 4.4 + big * 0.5;
-      R(20 - lw - 0.6, legTop - 1, lw, yB - legTop + 1, lin(12, 0, 20, 0, [[0, shade(lg, 18)], [1, shade(lg, -14)]]), 1.2);
-      R(20 + 0.6, legTop - 1, lw, yB - legTop + 1, lin(20, 0, 28, 0, [[0, shade(lg, 4)], [1, shade(lg, -30)]]), 1.2);
-      R(20 - lw - 1, yB - 3, lw + 0.6, 3.2, shade(lg, -44), 1); R(20 + 0.4, yB - 3, lw + 1, 3.2, shade(lg, -50), 1);
-    }
-    c.fillStyle = lin(20 - bw, 0, 20 + bw, 0, [[0, tpL], [0.35, tp], [1, tpD]]); c.fill(body);
-    c.save(); c.clip(body);
-    if (s.trim) R(19, yT - 1, 2.4, yB - yT + 2, s.trim, 0);
-    if (s.stripe) for (let y = yT + 3; y < (s.robe ? yB : legTop); y += 4) R(10, y, 20, 1, s.stripe, 0);
-    if (s.apron) R(15.5, yT + 4, 9.5, yB - yT - 5, lin(15, 0, 25, 0, [[0, shade(s.apron, 10)], [1, shade(s.apron, -20)]]), 1.5);
-    if (s.belt) { R(8, legTop - 3.5, 24, 2.2, s.belt, 0); R(18.6, legTop - 3.8, 3, 2.8, GOLD, 0.6); }
-    if (s.skel) for (let y = yT + 3; y < legTop; y += 3) R(15.5, y, 9, 1.1, '#e6e0cc', 0.5);
-    c.fillStyle = 'rgba(255,255,255,.10)'; c.fillRect(20 - sw, yT - 1, 3, yB - yT);
-    c.restore();
-    c.strokeStyle = 'rgba(10,6,20,.35)'; c.lineWidth = 0.5; c.stroke(body);
-    // arms: rounded, with hands
-    const arm = s.sleeves || tp;
-    line(12.3 - big, yT + 1.2, 11.6 - big, yT + 11.5, 3.4, shade(arm, 10)); line(27.7 + big, yT + 1.2, 28.6 + big, yT + 11.5, 3.4, shade(arm, -26));
-    ell(11.6 - big, yT + 12.6, 1.8, 1.8, sk); ell(28.6 + big, yT + 12.6, 1.8, 1.8, skD);
-    if (s.fur) { ell(13 - big, yT + 0.5, 4.4, 3, s.fur); ell(27 + big, yT + 0.5, 4.4, 3, shade(s.fur, -16)); }
-    if (s.scarf) { R(13.5, yT - 1.5, 13.5, 3.2, s.scarf, 1.4); R(12.5, yT + 1.5, 3, 6.5, shade(s.scarf, -16), 1); }
-    // head and neck
-    R(18.2, hy + 4.5, 4.4, 4.6, skD, 1);
-    if (s.hood) { ell(20, hy, 9.4, 9.2, lin(11, 0, 29, 0, [[0, shade(s.hood, 16)], [1, shade(s.hood, -28)]])); ell(22, hy + 1, 5, 6, sk); }
-    else {
-      if (s.hs === 'curly') ell(20, hy - 2, 9.2, 8.2, hr);
-      if (s.long && ['braids', 'bun', 'pony'].indexOf(s.hs) < 0) R(11.5, hy - 3, 6, 15.5, hrD, 2.5);
-      if (s.hs === 'pony') { ell(11.5, hy - 1, 2.6, 2.6, hr); R(9, hy + 0.5, 3.4, 11.5, hr, 1.6); R(9, hy + 1, 3.4, 1.2, GOLD, 0.4); }
-      if (s.hs === 'bun') ell(13, hy - 6, 4.4, 4.2, hr);
-      const hg = c.createRadialGradient(18.5, hy - 2.5, 1, 20, hy, 8); hg.addColorStop(0, skL); hg.addColorStop(0.7, sk); hg.addColorStop(1, skD);
-      ell(20, hy, 7.2, 7.4, hg);
-      if (!s.bald) { c.save(); c.beginPath(); c.ellipse(20, hy - 0.5, 8.4, 8.6, 0, 0, 6.2832); c.clip(); ell(19, hy - 4.6, 9, 5.4, lin(12, 0, 28, 0, [[0, hrL], [0.6, hr], [1, hrD]])); R(11.5, hy - 4, 5, 9.5, hrD, 2); c.restore(); }
-      if (s.hs === 'mohawk') { ell(20, hy - 3, 8, 5, sk); R(17.2, hy - 11, 5, 10, hr, 2); }
-      if (s.hs === 'spiky') for (let i = 0; i < 5; i++) { c.fillStyle = hr; c.beginPath(); c.moveTo(13 + i * 3.2, hy - 4); c.lineTo(14.2 + i * 3.2, hy - 10.5 - (i % 2) * 2); c.lineTo(15.6 + i * 3.2, hy - 4); c.fill(); }
-      if (s.hs === 'braids') { R(11.6, hy + 0.5, 3.2, 15.5, hr, 1.5); R(11.6, hy + 12, 3.2, 1.3, GOLD, 0.5); R(25, hy + 3.5, 2.4, 10.5, hrD, 1.2); R(25, hy + 11, 2.4, 1.2, GOLD, 0.5); }
-      if (s.ears) { c.fillStyle = sk; c.beginPath(); c.moveTo(13, hy - 1); c.lineTo(8.5, hy - 4.5); c.lineTo(13, hy + 2); c.fill(); }
-    }
-    if (s.skel) { ell(21.5, hy - 0.8, 1.6, 1.8, INK); ell(25.4, hy - 0.8, 1.6, 1.8, INK); line(21, hy + 3.4, 26, hy + 3.4, 0.6, INK); for (let i = 0; i < 4; i++) line(21.5 + i * 1.3, hy + 2.8, 21.5 + i * 1.3, hy + 4, 0.35, INK); }
-    else {
-      const eye = s.eyes || INK;
-      if (s.glasses) { c.strokeStyle = '#c8ccd8'; c.lineWidth = 0.6; c.beginPath(); c.arc(21.8, hy - 0.2, 1.9, 0, 6.3); c.moveTo(27.4, hy - 0.2); c.arc(25.8, hy - 0.2, 1.6, 0, 6.3); c.stroke(); }
-      ell(21.8, hy - 0.2, 1.05, 1.3, eye); ell(25.8, hy - 0.2, 0.95, 1.25, eye);
-      ell(22.1, hy - 0.7, 0.35, 0.35, '#ffffff'); ell(26.1, hy - 0.7, 0.32, 0.32, '#ffffff');
-      line(20.8, hy - 2.4, 23, hy - 2.7, 0.5, shade(hr, -10)); line(24.8, hy - 2.7, 26.8, hy - 2.4, 0.5, shade(hr, -10));
-      if (s.patch) { ell(25.8, hy - 0.2, 2.2, 2, INK); line(13, hy - 4, 27, hy - 2, 0.6, INK); }
-      if (s.scar) line(22.2, hy - 3.6, 23, hy + 2, 0.5, '#b0504a');
-      ell(27.1, hy + 1.6, 0.9, 0.7, shade(sk, -40));
-      if (s.beard) { c.fillStyle = lin(18, 0, 28, 0, [[0, hrL], [1, hrD]]); c.beginPath(); c.moveTo(18.5, hy + 1); c.quadraticCurveTo(19, hy + 9.5, 23.5, hy + 9.5); c.quadraticCurveTo(27.6, hy + 8.5, 27.2, hy + 2.5); c.lineTo(25, hy + 4.3); c.lineTo(21, hy + 4.3); c.closePath(); c.fill(); }
-      if (s.mus) { c.strokeStyle = mc; c.lineWidth = 1.1; c.beginPath(); c.moveTo(20.6, hy + 4); c.quadraticCurveTo(24, hy + 2.6, 27.4, hy + 4); c.stroke(); }
-      else if (!s.beard) { c.strokeStyle = shade(sk, -60); c.lineWidth = 0.55; c.beginPath(); c.moveTo(23, hy + 4.1); c.quadraticCurveTo(24.6, hy + 4.7, 26, hy + 4); c.stroke(); }
-      if (s.goatee) R(23, hy + 5, 3, 3.4, mc, 1.2);
-    }
-    // headwear
-    if (s.helm) { c.fillStyle = lin(12, 0, 28, 0, [[0, shade(s.helm, 30)], [0.5, s.helm], [1, shade(s.helm, -30)]]); c.beginPath(); c.ellipse(20, hy - 2.5, 8.5, 7, 0, 3.1416, 6.2832); c.fill(); R(11.4, hy - 2.6, 17.2, 2.2, shade(s.helm, -24), 0.8); if (s.horns) { c.fillStyle = '#e6e0cc'; c.beginPath(); c.moveTo(12, hy - 5); c.quadraticCurveTo(7, hy - 7, 8.5, hy - 13); c.quadraticCurveTo(10.5, hy - 8, 14, hy - 7); c.fill(); c.beginPath(); c.moveTo(28, hy - 5); c.quadraticCurveTo(33, hy - 7, 31.5, hy - 13); c.quadraticCurveTo(29.5, hy - 8, 26, hy - 7); c.fill(); } }
-    if (s.hat) { R(14, hy - 13, 13, 7.5, lin(14, 0, 27, 0, [[0, shade(s.hat, 20)], [1, shade(s.hat, -24)]]), 2); ell(20.5, hy - 5.6, s.brim ? 12.6 : 9.6, 1.6, shade(s.hat, -10)); R(14, hy - 8, 13, 1.1, shade(s.hat, -40), 0.3); if (s.feather) { c.strokeStyle = s.feather; c.lineWidth = 1.6; c.beginPath(); c.moveTo(25.5, hy - 9); c.quadraticCurveTo(29.5, hy - 14, 27, hy - 18); c.stroke(); } }
-    if (s.cap) { c.fillStyle = lin(13, 0, 28, 0, [[0, shade(s.cap, 20)], [1, shade(s.cap, -24)]]); c.beginPath(); c.ellipse(20, hy - 4, 7.8, 5.4, 0, 3.1416, 6.2832); c.fill(); R(24, hy - 5, 8, 2, shade(s.cap, -30), 1); }
-    if (s.crown) { c.fillStyle = lin(13, 0, 28, 0, [[0, '#fff2b0'], [0.4, s.crown], [1, shade(s.crown, -40)]]); c.beginPath(); c.moveTo(13, hy - 6); c.lineTo(13, hy - 11.5); c.lineTo(15.5, hy - 8.5); c.lineTo(17.8, hy - 13); c.lineTo(20.5, hy - 8.8); c.lineTo(23.2, hy - 13); c.lineTo(25.5, hy - 8.5); c.lineTo(28, hy - 11.5); c.lineTo(28, hy - 6); c.closePath(); c.fill(); ell(20.5, hy - 7.6, 1, 1, '#c8443c'); }
-    if (s.circlet) { line(12.5, hy - 4.4, 28, hy - 5.2, 1, s.circlet); ell(24.6, hy - 5.1, 1.2, 1.2, '#7fd0ff'); }
-    // held item, in the front hand
-    const h = s.held, g = s.gem || '#ffe07a', hx = 29 + big, hy2 = yT + 12.6;
-    if (h === 'axe') { line(hx, yT - 9, hx, yT + 19, 1.8, BROWN); c.fillStyle = lin(hx, 0, hx + 8, 0, [[0, STEEL], [1, STEEL_L]]); c.beginPath(); c.moveTo(hx + 0.6, yT - 9); c.quadraticCurveTo(hx + 9, yT - 11, hx + 8.5, yT - 4); c.quadraticCurveTo(hx + 9, yT + 2, hx + 0.6, yT - 1); c.closePath(); c.fill(); }
-    else if (h === 'sword') { c.fillStyle = lin(hx - 1, 0, hx + 1, 0, [[0, STEEL_L], [1, STEEL]]); c.beginPath(); c.moveTo(hx - 1.1, yT + 10); c.lineTo(hx - 1.1, yT - 11); c.lineTo(hx, yT - 14); c.lineTo(hx + 1.1, yT - 11); c.lineTo(hx + 1.1, yT + 10); c.fill(); R(hx - 4, yT + 10, 8, 1.8, GOLD, 0.8); line(hx, yT + 12, hx, yT + 16, 1.6, BROWN); ell(hx, yT + 16.6, 1.1, 1.1, GOLD); }
-    else if (h === 'dagger') { c.fillStyle = STEEL_L; c.beginPath(); c.moveTo(hx - 0.9, yT + 12); c.lineTo(hx, yT + 3); c.lineTo(hx + 0.9, yT + 12); c.fill(); R(hx - 2.8, yT + 12, 5.6, 1.6, GOLD, 0.6); line(hx, yT + 14, hx, yT + 17, 1.4, BROWN); }
-    else if (h === 'mace') { line(hx, yT, hx, yT + 18, 1.8, BROWN); ell(hx, yT - 1.5, 3.8, 3.8, lin(hx - 4, 0, hx + 4, 0, [[0, STEEL_L], [1, '#5a5d68']])); for (let a = 0; a < 6; a++) ell(hx + Math.cos(a) * 4, yT - 1.5 + Math.sin(a) * 4, 0.9, 0.9, STEEL); }
-    else if (h === 'hammer') { line(hx, yT + 1, hx, yT + 19, 1.8, BROWN); R(hx - 5, yT - 3.5, 10, 5, lin(0, yT - 4, 0, yT + 1, [[0, '#7a7d88'], [1, '#3a3d47']]), 1); }
-    else if (h === 'spade') { line(hx, yT - 10, hx, yT + 20, 1.6, BROWN); c.fillStyle = STEEL; c.beginPath(); c.moveTo(hx - 3, yT + 19); c.lineTo(hx + 3, yT + 19); c.lineTo(hx + 2.6, yT + 25); c.quadraticCurveTo(hx, yT + 28, hx - 2.6, yT + 25); c.closePath(); c.fill(); line(hx - 3, yT - 10, hx + 3, yT - 10, 1.4, BROWN); }
-    else if (h === 'club') { line(hx, yT + 2, hx, yT + 18, 2.2, BROWN); ell(hx, yT - 1.5, 3.6, 6, lin(hx - 4, 0, hx + 4, 0, [[0, BROWN_L], [1, '#5a3e22']])); }
-    else if (h === 'staff') { line(hx, yT - 16, hx, yT + 26, 1.6, BROWN); const sg = c.createRadialGradient(hx - 0.8, yT - 19, 0.3, hx, yT - 18, 3.4); sg.addColorStop(0, '#ffffff'); sg.addColorStop(0.4, g); sg.addColorStop(1, shade(g, -60)); ell(hx, yT - 18, 3, 3, sg); c.globalAlpha = 0.25; ell(hx, yT - 18, 5.5, 5.5, g); c.globalAlpha = 1; }
-    else if (h === 'spear') { line(hx, yT - 20, hx, yT + 26, 1.5, BROWN); c.fillStyle = lin(hx - 2, 0, hx + 2, 0, [[0, STEEL_L], [1, STEEL]]); c.beginPath(); c.moveTo(hx - 1.8, yT - 20); c.lineTo(hx, yT - 28); c.lineTo(hx + 1.8, yT - 20); c.fill(); }
-    else if (h === 'pitchfork') { line(hx, yT - 16, hx, yT + 24, 1.5, BROWN); line(hx - 3.6, yT - 17, hx + 3.6, yT - 17, 1.4, STEEL); for (const dx of [-3.4, 0, 3.4]) line(hx + dx, yT - 17, hx + dx, yT - 23.5, 1, STEEL_L); }
-    else if (h === 'bow') { c.strokeStyle = BROWN_L; c.lineWidth = 1.6; c.beginPath(); c.moveTo(hx, yT - 11); c.quadraticCurveTo(hx + 9, yT + 2, hx, yT + 15); c.stroke(); line(hx, yT - 11, hx, yT + 15, 0.45, '#e8e0cc'); }
-    else if (h === 'lute') { line(hx, yT - 9, hx, yT + 6, 1.6, BROWN); R(hx - 1.6, yT - 11, 3.2, 3, '#4e3520', 0.8); ell(hx, yT + 11, 5, 6, lin(hx - 5, 0, hx + 5, 0, [[0, '#c89060'], [1, '#7a4e2a']])); ell(hx, yT + 10, 1.4, 1.4, '#3a2414'); }
-    else if (h === 'lantern') { line(hx, yT + 5, hx, yT + 9, 0.7, '#4a4d57'); R(hx - 3.4, yT + 9, 6.8, 9, '#3a3d47', 1.4); const lg2 = c.createRadialGradient(hx, yT + 13.5, 0.4, hx, yT + 13.5, 4); lg2.addColorStop(0, '#ffffff'); lg2.addColorStop(0.4, g); lg2.addColorStop(1, shade(g, -40)); R(hx - 2, yT + 10.6, 4, 6, lg2, 1); c.globalAlpha = 0.28; ell(hx, yT + 13.5, 7, 7, g); c.globalAlpha = 1; }
-    else if (h === 'book') { R(hx - 4, yT + 7, 8, 10, lin(hx - 4, 0, hx + 4, 0, [[0, '#9a3f3f'], [1, '#5a1f1f']]), 1); R(hx + 3, yT + 8, 0.9, 8, '#f4f1e6', 0.2); }
-    else if (h === 'scroll') { R(hx - 4, yT + 8, 8, 7, '#f4f1e6', 0.6); ell(hx, yT + 8, 4.3, 1.2, '#c8b88a'); ell(hx, yT + 15, 4.3, 1.2, '#c8b88a'); }
-    else if (h === 'ladle') { line(hx, yT + 2, hx, yT + 16, 1.2, STEEL); ell(hx, yT, 2.8, 2, STEEL); }
-    else if (h === 'rod') { line(hx, yT - 20, hx, yT + 20, 1, '#8a6a42'); c.strokeStyle = 'rgba(220,226,240,.8)'; c.lineWidth = 0.35; c.beginPath(); c.moveTo(hx, yT - 20); c.quadraticCurveTo(hx + 5, yT - 10, hx + 3, yT - 2); c.stroke(); }
-    else if (h === 'shield') { const sg = c.createRadialGradient(hx - 2, yT + 7, 1, hx, yT + 10, 9); sg.addColorStop(0, '#c8955a'); sg.addColorStop(1, '#5a3a20'); ell(hx, yT + 10, 7, 9, '#4a2e18'); ell(hx, yT + 10, 6, 8, sg); ell(hx, yT + 10, 2, 2, GOLD); }
-    else ell(hx, hy2, 1.8, 1.8, skD);
+    // everyone else: painted from their spec by figures.js, with any battle-only extras (armour, tabards, shields)
+    Object.assign(s, (G.D.battleLooks || {})[name]);
+    const after = B.paintSpec(c, B.paintKit(c), s, side);
     const fin = softOutline(cv, '#1a1420', 2.2 * HD / 3);
     lightHD(fin);
+    if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(B.paintKit(fc), fc); fc.restore(); }
     cache[k] = fin; return fin;
   };
   function lightHD(cv) {
@@ -532,6 +438,10 @@
     for (const o of units) {
       if (o.down || o.gone) continue;
       const sz = B.pieceSize(o), x = Math.round(o.px - 7), y = Math.round(o.py - 33 * sz);
+      if (!B.showBar(o)) {                                       // a hidden foe bar: its wounds show on the figure instead
+        o.statuses.slice(0, 4).forEach((st, i) => { c.fillStyle = G.D.statuses[st.id].good ? '#8ab4ff' : '#d49cf0'; c.fillRect(x + i * 4, y + 1, 3, 2); });
+        continue;
+      }
       if (o.hpShow == null || o.hpShow < o.hp) o.hpShow = o.hp; else o.hpShow = Math.max(o.hp, o.hpShow - Math.max(0.5, (o.hpShow - o.hp) * 0.06) * dt / 16);
       c.fillStyle = 'rgba(10,8,16,.85)'; c.fillRect(x - 0.5, y - 0.5, 15, 4);
       const fw = 13 * o.hp / o.maxHp, tw = 13 * o.hpShow / o.maxHp, pct = o.hp / o.maxHp;
@@ -687,10 +597,79 @@
       c.globalAlpha = ga;
     }
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-    c.drawImage(pc, -w / 2, -h + 3 + breathe, w, h - breathe);
+    const ws = o.down || o.gone ? 0 : B.woundStage(o), wk = ws ? B.woundKind(o) : null;
+    if (ws === 3) { c.translate(Math.sin(G.time / 45 + o.bob) * 0.35, 0); if (wk === 'spirit') c.globalAlpha *= 0.72 + 0.2 * Math.sin(G.time / 90 + o.bob); }
+    c.drawImage(ws ? B.woundedPiece(o.sprite, side, ws, wk) : pc, -w / 2, -h + 3 + breathe, w, h - breathe);
     if (o.fx && o.fx.k === 'hit' && G.time - o.fx.t < 200) { c.globalAlpha = (1 - (G.time - o.fx.t) / 200) * 0.85 * alpha; c.drawImage(B.pieceFlash(o.sprite, side), -w / 2, -h + 3 + breathe, w, h - breathe); }
     c.restore(); c.globalAlpha = 1;
   }
+
+  /* ---------- wounds: how hurt a figure is, shown on the figure itself ----------
+     Stage 1 under 3/4 health (hurt), 2 under 1/2 (badly hurt), 3 under 1/4 (near death: it trembles). Living things
+     bleed, the dead and the made crack, spirits tear and flicker, oozes cloud. Marks are clipped to the figure. */
+  B.woundStage = o => { const p = o.hp / o.maxHp; return p > 0.75 ? 0 : p > 0.5 ? 1 : p > 0.25 ? 2 : 3; };
+  const SPIRITS = { wisp: 1, marshlight: 1, frostspirit: 1, ashwraith: 1, shade: 1, mirrorshade: 1, wraith: 1 };
+  const MADE = { golem: 1, automaton: 1, colossus: 1 };
+  B.woundKind = o => {
+    if (SPIRITS[o.sprite]) return 'spirit';
+    if (o.sprite === 'ooze') return 'slime';
+    if (MADE[o.sprite] || (o.tags || []).includes('construct')) return 'stone';
+    const sp = G.D.sprites[o.sprite];
+    if ((o.tags || []).includes('undead') || (sp && sp.skel)) return 'bone';
+    return 'blood';
+  };
+  const woundCache = {};
+  B.woundedPiece = function (name, side, stage, kind) {
+    const k = name + ':' + side + ':' + stage + ':' + kind; if (woundCache[k]) return woundCache[k];
+    const src = B.piece(name, side), Wd = src.width, Hd = src.height, u = Wd / 40;
+    // places on the figure itself, picked from its own pixels (above the base), the same for every copy of it
+    const data = src.getContext('2d').getImageData(0, 0, Wd, Hd).data;
+    let seed = 0; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const spots = [];
+    for (let tries = 0; spots.length < 7 && tries < 900; tries++) {
+      const x = 8 + rnd() * 24, y = 12 + rnd() * 34, a = data[(Math.round(y * u) * Wd + Math.round(x * u)) * 4 + 3];
+      if (a > 220 && spots.every(p => Math.hypot(p[0] - x, p[1] - y) > 4)) spots.push([x, y, rnd()]);
+    }
+    const n = [0, 2, 4, 7][stage];
+    const layer = document.createElement('canvas'); layer.width = Wd; layer.height = Hd;
+    const c = layer.getContext('2d'); c.scale(u, u); c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const [x, y, r] of spots.slice(0, n)) {
+      const a = -0.5 - r * 0.7, L = 2.6 + r * 2.4, dx = Math.cos(a) * L / 2, dy = Math.sin(a) * L / 2;
+      if (kind === 'blood') {
+        c.strokeStyle = '#5a0610'; c.lineWidth = 1.1; c.beginPath(); c.moveTo(x - dx, y - dy); c.lineTo(x + dx, y + dy); c.stroke();
+        c.strokeStyle = '#d42a3a'; c.lineWidth = 0.45; c.beginPath(); c.moveTo(x - dx * 0.8, y - dy * 0.8); c.lineTo(x + dx * 0.8, y + dy * 0.8); c.stroke();
+        if (r > 0.35) { c.strokeStyle = '#8a0c18'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(x + dx * 0.4, y + dy * 0.4); c.lineTo(x + dx * 0.4, y + dy * 0.4 + 1.4 + r * 2); c.stroke(); c.fillStyle = '#8a0c18'; c.beginPath(); c.arc(x + dx * 0.4, y + dy * 0.4 + 1.6 + r * 2, 0.4, 0, 7); c.fill(); }
+      } else if (kind === 'bone' || kind === 'stone') {
+        const pts = [[x - dx, y - dy]]; for (let i = 1; i <= 3; i++) pts.push([x - dx + dx * 2 * i / 3 + (i % 2 ? 0.7 : -0.7), y - dy + dy * 2 * i / 3 + (i % 2 ? -0.4 : 0.4)]);
+        c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 0.5; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0] + 0.35, p[1] + 0.35) : c.moveTo(p[0] + 0.35, p[1] + 0.35)); c.stroke();
+        c.strokeStyle = '#140e18'; c.lineWidth = 0.55; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+        c.lineWidth = 0.35; c.beginPath(); c.moveTo(pts[2][0], pts[2][1]); c.lineTo(pts[2][0] + 1.2, pts[2][1] + 1.3); c.stroke();
+        if (kind === 'stone' && r > 0.5) { c.fillStyle = 'rgba(20,14,24,.55)'; c.beginPath(); c.moveTo(x, y); c.lineTo(x + 1.2, y + 0.4); c.lineTo(x + 0.4, y + 1.3); c.fill(); }
+      } else if (kind === 'spirit') {
+        const g = c.createRadialGradient(x, y, 0, x, y, 1.6 + r); g.addColorStop(0, 'rgba(10,8,20,.75)'); g.addColorStop(1, 'rgba(10,8,20,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, 1.6 + r, 0, 7); c.fill();
+      } else {                                                    // slime: dark clouding
+        const g = c.createRadialGradient(x, y, 0, x, y, 2.2 + r); g.addColorStop(0, 'rgba(30,40,10,.6)'); g.addColorStop(1, 'rgba(30,40,10,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, 2.2 + r, 0, 7); c.fill();
+      }
+    }
+    if (stage >= 2) {                                           // the whole figure darkens as it weakens
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.fillStyle = kind === 'blood' ? 'rgba(70,0,12,' + (stage === 3 ? 0.22 : 0.1) + ')' : 'rgba(10,8,20,' + (stage === 3 ? 0.24 : 0.12) + ')';
+      c.fillRect(0, 0, Wd, Hd * 0.82);
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'destination-in'; c.drawImage(src, 0, 0);
+    const out = document.createElement('canvas'); out.width = Wd; out.height = Hd;
+    const oc = out.getContext('2d'); oc.drawImage(src, 0, 0); oc.drawImage(layer, 0, 0);
+    woundCache[k] = out; return out;
+  };
+  // A foe's health bar shows while you point at it or aim at it (or always, if the player chose that in Options).
+  B.showBar = function (o) {
+    if (o.side !== 1 || G.opts.foeHp === 'always') return true;
+    const at = p => p && p.x === o.gx && p.y === o.gy;
+    return at(B.ui && B.ui.cur) || at(B.hoverCell);
+  };
 
   // shared with the diamond board (iso.js)
   B._paint = { block, drawUnit, activeRing, tileTex, rnd, hex2, rgb, STYLE, paintTer, drawHang, drawSmoke };
@@ -823,8 +802,9 @@
     const k = sprite + ':' + side; if (faces[k]) return faces[k];
     const pc = B.piece(sprite, side), cv = document.createElement('canvas'); cv.width = 48; cv.height = 48;
     const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-    const isBeast = !G.D.sprites[sprite], box = isBeast && B.beastFace && B.beastFace(sprite);
-    const [sx, sy, sw] = box || [4, isBeast ? 16 : 3, 32];                // the head and shoulders, in the piece's 40x64 layout
+    const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
+    const spec = Object.assign({}, G.D.sprites[sprite], (G.D.looks || {})[sprite], (G.D.battleLooks || {})[sprite]);
+    const [sx, sy, sw] = box || (!isBeast && B.specFace ? B.specFace(spec) : [4, isBeast ? 16 : 3, 32]);   // the head and shoulders, in the piece's 40x64 layout
     c.drawImage(pc, sx * HD, sy * HD, sw * HD, sw * HD, 0, 0, 48, 48);
     return (faces[k] = cv.toDataURL());
   }
@@ -838,7 +818,7 @@
     order.forEach((c, i) => {
       const side = c.side === 1 ? 1 : c.guest ? 2 : 0;
       const cls = 'tchip s' + side + (c === B.active ? ' now' : '') + (i < ti && c !== B.active ? ' done' : '') + (c.down ? ' dn' : '');
-      h += '<span class="' + cls + '" title="' + UI.esc(c.name) + '"><img src="' + face(c.sprite, side) + '"><i style="width:' + Math.round(100 * Math.max(0, c.hp) / c.maxHp) + '%"></i></span>';
+      h += '<span class="' + cls + '" title="' + UI.esc(c.name) + '"><img src="' + face(c.sprite, side) + '">' + (side === 1 && G.opts.foeHp !== 'always' ? '' : '<i style="width:' + Math.round(100 * Math.max(0, c.hp) / c.maxHp) + '%"></i>') + '</span>';
       if (c === B.active) h += '<span class="tarrow">▸</span>';
     });
     const now = B.active ? B.active.name : '';

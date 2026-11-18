@@ -63,13 +63,17 @@ G.cond = expr => {
 // Stats grow on a 1-20 'power' scale spread over the 30 levels (D.powerScale), so each level adds a
 // little and a level-30 hero is as strong as the 20-level design intended.
 G.power = L => 1 + (L - 1) * (G.D.powerScale || 1);
+// Experience hardens: +1 AC at levels 7, 13, 19 and 25, so armour keeps mattering as enemies grow more accurate
+// (late foes would otherwise hit 85-95% of the time).
+G.AC_LEVELS = [7, 13, 19, 25];
+G.acSteps = L => G.AC_LEVELS.filter(l => L >= l).length;
 G.stats = function (m) {
   // HP and SP grow smoothly; the stepped stats use power rounded to the nearest half, so a level that sits
   // just under a step (power 6.9, say) does not lose it.
   const c = G.D.classes[m.id], L = G.S.level, I = G.D.items, P = G.power(L), Q = Math.round(G.power(L) * 2) / 2;
   const st = {
     id: m.id, name: c.name, cls: c.cls, level: L, sprite: c.sprite, skill: c.skill, res: c.res,
-    maxHp: c.hp[0] + Math.round(c.hp[1] * (P - 1)), maxSp: c.sp[0] + Math.round(c.sp[1] * (P - 1)), ac: c.ac,
+    maxHp: c.hp[0] + Math.round(c.hp[1] * (P - 1)), maxSp: c.sp[0] + Math.round(c.sp[1] * (P - 1)), ac: c.ac + G.acSteps(L),
     atk: c.atk + Math.floor((Q - 1) / 2), dmgBonus: c.dmgBonus + Math.floor((Q - 1) / 3),
     pow: c.pow + Math.floor((Q - 1) / 2), save: c.save + Math.floor((Q - 1) / 3), spd: c.spd,
     skillBonus: 3 + Math.floor(Q / 2), dmg: '1d4',
@@ -155,21 +159,18 @@ G.healAll = () => G.S.party.forEach(m => { const s = G.stats(m); m.hp = s.maxHp;
 G.clampParty = () => G.S.party.forEach(m => { const s = G.stats(m); m.hp = Math.min(m.hp, s.maxHp); m.sp = Math.min(m.sp, s.maxSp); });
 G.give = (id, n = 1) => { G.S.bag[id] = (G.S.bag[id] || 0) + n; if (G.S.bag[id] <= 0) delete G.S.bag[id]; };
 G.has = id => G.S.bag[id] || 0;
-// Adds XP, applies level-ups, returns the lines to show the player.
-// The highest level the party can reach in the current chapter (D.levelCaps, keyed by the 'chapter' flag).
-// D.capUnlocks raises a chapter's cap once a story flag is set (chapter 5 holds level 30 back until the war-line).
-G.levelCap = () => {
-  const ch = G.S.flags.chapter || 1, up = (G.D.capUnlocks || {})[ch];
-  const cap = up && G.flag(up[0]) ? up[1] : (G.D.levelCaps || {})[ch] || 99;
-  return Math.min(cap, G.D.xpTable.length - 1);
-};
-G.capLocked = () => { const up = (G.D.capUnlocks || {})[G.S.flags.chapter || 1]; return !!(up && !G.flag(up[0])); };
-// Adds XP and applies level-ups, never past the chapter's level cap. Past the cap, up to half a level of
-// XP is banked toward the next chapter, so late fights still pay. G.xpGained holds what was actually added.
-// Past a cap, up to a quarter of the next level is banked for the next chapter.
-G.xpBank = cap => { const T = G.D.xpTable; return cap < T.length - 1 ? T[cap - 1] + Math.floor((T[cap] - T[cap - 1]) / 4) : T[cap - 1]; };
+// Levels have no chapter caps: the only ceiling is level 30. Grinding limits itself instead: every fight has a level
+// (its suggested level, D.fightLevels in s_levels.js), and a party above it earns less: half per level over, so at
+// three over a fight is worth an eighth. Quests always pay in full. G.xpFor gives the share a fight pays.
+G.levelCap = () => G.D.xpTable.length - 1;
+G.capLocked = () => false;
+G.xpBank = cap => G.D.xpTable[cap - 1];
+G.groupLevel = gid => ((G.D.fightLevels || {}).groups || {})[gid] || 0;
+G.mapLevel = map => { const r = ((G.D.fightLevels || {}).maps || {})[map]; return r ? r[1] : 0; };
+G.xpFor = lvl => !lvl || G.S.level <= lvl ? 1 : Math.pow(0.5, G.S.level - lvl);
+// Adds XP and applies level-ups. G.xpGained holds what was actually added.
 G.gainXp = function (n) {
-  // each chapter's XP is scaled so its expanded content still pays exactly its six levels
+  // each chapter's XP is scaled so its content pays about its six levels to a party that does everything
   n = Math.round(n * ((G.D.xpScale || {})[G.flag('chapter') || 1] || 1));
   const S = G.S, T = G.D.xpTable, out = [], cap = G.levelCap(), before = S.xp, wasCapped = S.level >= cap;
   S.xp += n;
@@ -177,6 +178,7 @@ G.gainXp = function (n) {
   while (S.level < cap && S.xp >= T[S.level]) {
     S.level++; leveled = true;
     out.push('Level up! The party is now level ' + S.level + '.');
+    if (G.AC_LEVELS.includes(S.level)) out.push('Hard-won experience: everyone is a little harder to hit (+1 AC).');
     for (const m of S.party) {
       const c = G.D.classes[m.id];
       if ((c.learn[S.level] || []).length) { (S.pendingPicks = S.pendingPicks || []).push([m.id, S.level]); out.push(c.name + ' can learn ' + c.learn[S.level].map(a => G.D.abilities[a].name).join(' & ') + ', or take an improvement instead.'); }
@@ -184,14 +186,13 @@ G.gainXp = function (n) {
   }
   if (S.level >= cap) {
     S.xp = Math.min(S.xp, G.xpBank(cap));
-    if (!wasCapped) out.push(G.capLocked() ? 'Level ' + cap + ' is the most the party can reach for now. A little extra experience is banked, and the last level opens once the war-line breaks.'
-      : 'Level ' + cap + ' is the most the party can reach in this chapter. A little extra experience (up to a quarter of a level) is banked for the next one.');
+    if (!wasCapped) out.push('Level ' + cap + ': as strong as anyone has ever been. Fights still leave spoils.');
   }
   G.xpGained = Math.max(0, S.xp - before);
   if (leveled) G.healAll();
   return out;
 };
-// Where the party stands: share of the way to the next level, or how full the bank is at the cap.
+// Where the party stands: share of the way to the next level (capped: true only at level 30).
 G.xpProgress = function () {
   const S = G.S, T = G.D.xpTable, cap = G.levelCap(), L = S.level;
   if (L >= cap) { const lo = T[cap - 1], hi = G.xpBank(cap); return { capped: true, have: S.xp - lo, need: hi - lo, pct: hi > lo ? Math.round(100 * (S.xp - lo) / (hi - lo)) : 100 }; }

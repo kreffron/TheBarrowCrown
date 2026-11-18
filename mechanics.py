@@ -63,7 +63,7 @@ async () => {
   B.walls = new Map();
 
   /* ---- 4. weapons: reach, engaged, flanking, sneak attack ---- */
-  ok('Finch shoots 6, Runa throws 4, Dask throws 4, Maren has no ranged weapon', fi.shot.range === 6 && hero('runa').shot.range === 4 && dk.shot.range === 4 && !hero('maren').shot);
+  ok('Finch shoots 6, Runa throws 4, Dask throws 4, Maren slings 5', fi.shot.range === 6 && hero('runa').shot.range === 4 && dk.shot.range === 4 && hero('maren').shot && hero('maren').shot.range === 5);
   const ru = hero('runa'); put(ru, 5, 2); put(w1, 6, 2); put(fi, 1, 8); put(dk, 9, 9); w1.ac = 30;
   const c0 = B.chance(ru, w1, 5, 2); put(dk, 7, 2); const c1 = B.chance(ru, w1, 5, 2);
   ok('flanking gives +2 to hit in melee (10%)', c1 - c0 === 10, c0 + ' -> ' + c1);
@@ -172,12 +172,11 @@ async () => {
   ok('all ' + Object.keys(D.groups).length + ' enemy groups fight to the end without errors', !groupErr.length, groupErr.join(' '));
 
   /* ---- 9. levels ---- */
-  G.newGame(); G.S.flags.chapter = 5; G.S.xp = 0; G.S.level = 1; G.gainXp(999999);
-  ok('chapter 5 holds at level 29 before the war-line', G.S.level === 29, G.S.level);
-  G.S.flags.ch5mid = 1; G.gainXp(999999);
-  ok('and opens level 30 after it', G.S.level === 30, G.S.level);
-  G.newGame(); G.S.flags.chapter = 1; G.gainXp(99999);
-  ok('chapter 1 caps at 6 with a quarter-level bank', G.S.level === 6 && G.S.xp === G.xpBank(6), G.S.level + ' ' + G.S.xp);
+  G.newGame(); G.S.flags.chapter = 1; G.gainXp(999999);
+  ok('no chapter caps: XP runs to level 30 and stops there', G.S.level === 30 && G.S.xp === G.D.xpTable[29], G.S.level + ' ' + G.S.xp);
+  G.S.level = 10;
+  ok('a fight pays in full at or above the party, half a level below, an eighth three below', G.xpFor(10) === 1 && G.xpFor(12) === 1 && G.xpFor(9) === 0.5 && G.xpFor(7) === 0.125 && G.xpFor(0) === 1);
+  ok('every enemy group has a suggested level', Object.keys(D.groups).every(g => G.groupLevel(g) > 0), Object.keys(D.groups).filter(g => !G.groupLevel(g)).join(' '));
 
   /* ---- 10. the map ---- */
   G.newGame(); Object.assign(G.S.flags, { tut: 1, joined: 1 });

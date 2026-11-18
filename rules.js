@@ -88,12 +88,10 @@
      hp/sp: [at level 1, per power step]. Stats grow on a 1-20 power scale spread across the 30 levels
      (power = 1 + (level - 1) * 19/29): Attack and Power rise by 1 every 2 steps, save and damage every 3. */
   D.partyOrder = ['runa', 'dask', 'maren', 'finch'];
-  // Thirty levels, six per chapter: the main story is worth three of them and side missions the other three
-  // (chapter 1 starts at level 1, so it has three and two). Doing everything in a chapter takes the party from one cap
-  // to the next. D.levelCaps is the highest level in each chapter (the 'chapter' flag says which). Chapter 5 holds at 29
-  // until the war-line on the Ashen Road breaks (flag ch5mid), so level 30 comes no earlier than mid-chapter.
-  D.levelCaps = { 1: 6, 2: 12, 3: 18, 4: 24, 5: 29 };
-  D.capUnlocks = { 5: ['ch5mid', 30] };
+  // Thirty levels, about six per chapter: the main story is worth three of them and side missions the other three
+  // (chapter 1 starts at level 1, so it has three and two). Doing everything takes the party to about 6, 12, 18, 24
+  // and 30 at the chapters' ends. There are no chapter caps: fights above the party's level pay less instead
+  // (G.xpFor, D.fightLevels), so grinding gets a party a level or two ahead and no further.
   D.powerScale = 19 / 29;
   // [L] = total XP to reach level L+1. Each level costs more than the one before, and each chapter's foes give more XP.
   // Chapter 1 spans 0-1,180, chapter 2 to 5,050, chapter 3 to 12,790, chapter 4 to 24,250, chapter 5 to 42,460.
@@ -120,13 +118,15 @@
       name: 'Maren', cls: 'Cleric', sprite: 'maren', res: 'Faith', skill: 'Lore',
       hp: [12, 6], sp: [8, 2], ac: 11, atk: 3, dmgBonus: 1, pow: 3, save: 4, spd: 0,
       gear: { weapon: 'mace', armor: 'pilgrim', charm: null },
+      // on the board: a sling for when nobody can reach her and she has no one to mend (range 5, -1 damage)
+      shot: { name: 'Sling', range: 5, atk: 0, dmg: -1, style: 'stone' },
       learn: { 1: ['mend', 'lampfire'], 2: ['blessing'], 4: ['rebuke'], 5: ['revive'], 7: ['circle'], 9: ['smite'], 11: ['shieldfaith'], 12: ['sanctuary'], 14: ['cleansing'], 15: ['dawnfire'], 17: ['greatermend'], 18: ['firstlamp'], 20: ['searing'], 21: ['wardoflamps'], 23: ['vigil'], 24: ['keeperslight'], 26: ['brotherslamp'], 28: ['lanternrite'], 30: ['lightforthose'] }
     },
     finch: {
       name: 'Finch', cls: 'Bard', sprite: 'finch', res: 'Verve', skill: 'Persuasion',
       hp: [10, 5], sp: [8, 2], ac: 11, atk: 3, dmgBonus: 1, pow: 3, save: 3, spd: 3,
       gear: { weapon: 'rapier', armor: 'coat', charm: null },
-      // on the board: a shortbow is her main weapon; the rapier is a weaker fallback up close
+      // on the board: a shortbow is his main weapon; the rapier is a weaker fallback up close
       melee: { atk: -1, dmg: -2 }, shot: { name: 'Shortbow', range: 6, atk: 1, dmg: 1, style: 'arrow', prefer: true },
       learn: { 1: ['barbed', 'rousing'], 2: ['lullaby'], 4: ['hearthsong'], 5: ['dirge'], 7: ['crescendo'], 9: ['anthem'], 11: ['mocking'], 12: ['dissonance'], 14: ['reel'], 15: ['ballad'], 17: ['shanty'], 18: ['finale'], 20: ['discord'], 21: ['encore'], 23: ['sleepsong'], 24: ['counterpoint'], 26: ['lament'], 28: ['grandmother'], 30: ['fifthverse'] }
     }

@@ -26,7 +26,7 @@ Menu.close = function () {
 Menu.summary = function () {
   const S = G.S, T = G.D.xpTable;
   const pr = G.xpProgress();
-  let h = '<div class="sumhead">Level ' + S.level + ' ' + UI.bar(pr.have, pr.need, pr.capped ? 'bank' : 'xp') + (pr.capped ? 'cap · bank ' + pr.pct + '%' : pr.toGo + ' XP to ' + pr.next) + ' &nbsp; <span class="gold">' + S.gold + ' gold</span></div>';
+  let h = '<div class="sumhead">Level ' + S.level + ' ' + UI.bar(pr.have, pr.need, pr.capped ? 'bank' : 'xp') + (pr.capped ? 'the highest level' : pr.toGo + ' XP to ' + pr.next) + ' &nbsp; <span class="gold">' + S.gold + ' gold</span></div>';
   for (const m of S.party) {
     const st = G.stats(m);
     h += '<div class="sumrow"><div class="sn"><b style="color:' + G.D.speakers[st.name] + '">' + st.name + '</b> <span class="dim">' + st.cls + '</span></div>' +
@@ -347,13 +347,16 @@ Menu.questSteps = function (id) {
   const keys = Object.keys(q.stages).map(Number).sort((a, b) => a - b);
   return (log && log.length ? keys.filter(k => log.indexOf(k) >= 0 || k === s) : keys.filter(k => k <= s)).filter(k => k <= s);
 };
+// the suggested level for a quest (s_levels.js: the level the routes took it up at), and how it sits with the party now
+Menu.questLevel = id => ((G.D.fightLevels || {}).quests || {})[id] || 0;
+Menu.levelTag = lv => !lv ? '' : '<span style="color:' + (G.S.level >= lv ? '#7ee08a' : G.S.level >= lv - 1 ? '#ffd86a' : '#ff8a7a') + '">Suggested level ' + lv + '</span>';
 Menu.questNew = id => Menu.questStage(id) > ((G.S.qread || {})[id] || 0);
 Menu.questPage = function (id) {
   const q = G.D.quests[id], s = Menu.questStage(id), done = Menu.questDone(id), steps = Menu.questSteps(id);
   (G.S.qread = G.S.qread || {})[id] = s;                                    // read now
   const where = Menu.questRegion(id, done ? steps[0] || 1 : s), story = (G.D.storyQuests || {})[id];
   let h = '<div class="sumhead">' + UI.esc(q.name) + (done ? ' <span class="gold">(complete)</span>' : '') + '</div>' +
-    '<div class="dim" style="font-size:8rem;margin-bottom:4rem">' + (story ? 'Story · ' : '') + 'Chapter ' + Menu.NUM[q.ch || 1] + (where ? ' · ' + UI.esc(done ? where : 'Now: ' + where) : '') + '</div>';
+    '<div class="dim" style="font-size:8rem;margin-bottom:4rem">' + (story ? 'Story · ' : '') + 'Chapter ' + Menu.NUM[q.ch || 1] + (where ? ' · ' + UI.esc(done ? where : 'Now: ' + where) : '') + (!done && Menu.questLevel(id) ? ' · ' + Menu.levelTag(Menu.questLevel(id)) : '') + '</div>';
   steps.forEach((k, i) => {
     const t = UI.esc(q.stages[k] || ''), last = i === steps.length - 1;
     if (!last) h += '<div class="qdone"><span style="color:#7ee08a">✓</span> <s>' + t + '</s></div>';
@@ -376,7 +379,10 @@ Menu.journal = async function () {
     const items = []; let lastHead = null, older = false; const now = Math.max(...open.map(ch), G.flag('chapter') || 1);
     for (const id of open) {
       if (ch(id) < now && !older) { items.push({ head: true, label: 'Earlier chapters' }); older = true; lastHead = null; }
-      if (reg(id) !== lastHead) { items.push({ head: true, label: reg(id) }); lastHead = reg(id); }
+      if (reg(id) !== lastHead) {                                   // a region, with the spread of suggested levels open there
+        const lv = open.filter(q => reg(q) === reg(id) && (ch(q) < now) === (ch(id) < now)).map(Menu.questLevel).filter(Boolean), lo = Math.min(...lv), hi = Math.max(...lv);
+        items.push({ head: true, label: reg(id) + (lv.length ? ' · Lv ' + (lo === hi ? lo : lo + '–' + hi) : '') }); lastHead = reg(id);
+      }
       items.push({ label: label(id), right: right(id), value: id });
     }
     if (!open.length) items.push({ head: true, label: 'No open quests' });
@@ -510,9 +516,9 @@ Menu.options = async function () {
       title: 'Options', style: Menu.NAV + 'width:164rem;', start,
       items: [
         { label: 'Music', right: G.opts.music ? 'On' : 'Off', value: 0 }, { label: 'Sound', right: G.opts.sfx ? 'On' : 'Off', value: 1 },
-        { label: 'Text', right: G.opts.textFast ? 'Fast' : 'Normal', value: 2 }, { label: 'Difficulty', right: B.diff().name, value: 6 }, { label: 'Battle board', right: G.opts.bview === 'flat' ? 'Flat' : 'Diamond', value: 7 }, { label: 'Battle speed', right: (B.SPEEDS[G.opts.bspeed || 'fast'] || B.SPEEDS.fast).name, value: 8 }, { label: 'Party chatter', right: B.chatter().name, value: 9 }, { label: 'Always run', right: G.opts.alwaysRun ? 'On' : 'Off', value: 10 }, { label: 'Interact prompts', right: G.opts.prompts === false ? 'Off' : 'On', value: 11 }, { label: 'Controls', value: 5 }, { label: 'Export save', value: 3 }, { label: 'Import save', value: 4 }
+        { label: 'Text', right: G.opts.textFast ? 'Fast' : 'Normal', value: 2 }, { label: 'Difficulty', right: B.diff().name, value: 6 }, { label: 'Battle board', right: G.opts.bview === 'flat' ? 'Flat' : 'Diamond', value: 7 }, { label: 'Battle speed', right: (B.SPEEDS[G.opts.bspeed || 'fast'] || B.SPEEDS.fast).name, value: 8 }, { label: 'Party chatter', right: B.chatter().name, value: 9 }, { label: 'Enemy health', right: G.opts.foeHp === 'always' ? 'Always' : 'On hover', value: 12 }, { label: 'Always run', right: G.opts.alwaysRun ? 'On' : 'Off', value: 10 }, { label: 'Interact prompts', right: G.opts.prompts === false ? 'Off' : 'On', value: 11 }, { label: 'Controls', value: 5 }, { label: 'Export save', value: 3 }, { label: 'Import save', value: 4 }
       ],
-      onMove: it => side(it.value) || Menu.desc(['Background music.', 'Sound effects.', 'How quickly text and battle messages move.', 'Show a save code you can copy.', 'Load a game from a save code.', 'See and change which keys do what.', 'Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and they hit harder. Change it any time.', G.keyText('Diamond: the battle seen from an angle, with high ground standing up; turn it with {rot_l} and {rot_r} (or the buttons by the board). Flat: straight down. Switch any time, even mid-fight with {bview}.'), 'How quickly fights move: how long each message stays up and how fast pieces move and strike. Routine hits and misses are always quicker, since their numbers pop up over the pieces. Press to skip any message.', 'How often the party talks during a fight, in speech bubbles over their heads. The bubbles never hold up play.', 'Walk at a run without holding the Run key (Shift). With it on, holding Run walks.', 'A small key over whatever you can talk to, search or use when you face it.'][it.value])
+      onMove: it => side(it.value) || Menu.desc(['Background music.', 'Sound effects.', 'How quickly text and battle messages move.', 'Show a save code you can copy.', 'Load a game from a save code.', 'See and change which keys do what.', 'Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and they hit harder. Change it any time.', G.keyText('Diamond: the battle seen from an angle, with high ground standing up; turn it with {rot_l} and {rot_r} (or the buttons by the board). Flat: straight down. Switch any time, even mid-fight with {bview}.'), 'How quickly fights move: how long each message stays up and how fast pieces move and strike. Routine hits and misses are always quicker, since their numbers pop up over the pieces. Press to skip any message.', 'How often the party talks during a fight, in speech bubbles over their heads. The bubbles never hold up play.', 'Walk at a run without holding the Run key (Shift). With it on, holding Run walks.', 'A small key over whatever you can talk to, search or use when you face it.', 'On hover: an enemy\'s health bar shows only while you point at it or aim at it; otherwise read its wounds. Hurt foes bleed or crack, badly hurt ones darken, and one near death trembles. Always: every bar shows.'][it.value])
     });
     if (pick == null) return false;
     start = pick;
@@ -523,6 +529,7 @@ Menu.options = async function () {
     else if (pick === 5) await Menu.controls();
     else if (pick === 10) G.opts.alwaysRun = !G.opts.alwaysRun;
     else if (pick === 11) G.opts.prompts = G.opts.prompts === false;
+    else if (pick === 12) G.opts.foeHp = G.opts.foeHp === 'always' ? 'hover' : 'always';
     else if (pick === 9) G.opts.chatter = { some: 'often', often: 'off', off: 'some' }[G.opts.chatter || 'some'];
     else if (pick === 8) G.opts.bspeed = { normal: 'fast', fast: 'swift', swift: 'normal' }[G.opts.bspeed || 'fast'];
     else if (pick === 7) G.opts.bview = G.opts.bview === 'flat' ? 'iso' : 'flat';

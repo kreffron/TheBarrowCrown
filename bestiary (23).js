@@ -1,6 +1,8 @@
 /* Chapter 5 — enemies, groups, guests, items and shops for Ashfall, the Ashen Road and the Hollow Barrow.
    Balance: a chapter 5 party is level 16-20. Ordinary fights should cost 8-18% of the party's HP at the
-   level the player meets them; mini-bosses 25-35%; Corr and the Barrow King 40-55%. */
+   level the player meets them; mini-bosses 25-35%; Corr and the Barrow King 40-55%.
+   The seven regular foes carry 15% less health than they first did: chapter 5's opening fights ran 7-11 rounds,
+   where chapters 1-4 run 2-6. Beside a boss they keep their old health (bossHp), so boss fights are as built. */
 (function () {
   const D = G.D;
 
@@ -34,13 +36,13 @@
 
   const U = ['undead'], NOSLEEP = ['asleep', 'poison'];
   Object.assign(D.enemies, {
-    ashghoul: { name: 'Ash Ghoul', sprite: 'ashghoul', hp: 170, ac: 18, atk: 14, dmg: '2d8+8', spd: 4, save: 5, xp: 260, gold: [10, 25], tags: U, immune: NOSLEEP, moves: [[3, 'attack'], [1, 'dragunder']] },
-    ashwraith: { name: 'Lamp-eater', sprite: 'ashwraith', hp: 130, ac: 20, atk: 13, dmg: '1d10+8', pow: 12, spd: 6, save: 5, xp: 250, gold: [5, 20], tags: U, immune: NOSLEEP, moves: [[1, 'attack'], [2, 'spark'], [1, 'gravechill']] },
-    palecrusader: { name: 'Pale Crusader', sprite: 'palecrusader', hp: 200, ac: 20, atk: 15, dmg: '2d8+9', spd: 2, save: 6, xp: 300, gold: [25, 50], tags: ['human'], moves: [[3, 'attack'], [1, 'chant'], [1, 'maul']], loot: [['elixir', 0.12]] },
-    palemagus: { name: 'Pale Magus', sprite: 'palemagus', hp: 150, ac: 18, atk: 13, dmg: '1d10+8', pow: 12, spd: 3, save: 6, xp: 280, gold: [25, 50], tags: ['human'], moves: [[1, 'attack'], [2, 'spark'], [1, 'hex'], [1, 'bonestorm']] },
-    deathknight: { name: 'Barrow Knight', sprite: 'deathknight', hp: 230, ac: 21, atk: 15, dmg: '2d10+8', spd: 2, save: 6, xp: 330, gold: [20, 40], tags: U, immune: NOSLEEP, moves: [[3, 'attack'], [1, 'crush']] },
-    courtier: { name: 'Hollow Courtier', sprite: 'courtier', hp: 160, ac: 19, atk: 14, dmg: '1d10+8', pow: 12, spd: 4, save: 6, xp: 270, gold: [20, 40], tags: U, immune: NOSLEEP, moves: [[1, 'attack'], [2, 'tolling'], [1, 'hex']] },
-    mirrorshade: { name: 'Mirror Shade', sprite: 'mirrorshade', hp: 150, ac: 19, atk: 14, dmg: '2d6+8', pow: 11, spd: 5, save: 5, xp: 260, gold: [0, 10], tags: U, immune: NOSLEEP, moves: [[2, 'attack'], [2, 'spark']] },
+    ashghoul: { name: 'Ash Ghoul', sprite: 'ashghoul', hp: 145, bossHp: 170, ac: 18, atk: 14, dmg: '2d8+8', spd: 4, save: 5, xp: 260, gold: [10, 25], tags: U, immune: NOSLEEP, moves: [[3, 'attack'], [1, 'dragunder']] },
+    ashwraith: { name: 'Lamp-eater', sprite: 'ashwraith', hp: 110, bossHp: 130, ac: 20, atk: 13, dmg: '1d10+8', pow: 12, spd: 6, save: 5, xp: 250, gold: [5, 20], tags: U, immune: NOSLEEP, moves: [[1, 'attack'], [2, 'spark'], [1, 'gravechill']] },
+    palecrusader: { name: 'Pale Crusader', sprite: 'palecrusader', hp: 170, bossHp: 200, ac: 20, atk: 15, dmg: '2d8+9', spd: 2, save: 6, xp: 300, gold: [25, 50], tags: ['human'], moves: [[3, 'attack'], [1, 'chant'], [1, 'maul']], loot: [['elixir', 0.12]] },
+    palemagus: { name: 'Pale Magus', sprite: 'palemagus', hp: 128, bossHp: 150, ac: 18, atk: 13, dmg: '1d10+8', pow: 12, spd: 3, save: 6, xp: 280, gold: [25, 50], tags: ['human'], moves: [[1, 'attack'], [2, 'spark'], [1, 'hex'], [1, 'bonestorm']] },
+    deathknight: { name: 'Barrow Knight', sprite: 'deathknight', hp: 195, bossHp: 230, ac: 21, atk: 15, dmg: '2d10+8', spd: 2, save: 6, xp: 330, gold: [20, 40], tags: U, immune: NOSLEEP, moves: [[3, 'attack'], [1, 'crush']] },
+    courtier: { name: 'Hollow Courtier', sprite: 'courtier', hp: 136, bossHp: 160, ac: 19, atk: 14, dmg: '1d10+8', pow: 12, spd: 4, save: 6, xp: 270, gold: [20, 40], tags: U, immune: NOSLEEP, moves: [[1, 'attack'], [2, 'tolling'], [1, 'hex']] },
+    mirrorshade: { name: 'Mirror Shade', sprite: 'mirrorshade', hp: 128, bossHp: 150, ac: 19, atk: 14, dmg: '2d6+8', pow: 11, spd: 5, save: 5, xp: 260, gold: [0, 10], tags: U, immune: NOSLEEP, moves: [[2, 'attack'], [2, 'spark']] },
     // mini-bosses and bosses
     ashenknight: { name: 'The Ashen Knight', sprite: 'ashenknight', scale: 4, hp: 620, ac: 21, atk: 15, dmg: '2d10+9', pow: 11, spd: 2, save: 6, xp: 1300, gold: [300, 300], tags: ['human'],
       immune: ['asleep', 'stunned'], moves: [[3, 'attack'], [2, 'ashstorm'], [1, 'maul'], [1, 'crownguard']], loot: [['ashenblade', 1]] },

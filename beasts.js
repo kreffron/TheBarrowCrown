@@ -5,9 +5,12 @@
    top is the ellipse at (20, 52). A painter may return an `after` function, drawn on top once the dark outline and
    lighting are on, for glows that should not be outlined. */
 (function () {
-  function rgb(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+  function rgb(col) {                                              // '#rrggbb' or 'rgb(r,g,b)'
+    if (col[0] !== '#') return (col.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+    const n = parseInt(col.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255];
+  }
   function shade(hex, d) {
-    if (!hex || hex[0] !== '#') return hex;
+    if (!hex) return hex;
     const [r, g, b] = rgb(hex), f = v => Math.max(0, Math.min(255, v + d));
     return 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')';
   }

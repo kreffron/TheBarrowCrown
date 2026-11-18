@@ -23,9 +23,9 @@
     ]],
     ['Combat', [
       ['Turns and moving',
-        'At the start of a fight, everyone rolls a d20 plus their speed. That order holds for the whole fight; anyone who joins later rolls and takes their place.\n\nOn your turn, move and act once each, in either order. Changed your mind? Undo the move ({bt_undo}) before you act.\n\nHow far you move: speed 4 or more, 4 squares; speed 0 or less, 2; otherwise 3. Rough ground and shallows cost 2 squares to enter.'],
+        'At the start of a fight, everyone rolls a d20 plus speed (the party gets +2 a level when it outclasses the foes, -2 when outclassed). The order holds all fight; latecomers roll on arrival.\n\nOn your turn, move and act once each, in either order. Changed your mind? Undo the move ({bt_undo}) before you act.\n\nHow far you move: speed 4 or more, 4 squares; speed 0 or less, 2; otherwise 3. Rough ground and shallows cost 2 squares to enter.'],
       ['Attacking',
-        'An attack is a d20 plus your attack bonus, against the target\'s AC. Aiming shows your chance to hit and the damage before you commit.\n\n· A natural 20 is a critical hit: damage dice are doubled. A natural 1 always misses.\n· Flanking: if an ally already stands beside the target, melee gets +2. Dask gets it at any range, and his Sneak Attack works on such a target.\n· Shooting with an enemy right beside you: -2.'],
+        'An attack is a d20 plus your attack bonus, against the target\'s AC. Aiming shows the hit chance and damage first.\n\n· A natural 20 is a critical hit: damage dice are doubled. A natural 1 always misses.\n· Flanking: if an ally already stands beside the target, melee gets +2. Dask gets it at any range, with Sneak Attack.\n· Shooting with an enemy right beside you: -2.'],
       ['Holding ground',
         'Stepping away from an enemy beside you gives it a free strike at -2 to hit: one a round per enemy, at most one per move.\n\nDask and anyone hidden never provoke. Enemies asleep, stunned or turned do not strike. Shoves, leaps and falls never provoke. Enemies follow the same rule.\n\nPress {threat} to shade every square the enemy can reach next turn.'],
       ['Ground and objects',
@@ -39,9 +39,9 @@
     ]],
     ['Growing stronger', [
       ['Levels and choices',
-        'Fights and quests give XP. Each chapter has a level cap; XP past it is banked (up to a quarter of a level) for the next chapter.\n\nWhenever a hero would learn a skill, you choose: that skill, or a lasting improvement instead (Tough, Mighty, Sharp, Guarded, Steady, Deep Well, Potent or Quick; each up to three times). The one you pass up is gone.'],
+        'Fights and quests give XP, up to level 30. The journal suggests a level for each quest. A fight below the party pays less: half for each level over it. At levels 7, 13, 19 and 25 everyone also gains +1 AC.\n\nWhenever a hero would learn a skill, you choose: that skill, or a lasting improvement instead (Tough, Mighty, Sharp, Guarded, Steady, Deep Well, Potent or Quick; each up to three times). The one you pass up is gone.'],
       ['Gear',
-        'Each hero wears a weapon, armour and a charm (Gear menu). In the Gear menu and in shops, ▲ marks an upgrade for that hero and ▼ a downgrade, with every stat that changes shown in green or red. After you buy gear, the shop offers to put it on.\n\nIf Dask trusts Runa, he haggles: shop prices drop.'],
+        'Each hero wears a weapon, armour and a charm (Gear menu). In the Gear menu and shops, ▲ marks an upgrade and ▼ a downgrade, with changed stats in green or red. After you buy gear, the shop offers to put it on.\n\nWon fights may leave draughts and tonics, and rarely gear you can only find (about two a chapter); more often from fights below you.\n\nIf Dask trusts Runa, he haggles: shop prices drop.'],
       ['Rest and healing',
         '· Inns: a bed for a few gold restores everyone. Roaming bands come back, and prayer places and stages are fresh again.\n· Campsites: a Camp Kit (shops sell them; you can carry two) restores everyone too, once per campsite until your next inn.\n· Items > Patch up the party uses as few healing draughts as it takes, cheapest first, and shows you first.'],
       ['Bonds',
@@ -59,7 +59,7 @@
       ['Journal and map',
         'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, the bestiary and Recent conversations are there too.\n\nThe map shows where you have been. + marks a place Maren can pray, ♪ a place Finch can play.'],
       ['Options',
-        '· Difficulty. Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and hit harder.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Battle speed, text speed, party chatter, always run, and the interact prompt.']
+        '· Difficulty. Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and hit harder.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars only when you point or aim (otherwise read wounds: bleeding or cracks, darker, trembling), or always.\n· Battle speed, text speed, party chatter, always run, and the interact prompt.']
     ]]
   ];
 })();

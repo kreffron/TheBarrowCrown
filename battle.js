@@ -5,7 +5,7 @@ const B = G.battle = { c: [], active: null, cursor: null, floats: [], bg: 'fores
 /* ---------- entry points ---------- */
 B.start = async function (groupId, o) {
   o = o || {};
-  const grp = G.D.groups[groupId];
+  const grp = G.D.groups[groupId]; B.gid = groupId;
   if (!grp) { console.error('No enemy group: ' + groupId); return 'win'; }
   B.gid = groupId;
   B.opening = o.opening || B.nextOpening || null; B.nextOpening = null;
@@ -88,7 +88,8 @@ B.spawn = function (ids, entering) {
     G.S.foes = G.S.foes || {}; if (!(id in G.S.foes)) G.S.foes[id] = 0;
     const u = {
       side: 1, id, name: d.name + (count[id] > 1 ? ' ' + 'ABCDE'[seen[id] - 1] : ''), def: d,
-      hp: Math.round(d.hp * B.diff().hp), maxHp: Math.round(d.hp * B.diff().hp), sp: 99, maxSp: 99, ac: d.ac, atk: d.atk, dmg: d.dmg, dmgBonus: 0,
+      // a foe trimmed for ordinary fights keeps its old health beside a boss (bossHp), so boss fights stay as built
+      hp: Math.round((B.boss && d.bossHp || d.hp) * B.diff().hp), maxHp: Math.round((B.boss && d.bossHp || d.hp) * B.diff().hp), sp: 99, maxSp: 99, ac: d.ac, atk: d.atk, dmg: d.dmg, dmgBonus: 0,
       pow: d.pow || 0, save: d.save || 0, spd: d.spd || 0, sneak: 0, statuses: [], tags: d.tags || [], immune: d.immune || [],
       moves: d.moves || [[1, 'attack']], down: false, sprite: d.sprite, scale: d.scale || 3,
       px: SLOTS[i][0], py: SLOTS[i][1], hitBy: [],
@@ -134,6 +135,13 @@ B.run = async function (grp, o) {
     G.setFlag('blessNext', 0); B.c.forEach(c => { if (c.side === 0 && !c.down) B.addStatus(c, 'blessed', 3); }); B.refresh();
     await B.msg("The way-lamp's light is still on you. The party is Blessed.");
   }
+  // Level and initiative: +2 to the party's rolls for each level it stands above the fight's level (up to +6), and -2
+  // for each below the lowest level it is ever met at, so a seasoned party usually moves first against weak foes and
+  // a green one usually last against strong. Ordinary progress through the game sits between the two and gets neither.
+  { const hi = G.groupLevel(B.gid) || G.mapLevel(G.S.map), lo = (((G.D.fightLevels || {}).low || {})[B.gid]) || hi, L = G.S.level;
+    B.initBonus = !hi || B.brawl ? 0 : L > hi ? Math.min(6, 2 * (L - hi)) : L < lo ? Math.max(-6, -2 * (lo - L)) : 0; }
+  if (B.initBonus >= 4) await B.msg('These foes are well beneath you.', 'The party is quick off the mark: +' + B.initBonus + ' to initiative.');
+  else if (B.initBonus <= -4) await B.msg('These foes outclass you.', 'They are quicker off the mark: ' + B.initBonus + ' to your initiative.');
   if (B.opening === 'ambush') await B.msg('You catch them unawares!', 'Your side moves first this round.');
   else if (B.opening === 'surprised') await B.msg('Ambush! They were on you before you saw them.', 'Their side moves first, and some are behind you.');
   if (B.objective) await B.msg(B.objective.text, 'Objective.', true);
@@ -150,7 +158,7 @@ B.run = async function (grp, o) {
     result = await B.objectiveRound(round); if (result) break;
     // Initiative is rolled once a fight (a d20 plus speed; ties split at random) and kept, as at the table. Anyone who
     // joins later (reinforcements, a boss's summons, waves) rolls when they first appear and takes their place.
-    for (const x of B.c) if (x.init == null) x.init = G.d20() + x.spd + G.rand() * 0.5;
+    for (const x of B.c) if (x.init == null) x.init = G.d20() + x.spd + (x.side === 0 ? B.initBonus || 0 : 0) + G.rand() * 0.5;
     let order = B.c.filter(x => !x.down).sort((a, b) => b.init - a.init);
     if (round === 1 && grp.guide && !G.auto) {                       // tutorial: the party goes first, in the guide's order
       const party = B.c.filter(x => x.side === 0 && !x.guest);
@@ -218,18 +226,46 @@ B.victory = async function (grp) {
     (e.def.loot || []).forEach(l => { if (G.rand() < l[1]) loot[l[0]] = (loot[l[0]] || 0) + 1; });
   });
   if (grp.xpMul) xp = Math.round(xp * grp.xpMul);     // some story fights pay less, so side content still matters
+  const share = G.xpFor(G.groupLevel(B.gid) || G.mapLevel(G.S.map)); xp = Math.round(xp * share);   // a fight below the party pays less
   G.S.gold += gold;
-  const got = Object.keys(loot).map(id => { G.give(id, loot[id]); return G.D.items[id].name + (loot[id] > 1 ? ' ×' + loot[id] : ''); });
+  const sp = B.spoils(grp);
+  for (const id in sp.out) loot[id] = (loot[id] || 0) + sp.out[id];
+  const got = Object.keys(loot).filter(id => !sp.rare.includes(id)).map(id => { G.give(id, loot[id]); return G.D.items[id].name + (loot[id] > 1 ? ' ×' + loot[id] : ''); });
+  for (const id of sp.rare) G.give(id, 1);
   const lines = G.gainXp(xp);
   B.lastXp = G.xpGained;
   const parts = [G.xpGained ? '+' + G.xpGained + ' XP' : '', gold ? '+' + gold + ' gold' : ''].filter(Boolean);
   const pr = G.xpProgress();
-  const where = !xp ? '' : pr.capped ? (G.xpGained ? 'Banked for the next chapter: ' + pr.have + '/' + pr.need + '.' : 'Level cap reached, and the bank is full.') : pr.pct + '% of the way to level ' + pr.next + '.';
+  const where = (!xp ? '' : pr.capped ? 'Level ' + G.S.level + '.' : pr.pct + '% of the way to level ' + pr.next + '.') + (share < 1 && xp ? ' An easy fight for the party now: ' + (share >= 0.5 ? 'half' : share >= 0.25 ? 'a quarter of the' : 'little') + ' experience.' : '');
   const sub = [where, got.length ? 'Found: ' + got.join(', ') + '.' : ''].filter(Boolean).join(' ');
   await B.msg('Victory!' + (parts.length ? ' ' + parts.join(', ') + '.' : ''), sub || null, true);
+  for (const id of sp.rare) {
+    const it = G.D.items[id], who = (it.for || []).map(h => G.D.classes[h].name).join(', ');
+    G.audio.sfx('level');
+    await B.msg('A rare find: ' + it.name + '!', (who ? 'For ' + who + '. ' : 'A charm anyone can wear. ') + 'Compare and equip it from the Gear menu.', true);
+  }
   if (B.bondNotes && B.bondNotes.length) await B.msg(B.bondNotes.join(' '), null, true);
   if (!B.brawl) { const pu = G.patchUp(); if (pu.length) { B.refreshFromState(); await B.msg(pu.join(', ') + ' patch each other up.', 'Friends heal a little after a fight.'); } }
   for (const line of lines) { G.audio.sfx('level'); B.refreshFromState(); await B.msg(line, null, true); }
+};
+
+// Spoils (data/ch9_world/r_loot.js): supplies now and then, rarely a piece of found gear, more often at the level
+// cap. Returns { out: { id: count }, rare: [found gear ids] }.
+B.spoils = function (grp) {
+  const T = G.D.spoils, out = {}, rare = [];
+  const foes = B.c.filter(c => c.side === 1).concat(B.gone || []).filter(e => !e.noXp);
+  if (!T || B.brawl || grp.noLoot || grp.xpMul === 0 || !foes.length) return { out, rare };
+  const easy = G.S.level >= G.levelCap() || G.xpFor(G.groupLevel(B.gid) || G.mapLevel(G.S.map)) < 1;   // when experience runs thin, spoils run thicker
+  const ch = Math.min(5, Math.max(1, G.flag('chapter') || 1)), mul = easy ? T.capMul : 1, heal = T.heal[ch];
+  const add = (id, n) => { out[id] = (out[id] || 0) + (n || 1); };
+  if (B.boss || G.rand() < (foes.length >= 4 ? T.healBig : T.healP) * mul) add(heal);
+  if (B.boss && G.rand() < 0.5) add(heal);
+  if (G.rand() < (B.boss ? 0.5 : T.tonicP * mul)) add('tonic');
+  const own = id => G.has(id) || G.S.party.some(m => Object.values(m.gear || {}).includes(id));
+  const pool = (T.found[ch] || []).filter(id => !own(id));
+  G.S.dry = (G.S.dry || 0) + 1;
+  if (pool.length && (G.S.dry >= T.dry || G.rand() < (B.boss ? T.gearBoss : T.gearP) * mul)) { const id = G.pick(pool); add(id); rare.push(id); G.S.dry = 0; }
+  return { out, rare };
 };
 
 /* ---------- statuses ---------- */
@@ -631,7 +667,7 @@ B.float = function (c, text, color) {
 /* ---------- battle effects ----------
    Short-lived pictures drawn over the fight: weapon strikes, missiles, spells, heals, statuses.
    Each is { k, to, from, t0, dur, ... }; B.drawVfx paints them. Nothing is drawn in fast mode. */
-B.RANGED = { arrow: 1, knife: 1, orb: 1, notes: 1, bottle: 1, hatchet: 1 };
+B.RANGED = { arrow: 1, knife: 1, orb: 1, notes: 1, bottle: 1, hatchet: 1, stone: 1 };
 B.HERO_HIT = { runa: 'axe', dask: 'dagger', maren: 'mace', finch: 'blade' };
 B.hitStyle = function (u) {
   if (u.side === 0 && !u.guest) return B.HERO_HIT[u.id] || 'blade';
@@ -688,10 +724,12 @@ B.drawVfx = function (c) {
     const a = (now - v.t0) / v.dur, to = v.to && B.center(v.to), dir = v.flip ? -1 : 1, k = v.to ? (B.pieceSize(v.to) > 1 ? 1.4 : 1) : 1;
     c.save();
     if (v.k === 'proj') {
-      const fr = B.center(v.from), x = fr.x + (to.x - fr.x) * a, arc = v.shape === 'bottle' ? -Math.sin(a * Math.PI) * 26 : v.shape === 'notes' ? Math.sin(a * Math.PI * 3) * 5 : 0, y = fr.y + (to.y - fr.y) * a + arc;
+      const fr = B.center(v.from), x = fr.x + (to.x - fr.x) * a, arc = v.shape === 'bottle' ? -Math.sin(a * Math.PI) * 26 : v.shape === 'stone' ? -Math.sin(a * Math.PI) * 12 : v.shape === 'notes' ? Math.sin(a * Math.PI * 3) * 5 : 0, y = fr.y + (to.y - fr.y) * a + arc;
       const sx = Math.sign(to.x - fr.x) || 1;
       if (v.shape === 'arrow') { R(Math.min(x, x - 12 * sx), y, 13, 1, '#d8c8a0'); R(x + (sx > 0 ? 1 : -4), y - 1, 4, 3, '#e8ecf4'); R(x - 13 * sx - 1, y - 2, 3, 5, '#f4f1e6'); }
       else if (v.shape === 'hatchet') { c.translate(x, y); c.rotate(a * 16 * sx); R(-1, -5, 2, 10, '#6b4a2b'); R(1, -5, 4, 4, '#c8ccd8'); R(4, -5, 1, 4, '#f4f4fa'); }
+      else if (v.shape === 'stone') { for (let i = 3; i > 0; i--) { c.globalAlpha = 0.18 * (4 - i) / 3; c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(x - sx * i * 3, y + i * 0.6, 2 - i * 0.3, 0, 7); c.fill(); }
+        c.globalAlpha = 1; c.fillStyle = '#8a8478'; c.beginPath(); c.arc(x, y, 2.4, 0, 7); c.fill(); c.fillStyle = '#d8d2c4'; c.beginPath(); c.arc(x - 0.7, y - 0.8, 1, 0, 7); c.fill(); }
       else if (v.shape === 'knife') { c.translate(x, y); c.rotate(a * 14); R(-3, -1, 6, 2, '#e8ecf4'); R(-4, -1, 2, 2, '#6b4a2b'); }
       else if (v.shape === 'bottle') { c.translate(x, y); c.rotate(a * 9); R(-3, -3, 6, 7, v.color || '#7ee08a'); R(-1, -6, 3, 3, '#b9b29b'); R(-2, -2, 1, 3, '#ffffff'); }
       else if (v.shape === 'notes') { for (let i = 0; i < 3; i++) { const nx = x - sx * i * 10, ny = y + Math.sin((a * 6 + i) * 2) * 4; R(nx, ny, 4, 3, v.color); R(nx + 3, ny - 7, 1, 8, v.color); R(nx + 3, ny - 7, 3, 2, v.color); } }
