@@ -2,7 +2,7 @@
    gear a little larger than life (heroic scale, as miniature sculptors do it), and width from cloaks, pose and
    weapons rather than from bulk. One warm key light from the upper left, a cool rim from behind, contact shadows,
    wear and dirt; Maren's lantern lights her own figure. Each is painted on a layer of its own and set on the base.
-   Options -> Hero figures switches back to the classic figures (heroes.js). Same 40x64 layout as every piece. */
+   Options -> Battle figures switches back to the classic figures (heroes.js). Same 40x64 layout as every piece. */
 (function () {
   const H = {};
   H.maren = function (cOut) {
@@ -341,9 +341,18 @@
       // the finish: key light, any extra light, a cool rim, the contact shadow, onto the base
       finish(o) {
         c.save(); c.globalCompositeOperation = 'source-atop';
+        if (o && o.fur != null) {                             // fur: short strokes lying one way, light on the tips, dark at the roots
+          const a = o.fur, dx = Math.cos(a) * 0.55, dy = Math.sin(a) * 0.55;
+          for (let i = 0; i < 1600; i++) { const x = 4 + rr() * 32, y = 6 + rr() * 46, l = 0.6 + rr() * 0.6; K.line([x, y, x + dx * l, y + dy * l], 0.1, rr() > 0.55 ? 'rgba(255,250,236,.22)' : 'rgba(0,0,0,.22)'); }
+        }
+        if (o && o.wear) {                                    // the weave of cloth and the grain of leather, and the road's dirt toward the feet
+          for (let i = 0; i < (o.wear === 'fur' ? 1400 : 900); i++) { const x = 4 + rr() * 32, y = 2 + rr() * 50; K.ell(x, y, 0.045, o.wear === 'fur' ? 0.12 : 0.045, rr() > 0.5 ? 'rgba(255,248,232,.1)' : 'rgba(0,0,0,.13)'); }
+          c.fillStyle = K.lin(0, 43, 0, 52, [[0, 'rgba(60,44,26,0)'], [1, 'rgba(60,44,26,.32)']]); c.fillRect(0, 40, 40, 13);
+        }
         c.fillStyle = K.lin(8, 4, 32, 44, [[0, 'rgba(255,236,200,.16)'], [0.5, 'rgba(255,255,255,0)'], [1, 'rgba(20,14,30,.26)']]); c.fillRect(0, 0, 40, 64);
         if (o && o.light) { const [x, y, r, col, a] = o.light; c.fillStyle = K.rad(x, y, 0.5, r, [[0, 'rgba(' + col + ',' + a + ')'], [0.4, 'rgba(' + col + ',' + a * 0.4 + ')'], [1, 'rgba(' + col + ',0)']]); c.fillRect(0, 0, 40, 64); }
         c.restore();
+        if (o && o.real) { const t = document.createElement('canvas'); t.width = off.width; t.height = off.height; const tc = t.getContext('2d'); tc.filter = 'saturate(0.8) contrast(1.06)'; tc.drawImage(off, 0, 0); c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, off.width, off.height); c.drawImage(t, 0, 0); c.restore(); }
         const W = off.width, Hh = off.height, sil = document.createElement('canvas'); sil.width = W; sil.height = Hh;
         const sc = sil.getContext('2d'); sc.drawImage(off, 0, 0); sc.globalCompositeOperation = 'source-in'; sc.fillStyle = '#c8daff'; sc.fillRect(0, 0, W, Hh);
         sc.globalCompositeOperation = 'destination-out'; sc.drawImage(off, 0.28 * S, 0.12 * S);
@@ -576,6 +585,8 @@
   // where each face sits, for turn chips and dialogue portraits: [x, y, size] in the 40x64 layout
   const FACE = { maren: [14.2, 5.4, 13], runa: [13.6, 4, 14], dask: [14.2, 10.4, 13.4], finch: [13.8, 5, 13.6] };
   B.HEROIC = H;
+  B.heroicKit = kitH;                                       // the same kit paints every other figure in the heroic style (figures.js, beasts.js)
+  B.figHeroic = () => G.opts.figures !== 'classic';
   B.heroicOn = name => !!H[name] && G.opts.figures !== 'classic';
   B.heroicFace = name => B.heroicOn(name) ? FACE[name] : null;
   B.heroicPainter = function (name) {

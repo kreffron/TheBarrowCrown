@@ -9,7 +9,14 @@
 (function () {
   const INK = '#1a1420', STEEL = '#b4b8c4', STEEL_L = '#f2f5fc', STEEL_D = '#5a5e6c', GOLD = '#e8c14a', GOLD_D = '#9a7420', WOOD = '#7a5434', WOOD_D = '#4a3020', BONE = '#e6e0cc', BONE_D = '#a8a088';
 
-  B.paintSpec = function (c, K, s, side) {
+  // Heroic mode (H, the heroes' kit, given): the same gear and colours on a realistic figure. The body is drawn in
+  // the layout below, stretched taller and slimmer from the feet (bodyT); the head is drawn at real size on top of
+  // the neck (headT maps the old head's coordinates onto it, so hair, hats, helms and hoods still fit), with a
+  // realistic face; the heroes' light, rim, wear and contact shadow are laid on by H.finish in pieces.js.
+  const HX = 20, HY = 11, HK = 0.66;                                      // heroic scale: the head a tenth larger than life
+  const bodyT = cc => { cc.translate(20, 51.6); cc.scale(1.04, 1.24); cc.translate(-20, -51.6); };   // taller, and no narrower than before
+  const headT = cc => { cc.translate(HX, HY - 0.3); cc.scale(HK, HK); cc.translate(-20.3, -13.8); };
+  B.paintSpec = function (c, K, s, side, H) {
     const F = B.fig, shade = F.shade, alpha = F.alpha;
     const foe = side === 1, W = s.big ? 1.6 : 0, skel = !!s.skel;
     const skin = skel ? BONE : (s.skin || '#e8b890'), hair = s.hair || '#4a3020';
@@ -19,8 +26,9 @@
     const heldShield = s.held === 'shield', held = heldShield ? null : s.held, off = heldShield ? 'shield' : s.off;
     const L = { x: 11.6 - W, y: 33.6 }, Rh = { x: 29.4 + W, y: 32.4 };            // the hands
     const afters = [], hk = (s.short ? 1.22 : B.fig.HEAD) * (s.big ? 1.04 : 1);
-    const inHead = f => (K2, c2) => { c2.save(); c2.translate(20, 20); c2.scale(hk, hk); c2.translate(-20, -20); f(K2, c2); c2.restore(); };
+    const inHead = f => { const g = (K2, c2) => { c2.save(); if (H) headT(c2); else { c2.translate(20, 20); c2.scale(hk, hk); c2.translate(-20, -20); } f(K2, c2); c2.restore(); }; g.head = true; return g; };
     if (s.short) { c.save(); c.translate(20, 51.6); c.scale(0.8, 0.8); c.translate(-20, -51.6); }
+    if (H) { c.save(); bodyT(c); }
 
     /* ----- behind the body ----- */
     if (held === 'pack') { K.R(7 - W, 22.6, 9, 14, K.lin(7, 0, 16, 0, [[0, '#a8854f'], [1, '#6a4a2a']]), 2); K.R(7 - W, 22.6, 9, 3, '#b8955f', 1.4); K.line([9.6 - W, 26, 9.6 - W, 35], 0.6, '#5a4028'); }
@@ -38,6 +46,7 @@
         K.ell(16.8, 48.4, 2.6, 1.3, BONE_D); K.ell(23.4, 48.4, 2.6, 1.3, shade(BONE_D, -16));
       } else {
         K.R(15.4, 35, 4.2, 12, F.cloth(K, 15.4, 19.6, legs), 1.2); K.R(20.4, 35, 4.2, 12, F.cloth(K, 20.4, 24.6, legs, 4), 1.2);
+        if (H) for (const x of [17.5, 22.5]) { H.soft(0.18, () => K.curve([x - 1.6, 40.6, x, 41.2, x + 1.6, 40.6], 0.35, 'rgba(0,0,0,.4)')); H.soft(0.2, () => K.line([x - 0.9, 36, x - 1.1, 44], 0.4, 'rgba(255,248,230,.18)')); }
         if (armor === 'plate') {
           for (const [x, d] of [[15, 6], [20.2, -14]]) { K.R(x, 40.2, 4.8, 8, K.lin(x, 0, x + 4.8, 0, [[0, shade(metal, 30 + d)], [0.5, shade(metal, d)], [1, shade(metal, -46 + d)]]), 1.4); K.ell(x + 2.4, 40.8, 2.2, 1.3, shade(metal, 20 + d)); }
           for (const [x, d] of [[14.4, 0], [20.2, -18]]) K.R(x, 47.2, 5.6, 4.2, K.lin(0, 47, 0, 51.4, [[0, shade(metal, 10 + d)], [1, shade(metal, -50 + d)]]), [1.6, 1.6, 0.8, 0.8]);
@@ -58,6 +67,7 @@
         if (s.trim) { K.R(19, 21, 2.2, 31, s.trim, 0); K.shape(q => { q.moveTo(8, 49.2); q.quadraticCurveTo(20, 51, 32, 49.2); q.lineTo(32, 53); q.lineTo(8, 53); q.closePath(); }, s.trim); }
         if (armor === 'rags') for (let x = 9; x < 31; x += 3) K.poly([x, 53, x + 1.5, 47.6 + (x % 2), x + 3, 53], alpha('#000000', 0.28));
         K.ell(16, 25, 3.6, 1.4, 'rgba(255,255,255,.14)');
+        if (H) { for (const [x, w] of [[13.4, 1.2], [16.8, 1.3], [23.4, 1.4], [26.8, 1.2]]) H.fold([x, 29, x + (x - 20) * 0.2, 40, x + (x - 20) * 0.44, 51.4], w, 'rgba(0,0,0,.38)', 'rgba(255,248,230,.26)'); H.soft(0.5, () => K.R(9, 23, 22, 1.4, 'rgba(0,0,0,.28)', 0.6)); }
       });
     } else {
       torso = K.shape(q => { q.moveTo(13.2 - W, 22); q.quadraticCurveTo(20, 20.4, 26.8 + W, 22); q.quadraticCurveTo(27.6 + W, 29, 26.6 + W * 0.6, 33.6); q.lineTo(27.4 + W * 0.6, 37.4); q.quadraticCurveTo(20, 38.4, 12.6 - W * 0.6, 37.4); q.lineTo(13.4 - W * 0.6, 33.6); q.quadraticCurveTo(12.4 - W, 29, 13.2 - W, 22); }, F.cloth(K, 12.4 - W, 27.6 + W, top, 26, -40));
@@ -74,6 +84,7 @@
           K.R(10, 21, 20, 18, K.lin(10, 0, 30, 0, [[0, alpha(metal, 0.35)], [1, alpha('#000000', 0.25)]]), 0);
         }
         K.ell(16.2, 24.6, 3.4, 1.2, 'rgba(255,255,255,.14)');
+        if (H && armor !== 'mail' && !skel) { H.fold([16.4, 23, 16, 29, 16.6, 37.6], 0.8, 'rgba(0,0,0,.34)', 'rgba(255,248,230,.24)'); H.fold([23.8, 23, 24.2, 29, 23.6, 37.6], 0.8, 'rgba(0,0,0,.4)', false); H.soft(0.3, () => K.curve([14, 33, 20, 34.4, 26, 33], 0.6, 'rgba(0,0,0,.3)')); }
       });
     }
     // plate: breastplate, faulds and a gorget over whatever is beneath
@@ -103,7 +114,13 @@
       F.limb(K, c, [26.6 + W, 23.6, 28.8 + W, 28, Rh.x, Rh.y - 1], 3.4, 2.8, shade(sleeve, -20), null);
       if (armor === 'plate') for (const [x, d] of [[12.6 - W, 0], [27.4 + W, -22]]) K.ell(x, 23.4, 3.2, 2.6, K.rad(x - 0.8, 22.6, 0.3, 3.4, [[0, shade(metal, 40 + d)], [1, shade(metal, -30 + d)]]));
     }
-    const hand = (p, d) => K.ell(p.x, p.y, 1.6, 1.5, armor === 'plate' ? shade(metal, -10 + d) : skel ? shade(BONE, d) : shade(skin, d));
+    const hand = H ? (p, d) => {
+      const col = armor === 'plate' ? shade(metal, -10 + d) : skel ? shade(BONE, d) : shade(skin, d);
+      c.save(); c.translate(p.x, p.y); c.scale(1.05, 0.86);                        // undo some of the body's stretch: a hand, not an egg
+      K.shape(q => { q.moveTo(-1.1, -0.9); q.quadraticCurveTo(0.5, -1.3, 1.2, -0.3); q.quadraticCurveTo(1.4, 0.8, 0.4, 1.2); q.quadraticCurveTo(-0.9, 1.3, -1.2, 0.2); q.closePath(); }, K.rad(-0.4, -0.5, 0.1, 1.7, [[0, shade(col, 26)], [1, shade(col, -44)]]));
+      for (const k of [-0.5, 0, 0.5]) K.line([1.1, k - 0.1, 0.6, k + 0.2], 0.14, alpha(shade(col, -80), 0.5));
+      c.restore();
+    } : (p, d) => K.ell(p.x, p.y, 1.6, 1.5, armor === 'plate' ? shade(metal, -10 + d) : skel ? shade(BONE, d) : shade(skin, d));
     hand(L, 2); hand(Rh, -16);
     if (s.fur) K.shape(q => { q.moveTo(10 - W, 24.6); q.quadraticCurveTo(10.6 - W, 19.8, 15, 19.4); q.lineTo(25, 19.4); q.quadraticCurveTo(29.4 + W, 19.8, 30 + W, 24.6); for (let i = 0; i <= 9; i++) q.lineTo(30 + W - i * (20 + 2 * W) / 9, 23.4 + (i % 2) * 2); q.closePath(); }, K.lin(0, 19, 0, 26, [[0, shade(s.fur, 26)], [1, shade(s.fur, -30)]]));
     if (s.cape) { K.ell(14.4 - W * 0.5, 21.8, 1.1, 1, GOLD); K.ell(25.6 + W * 0.5, 21.8, 1.1, 1, GOLD_D); }
@@ -119,9 +136,12 @@
     else if (off === 'book') { K.R(L.x - 2.4, L.y - 3.4, 4.8, 6, K.lin(L.x - 2.4, 0, L.x + 2.4, 0, [[0, '#9a3f3f'], [1, '#5a1f1f']]), 0.8); K.R(L.x + 1.8, L.y - 2.8, 0.6, 4.8, '#f4f1e6', 0.2); }
 
     /* ----- the head ----- */
-    c.save(); c.translate(20, 20); c.scale(hk, hk); c.translate(-20, -20);
+    if (H) c.restore();                                                      // out of the body's stretch
+    const M0 = c.getTransform();
+    if (H && !skel) K.R(HX - 1.6, HY + 1.4, 3.2, 3.8, K.lin(HX - 1.6, 0, HX + 1.6, 0, [[0, shade(skin, -6)], [1, shade(skin, -50)]]), 1.2);   // a real neck
+    c.save(); if (H) headT(c); else { c.translate(20, 20); c.scale(hk, hk); c.translate(-20, -20); }
     const hx = 20.3, hy = 13.8, r = 4.8;
-    if (!skel) K.R(18.4, 17.4, 3.4, 3, shade(skin, -24), 1); else K.line([20, 17, 20, 21], 1.2, BONE_D);
+    if (!skel) { if (!H) K.R(18.4, 17.4, 3.4, 3, shade(skin, -24), 1); } else K.line([20, 17, 20, 21], 1.2, BONE_D);
     const covered = !!(s.hood || s.helm), hatted = !!(s.hat || s.cap);
     if (s.hood) K.shape(q => { q.moveTo(12.6, 21.4); q.quadraticCurveTo(12, 9.6, 19, 7); q.quadraticCurveTo(21.6, 6.2, 22.6, 5.4); q.quadraticCurveTo(23.8, 7.6, 25.6, 9.6); q.quadraticCurveTo(28.6, 13.6, 27.6, 21.4); q.quadraticCurveTo(20, 23, 12.6, 21.4); }, K.rad(17, 9, 0.5, 15, [[0, shade(s.hood, 30)], [0.6, s.hood], [1, shade(s.hood, -34)]]));
     // hair behind the head
@@ -136,8 +156,13 @@
     // the face, or the skull
     if (skel) skull(c, K, hx, hy + (s.hood ? 0.6 : 0), s.hood ? 4.2 : r, glow);
     else {
-      F.face(K, c, { x: hx, y: hy + (s.hood ? 0.8 : 0), r: s.hood ? 4.3 : r, skin, hair, eye: s.eyes || '#241820', mouth: s.beard ? 'none' : foe ? 'set' : null, brow: foe ? 1.8 : 0, browCol: s.bald ? shade(skin, -60) : shade(hair, -20), blush: !foe && !s.eyes });
-      if (s.hood) K.ell(20.6, 11.6, 5.4, 2.6, alpha('#0e0c12', 0.6));
+      if (H) {                                                                // a real face, at real size, under the old head's hair and hats
+        const M1 = c.getTransform(); c.setTransform(M0); c.translate(HX, HY + 3.2); c.scale(1.1, 1.1); c.translate(-HX, -(HY + 3.2));
+        H.face(HX - 0.3, HY + (s.hood ? 0.4 : 0), { skin, eye: s.eyes || '#3a3040', brow: s.bald ? shade(skin, -60) : shade(hair, -20), mouth: s.beard ? 'set' : foe ? 'set' : null, browTilt: foe ? 0.22 : 0, jaw: s.big ? 3.4 : 3 });
+        c.setTransform(M1);
+      }
+      else F.face(K, c, { x: hx, y: hy + (s.hood ? 0.8 : 0), r: s.hood ? 4.3 : r, skin, hair, eye: s.eyes || '#241820', mouth: s.beard ? 'none' : foe ? 'set' : null, brow: foe ? 1.8 : 0, browCol: s.bald ? shade(skin, -60) : shade(hair, -20), blush: !foe && !s.eyes });
+      if (s.hood) { if (H) H.soft(0.7, () => K.ell(20.6, 10.6, 5.6, 2.6, alpha('#0e0c12', 0.55))); else K.ell(20.6, 11.6, 5.4, 2.6, alpha('#0e0c12', 0.6)); }   // the hood's shadow over the brow
       if (s.eyes && foe) afters.push(inHead(K2 => { for (const ex of [hx - r * 0.3, hx + r * 0.42]) K2.ell(ex, hy + 0.4, 1.6, 1.6, K2.rad(ex, hy + 0.4, 0, 1.6, [[0, alpha(s.eyes, 0.6)], [1, alpha(s.eyes, 0)]])); }));
     }
     if (!skel && !s.hood) {
@@ -170,8 +195,12 @@
     if (s.crown) { K.poly([14.6, 9.6, 14.4, 3.6, 16.8, 6.4, 18.6, 2.4, 20.4, 6, 22.4, 2.4, 24.2, 6.4, 26.6, 3.6, 26.4, 9.6], K.lin(14, 0, 27, 0, [[0, '#fff2b0'], [0.45, s.crown], [1, shade(s.crown, -50)]])); K.R(14.4, 8.6, 12.2, 1.6, shade(s.crown, -30), 0.4); K.ell(20.4, 8.2, 0.9, 0.9, '#c8443c'); K.ell(16.4, 8.6, 0.6, 0.6, '#5ab0e8'); K.ell(24.4, 8.6, 0.6, 0.6, '#5ab0e8'); }
     if (s.circlet) { K.curve([14.8, 10.6, 20.4, 9.2, 25.8, 10.4], 0.8, s.circlet); K.ell(20.4, 9.8, 0.9, 0.9, '#7fd0ff'); }
     if (s.hood) K.curve([13.4, 15, 15.6, 8.6, 21, 7.6, 25.4, 8.6, 27, 14], 0.6, alpha('#ffffff', 0.14));
-    if (s.scarf) { K.R(15.2, 18.6, 10.4, 2.8, K.lin(0, 18.6, 0, 21.4, [[0, shade(s.scarf, 20)], [1, shade(s.scarf, -20)]]), 1.2); K.shape(q => { q.moveTo(15.8, 20); q.quadraticCurveTo(12, 22, 10.6, 27.4); q.quadraticCurveTo(13, 25.6, 14.6, 26.2); q.quadraticCurveTo(15.4, 23, 17.4, 21.4); q.closePath(); }, shade(s.scarf, -18)); }
+    if (s.scarf && !H) { K.R(15.2, 18.6, 10.4, 2.8, K.lin(0, 18.6, 0, 21.4, [[0, shade(s.scarf, 20)], [1, shade(s.scarf, -20)]]), 1.2); K.shape(q => { q.moveTo(15.8, 20); q.quadraticCurveTo(12, 22, 10.6, 27.4); q.quadraticCurveTo(13, 25.6, 14.6, 26.2); q.quadraticCurveTo(15.4, 23, 17.4, 21.4); q.closePath(); }, shade(s.scarf, -18)); }
     c.restore();
+    if (H) {
+      if (s.scarf) { K.R(HX - 3.2, HY + 2.6, 6.6, 2, K.lin(0, HY + 2.6, 0, HY + 4.6, [[0, shade(s.scarf, 20)], [1, shade(s.scarf, -20)]]), 0.9); K.shape(q => { q.moveTo(HX - 2.6, HY + 3.8); q.quadraticCurveTo(HX - 5, HY + 5.4, HX - 5.6, HY + 9.4); q.quadraticCurveTo(HX - 4, HY + 8.2, HX - 3, HY + 8.6); q.quadraticCurveTo(HX - 2.6, HY + 6, HX - 1.4, HY + 4.6); q.closePath(); }, shade(s.scarf, -18)); }
+      c.save(); bodyT(c);                                                    // back into the body's stretch for the main hand
+    }
 
     /* ----- the main hand ----- */
     const x = Rh.x, y = Rh.y, g = s.gem || '#ffe07a';
@@ -206,13 +235,14 @@
     if (held === 'sword' || held === 'axe' || held === 'mace' || held === 'hammer' || held === 'spear' || held === 'staff' || held === 'spade' || held === 'pitchfork') K.line([x - 1.4, y - 0.4, x + 1.4, y - 0.4], 0.4, alpha('#000000', 0.25));
 
     if (glow && skel) afters.push(inHead(K2 => { const rr = s.hood ? 4.2 : 4.8, sy = 13.8 + (s.hood ? 0.6 : 0); for (const ex of [20.3 - rr * 0.34, 20.3 + rr * 0.42]) K2.ell(ex, sy + 0.1, 1.1, 1.1, K2.rad(ex, sy + 0.1, 0, 1.1, [[0, alpha(glow, 0.6)], [1, alpha(glow, 0)]])); }));
+    if (H) c.restore();
     if (s.short) c.restore();
     if (!afters.length) return null;
-    return (K2, c2) => { c2.save(); if (s.short) { c2.translate(20, 51.6); c2.scale(0.8, 0.8); c2.translate(-20, -51.6); } afters.forEach(f => f(K2, c2)); c2.restore(); };
+    return (K2, c2) => { c2.save(); if (s.short) { c2.translate(20, 51.6); c2.scale(0.8, 0.8); c2.translate(-20, -51.6); } afters.forEach(f => { c2.save(); if (H && !f.head) bodyT(c2); f(K2, c2); c2.restore(); }); c2.restore(); };
   };
 
   // where the face is, for portraits and turn chips: [x, y, size] in the 40x64 layout
-  B.specFace = s => s.short ? [7, 9, 26] : [6, 0.5, 28];
+  B.specFace = s => (B.figHeroic && B.figHeroic()) ? (s.short ? [14.4, 12.2, 11.6] : [13, 3.6, 14.4]) : s.short ? [7, 9, 26] : [6, 0.5, 28];
   function luminous(hex) { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 170; }
   function skull(c, K, x, y, r, glow) {
     K.ell(x, y - 0.6, r * 1.02, r * 0.98, K.rad(x - r * 0.4, y - r * 0.6, r * 0.1, r * 1.2, [[0, '#fffbe8'], [0.6, BONE], [1, BONE_D]]));

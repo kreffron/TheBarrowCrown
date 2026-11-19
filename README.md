@@ -684,7 +684,7 @@ that scrolls with the arrows, the wheel or a swipe.
   across her eyes; Dask crouches low, hood up and scarf over his mouth, a knife in each fist and his cloak flaring;
   Maren wears the Warden-blue cloak and holds her lantern out at arm's length, lighting her own robe; Finch has the
   lute across him, his cape flung back, the rapier at his hip and a wide plumed hat. One warm key light, a cool rim,
-  wear and dirt. Options -> Hero figures switches back to the classic figures (`B.clearPieces()` repaints).
+  wear and dirt. Options -> Battle figures switches every figure back to the classic style (`B.clearPieces()` repaints).
   Turn chips, dialogue portraits and biographies paint the heroes' faces at high resolution.
 - **Biographies** (Journal -> Biographies; data in `data/ch9_world/t_bios.js`, page in `src/bios.js`): the party and
   43 people of note: friends, those in between, the dead met in the mirror under the Ashen Road, and foes. A person appears once they have spoken to you (`met.<speaker>`, set by every
@@ -692,3 +692,28 @@ that scrolls with the arrows, the wheel or a swipe.
   with the story and never spoils what is ahead. A condition may use `|` for "either" (a secret can come out more
   than one way). Each choice's outcome has its own line (how Runa answered her oath, how Dask's debt was settled,
   which ending), checked against the scenes that set those flags. A • marks lines not yet read.
+
+## Heroic style for every figure
+
+With Options -> Battle figures on Heroic (the default), every figure on the board is painted like the heroes:
+- **People** (`src/figures.js`, heroic mode via `B.paintSpec(..., H)`): the same gear and colours from each spec, on a
+  realistic figure. The body is stretched taller from the feet (`bodyT`); the head is drawn at real size on a real
+  neck (`headT` maps the old head's coordinates onto it, so hair, hats, helms, hoods, beards and masks still fit), with
+  the heroes' realistic face, shaped hands, and folds in robes, tunics and legs.
+- **Animals** (`src/beasts2.js`): new anatomy for the wolf and alpha, bear, rat and rat king, bat, spider, crab and
+  eel; the colossus (a real skeleton), the golem (stacked, cracked, mossed boulders round a burning rune) and the
+  automaton (a clockwork knight). Heads stay where they were, so portraits and turn chips crop the same place.
+- **Spirits and the rest** keep their shapes, with smoky hollows for faces instead of cartoon eyes; the ooze has no
+  face; the bogling has a wet maw instead of a grin.
+- **All of them** get the heroes' finish (`B.heroicKit`, `H.finish`): their own layer, a warm key light, a cool rim,
+  weave or fur grain, road dirt toward the feet, a little less saturation, a contact shadow, and the thinner outline.
+
+## Reachability pass
+
+`tools/reachtest.py` walks the whole game from the new-game start, through every door, stair and story move, and lists any map or thing the party can never reach. It found three sealed areas, fixed in `data/ch9_world/u_fixes.js`:
+
+- **The Last Door (hollow2):** the arrival stairs blocked the only corridor, so the level (and the way on to hollow3) could not be entered. A floor tile beside the stairs opens it.
+- **The Sleepers' Vault (vault3):** the third brazier was boxed in behind the chest, so the stone door could never open. The chest moved into the brazier's alcove.
+- **The Thornwood glade:** once the old tower's stairs appear they filled the one path into the web glade. A second lane runs beside them.
+
+Out of reach on purpose: cutscene maps (v_*), shopkeepers behind counters, prisoners in cells, and animals in pens.

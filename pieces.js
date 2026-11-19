@@ -65,7 +65,7 @@
     const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
     const paint = (!G.D.sprites[name] && B.beastPainter && B.beastPainter(name)) || (B.heroPainter && B.heroPainter(name));
     if (paint) {                                                // a beast painted to match the heroes (beasts.js)
-      const heroic = B.heroicOn && B.heroicOn(name), after = paint(c), fin = softOutline(cv, heroic ? '#1e1610' : '#1a1420', (heroic ? 1.4 : 2.2) * HD / 3); if (!heroic) lightHD(fin);
+      const heroic = (B.heroicOn && B.heroicOn(name)) || (!G.D.sprites[name] && B.figHeroic && B.figHeroic()), after = paint(c), fin = softOutline(cv, heroic ? '#1e1610' : '#1a1420', (heroic ? 1.4 : 2.2) * HD / 3); if (!heroic) lightHD(fin);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(fc); fc.restore(); }
       cache[k] = fin; return fin;
     }
@@ -77,6 +77,14 @@
     }
     // everyone else: painted from their spec by figures.js, with any battle-only extras (armour, tabards, shields)
     Object.assign(s, (G.D.battleLooks || {})[name]);
+    if (B.figHeroic && B.figHeroic()) {                          // heroic style: realistic figure, the heroes' light, wear and outline
+      let seed = 7; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
+      const H = B.heroicKit(c, seed + 1), after = B.paintSpec(H.c, H.K, s, side, H);
+      H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11 });
+      const fin = softOutline(cv, '#1e1610', 1.4 * HD / 3);
+      if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(B.paintKit(fc), fc); fc.restore(); }
+      cache[k] = fin; return fin;
+    }
     const after = B.paintSpec(c, B.paintKit(c), s, side);
     const fin = softOutline(cv, '#1a1420', 2.2 * HD / 3);
     lightHD(fin);

@@ -28,6 +28,15 @@
       shape(fn, fill, stroke, sw) { const p = new Path2D(); fn(p); if (fill) { c.fillStyle = fill; c.fill(p); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = sw || 0.5; c.stroke(p); } return p; },
       // an eye with a glint; glow eyes get a soft halo
       eye(x, y, r, col, glow) {
+        if (K.real) {                                       // heroic style: a small eye in a shadowed socket, a pin of light
+          const e = r * 0.62;
+          K.ell(x, y + e * 0.1, e * 1.6, e * 1.15, 'rgba(10,6,10,.45)');
+          if (glow) K.ell(x, y, r * 1.7, r * 1.7, K.rad(x, y, 0, r * 1.7, [[0, alpha(col, 0.5)], [1, alpha(col, 0)]]));
+          K.ell(x, y, e * 1.15, e * 0.82, glow ? col : shade(col, -30));
+          K.ell(x, y, e * 0.42, e * 0.7, glow ? 'rgba(255,250,230,.9)' : '#0c080c');
+          K.ell(x - e * 0.4, y - e * 0.32, e * 0.2, e * 0.2, 'rgba(255,255,255,.85)');
+          return;
+        }
         if (glow) { K.ell(x, y, r * 2.4, r * 2.4, K.rad(x, y, 0, r * 2.4, [[0, alpha(col, 0.55)], [1, alpha(col, 0)]])); }
         K.ell(x, y, r, r, col); K.ell(x - r * 0.3, y - r * 0.35, r * 0.38, r * 0.38, 'rgba(255,255,255,.9)');
       },
@@ -269,8 +278,14 @@
     // stubby arms
     K.ell(6.4, 41, 2.6, 4.2, shade(mud, -10), 0.3); K.ell(34, 40, 2.6, 4.2, shade(mud, -24), -0.3);
     // face
-    K.ell(23, 34.6, 5.6, 2.6, '#1a1008'); K.ell(23, 34, 4.4, 1.2, '#3a2010');
-    for (const x of [19.6, 22.6, 25.8]) K.poly([x, 33, x + 0.6, 34.8, x + 1.2, 33], '#e8dcb0');
+    if (K.real) {                                                   // heroic style: a wet, ragged maw, roots for teeth
+      c.save(); c.filter = 'blur(' + (0.35 * c.getTransform().a) + 'px)'; K.ell(23, 34.6, 4.6, 2, 'rgba(14,8,4,.9)'); c.restore();
+      for (const x of [20, 22.4, 24.6, 26]) K.line([x, 33.4, x + 0.3, 34.8 + (x % 2) * 0.4], 0.22, 'rgba(120,100,70,.8)');
+      K.curve([18.6, 33.4, 23, 32.4, 27.6, 33.6], 0.3, 'rgba(160,140,110,.35)');
+    } else {
+      K.ell(23, 34.6, 5.6, 2.6, '#1a1008'); K.ell(23, 34, 4.4, 1.2, '#3a2010');
+      for (const x of [19.6, 22.6, 25.8]) K.poly([x, 33, x + 0.6, 34.8, x + 1.2, 33], '#e8dcb0');
+    }
     K.eye(20.4, 28.6, 1.4, p.eye, true); K.eye(26.6, 28.4, 1.2, p.eye, true);
   }
 
@@ -287,7 +302,7 @@
       for (const [x, y, r] of [[13, 34, 1.4], [24, 40.6, 1], [18, 47, 0.8], [29.6, 44, 0.7], [16.4, 39, 0.6]]) { c.strokeStyle = alpha('#ffffff', 0.45); c.lineWidth = 0.35; c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.stroke(); K.ell(x - r * 0.35, y - r * 0.35, r * 0.3, r * 0.3, alpha('#ffffff', 0.6)); }
       K.ell(15.6, 29.6, 4, 1.6, alpha('#ffffff', 0.45), -0.5);
     });
-    K.eye(19, 34.4, 1.2, '#1a2414'); K.eye(24, 34, 1.1, '#1a2414');
+    if (!K.real) { K.eye(19, 34.4, 1.2, '#1a2414'); K.eye(24, 34, 1.1, '#1a2414'); }      // a slime has no face (heroic style)
     // a drip down the front
     K.ell(29.8, 49.6, 1, 1.6, shade(g, 10));
   }
@@ -307,9 +322,16 @@
     K.ell(20, 30.6, 6.6, 6.6, K.rad(20, 30.6, 0.5, 7, [[0, core], [0.5, alpha(core, 0.75)], [1, alpha(core, 0)]]));
     if (p.extra) p.extra(c, K);
     // a face: hollow eyes and a small mouth
-    K.ell(17.4, 29.4, 1.5, 2.2, p.eyeCol || '#1a2440'); K.ell(22.8, 29.4, 1.5, 2.2, p.eyeCol || '#1a2440');
-    K.ell(17, 28.6, 0.5, 0.6, 'rgba(255,255,255,.8)'); K.ell(22.4, 28.6, 0.5, 0.6, 'rgba(255,255,255,.8)');
-    if (p.mouth) K.ell(20.2, 33.4, 1.4, p.mouth, p.eyeCol || '#1a2440');
+    if (K.real) {                                                   // heroic style: two hollows in the fire, smoke for a face
+      c.save(); c.filter = 'blur(' + (0.5 * c.getTransform().a) + 'px)';
+      for (const x of [17.6, 22.6]) K.ell(x, 29.2, 1.1, 1.7, alpha(p.eyeCol || '#1a2440', 0.85));
+      K.ell(20.1, 33.6, 1.6, 0.5, alpha(p.eyeCol || '#1a2440', 0.35)); c.restore();
+      for (const x of [17.6, 22.6]) K.ell(x, 29.6, 0.3, 0.3, alpha(core, 0.8));
+    } else {
+      K.ell(17.4, 29.4, 1.5, 2.2, p.eyeCol || '#1a2440'); K.ell(22.8, 29.4, 1.5, 2.2, p.eyeCol || '#1a2440');
+      K.ell(17, 28.6, 0.5, 0.6, 'rgba(255,255,255,.8)'); K.ell(22.4, 28.6, 0.5, 0.6, 'rgba(255,255,255,.8)');
+      if (p.mouth) K.ell(20.2, 33.4, 1.4, p.mouth, p.eyeCol || '#1a2440');
+    }
     return K => {                                                   // a halo and a pool of light, laid on after the outline
       K.pool(col, 0.45);
       K.ell(20, 29, 15, 17, K.rad(20, 29, 4, 17, [[0, alpha(col, 0.28)], [1, alpha(col, 0)]]));
@@ -406,8 +428,20 @@
     wisp: [9, 14, 22], marshlight: [9, 14, 22], frostspirit: [9, 12, 22], ashwraith: [9, 13, 22], shade: [9, 11, 22], mirrorshade: [9, 12, 22] };
   B.beastFace = name => FACE[name] || null;
   B.paintKit = kit;
+  // the beasts with fur or hair, and which way it lies (radians): the heroic finish strokes it in
+  const FURRED = { rat: 0.3, ratking: 0.3, wolf: 0.25, alpha: 0.25, bear: 0.2, bat: 1.4, spider: 1.2 };
   B.beastPainter = function (name) {
     const fn = P[name]; if (!fn) return null;
+    // heroic style: the beast on its own layer, then the heroes' finish over it: fur or hide grain, the warm key light,
+    // the cool rim from behind, and a soft contact shadow (pieces.js gives it the heroes' thinner outline)
+    if (B.figHeroic && B.figHeroic() && B.heroicKit) return c => {
+      let seed = 11; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
+      const H = B.heroicKit(c, seed + 3), K = kit(H.c); K.real = true; H.c.save(); H.c.lineJoin = 'round'; H.c.lineCap = 'round';
+      const real = B.REAL_BEASTS && B.REAL_BEASTS[name];          // the animals have their own realistic painters (beasts2.js)
+      const after = real ? real(H.c, K, H) : fn(H.c, K); H.c.restore();
+      H.finish({ wear: FURRED[name] && !real ? 'fur' : 'cloth', fur: real ? null : FURRED[name], real: true, shadowW: (FACE[name] && FACE[name][2] > 24) ? 14 : 11 });
+      return after ? (c2 => { c2.save(); c2.lineCap = 'round'; after(kit(c2), c2); c2.restore(); }) : null;
+    };
     // paints into c (already scaled to the 40x64 layout); returns the after-pass, if any, to draw on the outlined piece
     return c => { const K = kit(c); c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; const after = fn(c, K); c.restore(); return after ? (c2 => { c2.save(); c2.lineCap = 'round'; after(kit(c2), c2); c2.restore(); }) : null; };
   };
