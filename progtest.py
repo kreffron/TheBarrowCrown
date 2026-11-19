@@ -63,7 +63,7 @@ async def main():
         await pg.screenshot(path='/tmp/levelpick.png')
         shown = await pg.evaluate("[!!document.querySelector('.lvpick'), (document.querySelector('.lvpick')||{}).textContent]")
         print('level-up choice on screen:', shown[0], (shown[1] or '')[:120])
-        await pg.keyboard.press('ArrowDown'); await pg.wait_for_timeout(200); await pg.screenshot(path='/tmp/levelpick2.png'); await pg.keyboard.press('z'); await pg.wait_for_timeout(500)
+        await pg.keyboard.press('ArrowDown'); await pg.wait_for_timeout(200); await pg.screenshot(path='/tmp/levelpick2.png'); await pg.keyboard.press('e'); await pg.wait_for_timeout(500)
         after = await pg.evaluate("[JSON.stringify(G.S.party.map(m => m.picks || {})), (G.S.pendingPicks || []).length]")
         print('after choosing:', after)
         fails = r['fails'] + ([] if shown[0] else ['level-up choice did not show'])

@@ -42,7 +42,7 @@ The test tools need Python with Playwright and a Chrome at /usr/bin/google-chrom
 1. Read the design bible first.
 2. Create data/chN/ like data/ch2/: bestiary.js (enemies, groups, items, shops), story.js (quests with ch: N,
    chronicle lines with chapter N, scripts, sprites), map files and cutscenes.js. build.py picks up every data/ch*/ folder.
-3. Start the chapter by setting the `chapter` flag (it sets the level cap, D.levelCaps). End it with a recap card for that chapter.
+3. Start the chapter by setting the `chapter` flag (it sets the chapter's XP scale, D.xpScale; rerun tools/levels.py for the new fights' levels). End it with a recap card for that chapter.
 4. Add a PLAYn walk to tools/playtest.py, starting from made-up endings of the previous chapter.
 5. Validate, build, playtest, simulate, look at screenshots, then publish dist/index.html.
 
@@ -57,14 +57,31 @@ a line in D.chronicle and a route in tools/playtest.py that exercises it.
 
 ## Levels
 
-D.xpTable in data/rules.js runs to level 30, and every level costs more than the one before. D.levelCaps caps each
-chapter at 6, 12, 18, 24 and 30; past a cap, up to a quarter of a level is banked. Chapter 5 holds at 29 until the
-war-line on the Ashen Road breaks (D.capUnlocks, flag ch5mid), so level 30 never comes before mid-chapter.
+D.xpTable in data/rules.js runs to level 30, and every level costs more than the one before. There are no chapter caps
+(G.levelCap is just level 30). Instead every fight has a level (D.fightLevels in data/ch9_world/s_levels.js, measured
+by tools/levels.py from the playtest routes, run under the old caps of 6/12/18/24/30 since that is the pace the
+content was built for):
+- **XP falloff** (G.xpFor): a fight pays in full up to its level, then half for each level the party stands above it
+  (a quarter at two over, an eighth at three). Quests always pay in full. Grinding 80 random fights in Mirefen at the
+  start of chapter 2 takes the party from 6 to 11 (13 without the falloff), most of it in the first 50.
+- **Initiative** (B.initBonus): the party rolls +2 per level above a fight's level (up to +6), and -2 per level below
+  the lowest level any route met it at (down to -6). Ordinary progress sits between the two and gets neither. A gap
+  of 4 or more is announced at the start of the fight.
+- **Wary wildlife**: two or more levels above an area's top level, random encounters come half as often.
+- **Spoils**: a fight that pays reduced XP (or any fight at level 30) leaves spoils half again as often.
+- **Suggested levels**: each quest's (the middle of the levels the routes took it up at) shows on its journal page,
+  green when the party is there, yellow one short, red further; each region heading shows the spread.
+Regenerate after changing content: run the routes with LEVELS_OUT and the old-caps PATCH (see tools/levels.py).
 Stats grow on a 1-20 power scale spread over the 30 levels (D.powerScale, G.power), so a level-30 hero is as strong
 as the old level-20 design; HP and SP grow every level, and stepped stats use power rounded to the nearest half.
+AC is the one stat that used to come only from armour; it now also steps +1 at levels 7, 13, 19 and 25 (G.AC_LEVELS),
+because enemy attack climbs about +10 over the game against roughly +5 from armour, and late foes were hitting 85-95%
+of the time. Chapter 5's seven regular foes also lost 15% of their health (their opening fights ran 7-11 rounds).
 
 The rule for every chapter: the main story is worth three levels and side missions the other three. Doing everything
-takes the party from one cap to the next (6, 12, 18, 24, 30). From a full previous chapter, the main story alone ends
+takes the party to about 6, 12, 18, 24 and 30 by a chapter's end (with the caps gone, the routes end there or one
+above: chapter 2 at 12-13, chapter 4 at 25, since the finale now pays; a completionist reaches 30 shortly before the
+end of chapter 5). From a full previous chapter, the main story alone ends
 three below the cap (9, 15, 21, 27). A player who skips side missions all game ends the chapters at about 4, 8, 13, 18
 and 24, and each chapter's final boss is tuned to about a 75% win rate at levels 4, 9, 13, 18 and 23
 (Grukk, the Drowned Prior, Hrimgar, the Ossuary Colossus, the Barrow King), so side missions matter.
@@ -159,8 +176,15 @@ Saltmere, Karrow Hold and Highmoor and reads flags from every chapter.
 ## Battles: the board
 
 Every fight is played on a 12x12 board (src/board.js for the rules, src/pieces.js for the drawing). The canvas
-switches to double resolution during a battle so the pieces can be drawn as carved figures on round bases
-(blue: the party, green: allies, red: enemies), built from the same sprite specs as the field.
+switches to the screen's own resolution during a battle and is shown smoothed, so the pieces can be drawn as
+carved figures on round bases (blue: the party, green: allies, red: enemies). The four heroes have their own
+painters (src/heroes.js: Runa's fur mantle and great axe, Dask's hood, scarf and knives, Maren's robes, tabard and
+glowing lantern, Finch's plumed hat, doublet and lute, each with the head drawn a size up so they read at board
+size). The 20 creatures without a character spec are painted to match in src/beasts.js (wolves, spiders, wisps,
+golems, the Colossus and the rest). Everyone else (enemies, guests, townsfolk) is painted in the same hand by
+src/figures.js from their sprite spec, plus battle-only outfits in data/ch9_world/q_battle.js: plate, mail, leather,
+coats and rags, tabards with sigils (the Pale Hand, the Warden's lamp, the crown, skulls, flames), shields, masks and
+shining eyes for the dead. Faces carry an expression: foes scowl, friends smile.
 
 - Each board is cut from the 12x12 patch of the field map around the party (B.makeBoard / B.fromMap): the floor
   takes the colour of the ground there and solid tiles become obstacles of their kind (trees, pines, reeds, water,
@@ -174,7 +198,7 @@ switches to double resolution during a battle so the pieces can be drawn as carv
 - Movement: slow 2 (Maren, bosses), regular 3 (Runa, Finch), quick 4 (Dask, wolves). Distances count like a
   chess king. Obstacles (trees, pillars, rocks, tables, by setting) block movement and line of sight; allies can be
   walked through, enemies cannot. Weakened pieces move one square less.
-- Reach: weapons hit adjacent squares; bows 6; thrown axes and knives 4; spells and songs 4-6; heals 4.
+- Reach: weapons hit adjacent squares; bows 6; Maren's sling 5; thrown axes and knives 4; spells and songs 4-6; heals 4.
   Sweeps (Cleave, Whirlwind, Earthshaker) hit every adjacent foe; blasts (Dawnfire, Finale, Lament...) are aimed
   at a 3x3 or 5x5 area; party buffs reach allies within 3-5 squares. D.boardRules in data/rules.js sets each
   ability's range, radius and specials: dash (Headlong Charge moves 2 further), leap (Shadowstep appears beside a
@@ -182,7 +206,7 @@ switches to double resolution during a battle so the pieces can be drawn as carv
 - Engaged and flanking: a target with one of the attacker's allies beside it is engaged. Melee attacks on an engaged
   target get +2 to hit. A ranged attack with a foe adjacent to the shooter is at -2.
 - Classes: Finch fights with a shortbow (range 6, +1 to hit and damage) and a weaker rapier (-1/-2); Runa is
-  strongest in melee (+2 damage) and can throw a hand-axe (range 4, -1/-2); Maren supports; Dask gets +2 to hit
+  strongest in melee (+2 damage) and can throw a hand-axe (range 4, -1/-2); Maren supports, with a sling for when no one can reach her (range 5, -1 damage); Dask gets +2 to hit
   and Sneak Attack against any engaged target, near or far (thrown knives, range 4), plus one more Sneak Attack die
   when he is in melee beside the ally.
 - Multi-hit attacks (Twin Fangs, Thousand Cuts, Twin Axes, Gambit) move on to another foe in reach when the first falls.
@@ -201,11 +225,28 @@ or all at once.
 
 ## Battle graphics
 
-The battle canvas is drawn at 4x (B.RES in src/pieces.js), so text, bars and effects are sharp. Over the board:
+The battle canvas is drawn at the screen's resolution, 2x to 6x (B.RES, set by B.fitRes in src/pieces.js on each fight and on resize), so text, bars and effects are sharp. Over the board:
 a light layer (B.ambient by setting, darker on dark maps) with pools of light around pieces and spells; wall
 torches in caves, crypts, sewers, throne rooms and taverns; low fog in fens and crypts; sunbeams outdoors. The piece
 whose turn it is has a gold outline, and the piece being aimed at a red (or green) one. A boss fight opens with a
 name plate, and each new round with a banner. Critical hits and knockouts give a short push in on the target.
+
+**Reading wounds.** By default a foe's health bar shows only while you point at it or aim at it (Options > Enemy
+health: On hover / Always). Otherwise its figure shows how hurt it is (B.woundStage, B.woundedPiece in
+src/pieces.js): under 3/4 health the living bleed, the dead and the made crack, spirits tear and oozes cloud; under
+1/2 the figure darkens; under 1/4 it trembles (spirits flicker). The marks are placed on the figure's own pixels and
+clipped to it, the same on every copy, and cached per stage. Turn-order chips drop the foes' health stripe too.
+
+## Spoils (`data/ch9_world/r_loot.js`, `B.spoils` in src/battle.js)
+
+On top of each enemy's own loot, a won fight can leave supplies and, rarely, found gear:
+- a healing draught of the chapter's strength (Healing, Strong, Potent, then Highmoor Elixir): 30% a fight, 40%
+  with four or more foes, always after a boss (and a second half the time); an Ember Tonic 12% (50% after a boss);
+- found gear: 4% a fight, 25% after a boss, a guaranteed find by the 20th fight without one (G.S.dry), about two
+  a chapter. Each chapter has five pieces sold nowhere (one per hero and a charm), a little better than that
+  chapter's shop gear or with a twist; the party never finds a piece it already has. A find gets its own message.
+- At the level cap, when a fight's experience has nowhere to go, the odds are half again as good.
+Brawls and fights that pay no XP find nothing.
 
 ## The map
 
@@ -604,3 +645,50 @@ all. Keys in the pages are written as actions (`{a}`, `{run}`, `{threat}`...) an
 Every number in it comes from the rules in `src/`; change a rule, change its page. `tools/texttest.py` checks that
 every page fits its panel and names only real keys.
 
+
+## Player's Handbook
+
+The top of the Guide (Menu → Guide) holds the **Player's Handbook**: the long read. Nine rules pages cover rolls, stats,
+attacking, criticals and Sneak Attack, saves and checks, initiative and fleeing, the full XP table, improvements, feats and
+conditions. There is a page for each hero with their role, starting stats and gear, ranged and melee traits, every skill
+with its level and cost, their improvement order and their feats, and a **level 1–30 table** (HP, resource, Attack,
+Damage, Power, Save, AC, Sneak dice for Dask, and the skill on offer). The hero numbers are computed from the game's own
+data when the page opens (`src/handbook.js`), so they stay correct whenever the balance changes. Pages open in a reader
+that scrolls with the arrows, the wheel or a swipe.
+
+## Visual pass
+
+- **Condition badges** (`src/icons.js`): each condition over a battle piece is a small drawn badge (flame for Rage, shield
+  for Guard, zz for Asleep, drop for Poisoned and so on), rimmed blue when it helps and violet when it hurts.
+- **Damage numbers by kind**: fire orange with a flame, holy light pale gold with a sun, poison green with a drop, songs pink
+  with a note, other spells violet, frost blue; crits are big and gold with a star; heals green with a plus.
+  `B.hurt(t, dmg, { kind })` sets it; `B.spellKind` picks it for skills.
+- **Ground marks**: a faint glyph in the corner of high ground (▲), rough ground (pebbles), shallows (waves), ice (flake)
+  and hallowed ground (sun), on both board views.
+- **Dialogue portraits** (`src/portraits.js`): the speaker's face, cut from their battle figure. Heroes always; other
+  speakers when their figure can be matched by name or by the person whose script they speak in (about 100 of 115).
+- **Field effects** (`src/fieldfx.js`): lamps, hearths, braziers and lit crystals cut through the dark in crypts and glow
+  warm indoors (`Field.LIGHTS`); each kind of place has its own air (fen fog, crypt dust, woodland pollen, ash embers,
+  sea mist); unopened chests, pickups and unread hidden notes glint now and then; opened chests lose their outline; and
+  faint clues mark secrets Dask has not found yet (a seam in a wall, a stain over a trap, a dusty edge round a plate),
+  fading in as the party comes within a few steps.
+- **Painted scenes** (`src/scenes.js`): the title screen, and a living picture behind each "Chapter ..." card (the
+  Thane's Barrow under a crescent moon, the Drowned Abbey at sea, standing stones in the snow, Highmoor at night, the
+  Ashen Road under the crown's ghost). Drawn in vectors at screen resolution.
+
+## Heroic-scale heroes and Biographies
+
+- **Heroic-scale figures** (`src/heroic.js`): the four heroes as realistic painted miniatures, real anatomy with the
+  head, hands and gear a little larger than life, and width from cloaks, pose and weapons rather than bulk. Runa holds
+  the great axe across her body under a wolf pelt (its head on her shoulder), with plaited braids and a woad band
+  across her eyes; Dask crouches low, hood up and scarf over his mouth, a knife in each fist and his cloak flaring;
+  Maren wears the Warden-blue cloak and holds her lantern out at arm's length, lighting her own robe; Finch has the
+  lute across him, his cape flung back, the rapier at his hip and a wide plumed hat. One warm key light, a cool rim,
+  wear and dirt. Options -> Hero figures switches back to the classic figures (`B.clearPieces()` repaints).
+  Turn chips, dialogue portraits and biographies paint the heroes' faces at high resolution.
+- **Biographies** (Journal -> Biographies; data in `data/ch9_world/t_bios.js`, page in `src/bios.js`): the party and
+  43 people of note: friends, those in between, the dead met in the mirror under the Ashen Road, and foes. A person appears once they have spoken to you (`met.<speaker>`, set by every
+  line of dialogue) or a story flag says you crossed paths; each paragraph has its own condition, so a biography grows
+  with the story and never spoils what is ahead. A condition may use `|` for "either" (a secret can come out more
+  than one way). Each choice's outcome has its own line (how Runa answered her oath, how Dask's debt was settled,
+  which ending), checked against the scenes that set those flags. A • marks lines not yet read.
