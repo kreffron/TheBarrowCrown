@@ -71,7 +71,7 @@ UI.dlg = null;
 UI.showDlg = function (who) {
   if (!UI.dlg) {
     const d = UI.el('div', 'win dlg');
-    d.innerHTML = '<div class="dname"></div><div class="dtext"></div><div class="dmore">▼</div>';
+    d.innerHTML = '<div class="dport"><img></div><div class="dname"></div><div class="dtext"></div><div class="dmore">▼</div>';
     UI.root.appendChild(d); UI.dlg = d;
     d.addEventListener('click', () => { G.audio.unlock(); G.press('a'); });
   }
@@ -79,6 +79,9 @@ UI.showDlg = function (who) {
   if (who) { nm.textContent = who; nm.style.display = ''; nm.style.color = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   else nm.style.display = 'none';
   UI.dlg.classList.toggle('narr', !who);
+  const url = UI.portraitOf && UI.portraitOf(who), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
+  UI.dlg.classList.toggle('port', !!url);
+  if (url) { pt.querySelector('img').src = url; pt.style.borderColor = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   return UI.dlg;
 };
 UI.hideDlg = function () { if (UI.dlg) { UI.dlg.remove(); UI.dlg = null; } };
@@ -131,6 +134,7 @@ UI.logLine = function (who, text, kind) {
 };
 UI.say = async function (who, text, keep) {
   UI.logLine(who, text);
+  if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;                    // for Journal -> Biographies
   const d = UI.showDlg(who), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
   const pages = UI.paginate(box, text);
   for (const p of pages) await UI.type(box, p, more);
@@ -138,6 +142,7 @@ UI.say = async function (who, text, keep) {
 };
 UI.choice = async function (who, text, labels) {
   UI.logLine(who, text);
+  if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;
   const d = UI.showDlg(who), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
   if (G.fast) box.textContent = text; else { box.textContent = text; }
   more.style.visibility = 'hidden';
@@ -189,8 +194,10 @@ UI.waitKey = function () {
 // Full-screen title card (chapter openings and endings).
 UI.card = async function (title, text, lines) {
   const body = lines ? '<div class="clines">' + lines.map(l => '<div>' + UI.esc(l) + '</div>').join('') + '</div>' : '<div class="ctext">' + UI.esc(text || '') + '</div>';
-  const c = UI.el('div', 'card' + (lines && lines.length > 11 ? ' dense' : ''), '<div class="ctitle">' + UI.esc(title) + '</div>' + body + '<div class="chint">' + G.keyText('Press {a}') + '</div>');
+  const ch = typeof Scenes !== 'undefined' && !lines && Scenes.chapterOf(title);
+  const c = UI.el('div', 'card' + (lines && lines.length > 11 ? ' dense' : '') + (ch ? ' chapter' : ''), '<div class="ctitle">' + UI.esc(title) + '</div>' + (ch ? '<div class="corn">✦</div>' : '') + body + '<div class="chint">' + G.keyText('Press {a}') + '</div>');
   UI.root.appendChild(c);
+  if (ch) Scenes.mount(c, ch);                         // a chapter opens on its own painted scene
   c.addEventListener('click', () => G.press('a'));
   await G.sleep(350); await UI.waitKey(); c.remove();
 };

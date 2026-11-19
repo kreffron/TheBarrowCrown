@@ -7,7 +7,7 @@
   G.D.guide = [
     ['Getting started', [
       ['Controls',
-        '· Move: arrows or WASD. Hold {run} to run.\n· Talk, search, confirm: {a}. Back, or the menu: {b}.\n· Switch leader: {switch}. Leader ability: {ability}.\n· Map {map} · Items {items} · Journal {journal} · Party {party} · Gear {gear} · Guide {guide} · Quick save {save}\n\nYou can also click or tap: menus, the dialogue box, and the battle board. Change any key in Options > Controls.'],
+        '· Move: arrows or WASD. Hold {run} to run.\n· Talk, search, confirm: {a}. Back, or the menu: {b}.\n· Switch leader: {switch}. Leader ability: {ability}.\n· Map {map} · Items {items} · Journal {journal} · Party {party} · Gear {gear} · Guide {guide} · Quick save {save}\n\nClick or tap menus, dialogue and the board; in a fight, tap anyone for their card. 📜 {blog} log · 🔍 {bzoom} zoom. Keys: Options > Controls.'],
       ['The party',
         'Four heroes travel together; the one in front is the leader.\n\n· Runa, Barbarian: Athletics, Fury.\n· Dask, Rogue: Thievery, Cunning.\n· Maren, Cleric: Lore, Faith.\n· Finch, Bard: Persuasion, Verve.\n\nThe first is the hero\'s skill for checks. Fury, Cunning, Faith and Verve are skill points, spent on skills in a fight and restored by rest.']
     ]],
@@ -41,7 +41,7 @@
       ['Levels and choices',
         'Fights and quests give XP, up to level 30. The journal suggests a level for each quest. A fight below the party pays less: half for each level over it. At levels 7, 13, 19 and 25 everyone also gains +1 AC.\n\nWhenever a hero would learn a skill, you choose: that skill, or a lasting improvement instead (Tough, Mighty, Sharp, Guarded, Steady, Deep Well, Potent or Quick; each up to three times). The one you pass up is gone.'],
       ['Gear',
-        'Each hero wears a weapon, armour and a charm (Gear menu). In the Gear menu and shops, ▲ marks an upgrade and ▼ a downgrade, with changed stats in green or red. After you buy gear, the shop offers to put it on.\n\nWon fights may leave draughts and tonics, and rarely gear you can only find (about two a chapter); more often from fights below you.\n\nIf Dask trusts Runa, he haggles: shop prices drop.'],
+        'Each hero wears a weapon, armour and a charm (Gear menu). In the Gear menu and shops, ▲ marks an upgrade and ▼ a downgrade, with changed stats in green or red. After you buy gear, the shop offers to put it on; Sell outgrown sells spare gear nobody would wear.\n\nWon fights may leave draughts and tonics, and rarely gear you can only find (about two a chapter); more often from fights below you.\n\nIf Dask trusts Runa, he haggles: shop prices drop.'],
       ['Rest and healing',
         '· Inns: a bed for a few gold restores everyone. Roaming bands come back, and prayer places and stages are fresh again.\n· Campsites: a Camp Kit (shops sell them; you can carry two) restores everyone too, once per campsite until your next inn.\n· Items > Patch up the party uses as few healing draughts as it takes, cheapest first, and shows you first.'],
       ['Bonds',
@@ -57,9 +57,9 @@
       ['Saving',
         'The game saves itself to your slot whenever you enter a new place and when you rest. Menu > Save picks a slot; {save} quick-saves. The opening brawl cannot be saved.\n\nSaves live in this browser. Options > Export save gives a code you can keep or carry to another browser, and the title screen loads it.\n\nMenu > Quit to title can save first.'],
       ['Journal and map',
-        'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, the bestiary and Recent conversations are there too.\n\nThe map shows where you have been. + marks a place Maren can pray, ♪ a place Finch can play.'],
+        'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, Biographies (who you have met, growing as the story does), the bestiary, Recent conversations and The last fight are there too.\n\nThe map shows where you have been. + marks a place Maren can pray, ♪ a place Finch can play.'],
       ['Options',
-        '· Difficulty. Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and hit harder.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars only when you point or aim (otherwise read wounds: bleeding or cracks, darker, trembling), or always.\n· Battle speed, text speed, party chatter, always run, and the interact prompt.']
+        '· Difficulty. Easy: foes have a quarter less health and hit softer. Hard: more health, harder hits.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars only when you point or aim (else read wounds), or always.\n· Hero figures: heroic or classic.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
     ]]
   ];
 })();

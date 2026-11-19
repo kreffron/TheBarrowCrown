@@ -30,6 +30,7 @@ B.start = async function (groupId, o) {
 };
 
 B.setup = function (grp, o) {
+  B.zoomFlip = null; B.cam = { z: B.zoomOn() ? B.CAM_Z : 1, x: 160, y: 120 }; B.inspected = null; G.S.blog = []; B.round = 0;
   B.c = []; B.floats = []; B.cursor = null; B.active = null; B.parts = []; B.bondNotes = []; B.bondSeen = {}; B.bubbles = []; B.lastQuip = -1e9;
   B.boss = !!(grp.boss || o.boss);
   B.brawl = !!grp.brawl; B.rig = []; B.pendingAfter = null;
@@ -242,7 +243,9 @@ B.victory = async function (grp) {
   for (const id of sp.rare) {
     const it = G.D.items[id], who = (it.for || []).map(h => G.D.classes[h].name).join(', ');
     G.audio.sfx('level');
-    await B.msg('A rare find: ' + it.name + '!', (who ? 'For ' + who + '. ' : 'A charm anyone can wear. ') + 'Compare and equip it from the Gear menu.', true);
+    const up = G.S.party.some(m => { const c = Menu.compare(m, id); return c && !c.same && c.score > 0; });
+    await B.msg('A rare find: ' + it.name + '!', (who ? 'For ' + who + '. ' : 'A charm anyone can wear. ') + (up ? 'It would be an upgrade.' : 'Compare and equip it from the Gear menu.'), true);
+    if (up && !G.fast && !G.auto) { await Menu.offerEquip(id); if (Menu.descEl) { Menu.descEl.remove(); Menu.descEl = null; } }   // put it on now, if it is better
   }
   if (B.bondNotes && B.bondNotes.length) await B.msg(B.bondNotes.join(' '), null, true);
   if (!B.brawl) { const pu = G.patchUp(); if (pu.length) { B.refreshFromState(); await B.msg(pu.join(', ') + ' patch each other up.', 'Friends heal a little after a fight.'); } }
@@ -295,8 +298,8 @@ B.turnStart = async function (c) {
   if (B.ter(c.gx, c.gy) === 'fire') { await B.burn(c, ' burns'); if (c.down) return true; }
   if (B.ter(c.gx, c.gy) === 'hallowed') { await B.hallow(c); if (c.down) return true; }
   for (const s of c.statuses.slice()) {
-    if (s.id === 'poison') { await B.hurt(c, s.v, { text: c.name + ' takes ' + s.v + ' poison damage.' }); if (c.down) return true; }
-    if (s.id === 'regen' && c.hp < c.maxHp) { const n = Math.min(s.v, c.maxHp - c.hp); c.hp += n; B.float(c, '+' + n, '#7ee08a'); B.refresh(); }
+    if (s.id === 'poison') { await B.hurt(c, s.v, { kind: 'poison', text: c.name + ' takes ' + s.v + ' poison damage.' }); if (c.down) return true; }
+    if (s.id === 'regen' && c.hp < c.maxHp) { const n = Math.min(s.v, c.maxHp - c.hp); c.hp += n; B.float(c, '+' + n, null, 'heal'); B.refresh(); }
   }
   let skip = false;
   if (B.has(c, 'asleep')) { skip = true; await B.msg(c.name + ' is asleep.'); }
@@ -390,7 +393,7 @@ B.hurt = async function (t, dmg, o) {
   t.fx = { k: 'hit', t: G.time };
   if (t.px != null && B.spark) { const cc = B.center(t); B.spark(cc.x, cc.y, o.crit ? '#ffe07a' : t.tags && t.tags.indexOf('undead') >= 0 ? '#c8d8ff' : '#ffb08a', o.crit ? 16 : 9, o.crit ? 70 : 45, 420, 60); if (o.crit) B.flashT = G.time; }
   G.audio.sfx(o.crit ? 'crit' : 'hit');
-  B.float(t, '-' + dmg, o.crit ? '#ffd24a' : '#ff8a7a');
+  B.float(t, '-' + dmg, null, o.crit ? 'crit' : o.kind || 'hit');
   if (B.has(t, 'asleep')) t.statuses = t.statuses.filter(s => s.id !== 'asleep');
   if (t.hp <= 0) { t.down = true; t.statuses = []; t.downT = G.time; if (!B.punch) B.punch = { t: G.time, o: t }; if (t.side === 1) { t.gone = true; if (G.S.foes && t.id in G.S.foes) G.S.foes[t.id]++; } if (t.px != null && B.spark) B.spark(t.px, t.py - 2, '#8a7a6a', 14, 30, 650, -10); }
   B.refresh();
@@ -476,12 +479,12 @@ B.fx = async function (user, list, targets) {
         if (dmg <= 0) { await B.msg(t.name + ' shrugs it off.'); continue; }
         dmg = B.scaleIn(t, dmg);
         G.audio.sfx(e.sfx || 'magic');
-        await B.hurt(t, Math.max(1, dmg), { text: t.name + ' takes ' + dmg + ' damage.' + note });
+        await B.hurt(t, Math.max(1, dmg), { kind: B.spellKind(user, e), text: t.name + ' takes ' + dmg + ' damage.' + note });
       } else if (e.t === 'heal') {
         const n = Math.min(t.maxHp - t.hp, G.roll(e.dice) + (e.pow ? user.pow : 0) + (B.perk(user, 'grace') ? user.pow : 0));
         if (t.hp < t.maxHp * 0.3 && t !== user && n > 0) B.bondMoment(user, t, 1, 'a heal in the nick of time');
         B.addVfx({ k: 'rise', to: t, shape: 'plus', color: '#7ee08a' });
-        t.hp += n; G.audio.sfx('heal'); B.float(t, '+' + n, '#7ee08a'); B.refresh(); if (t !== user && n > 0) B.quip(t, 'healed', user);
+        t.hp += n; G.audio.sfx('heal'); B.float(t, '+' + n, null, 'heal'); B.refresh(); if (t !== user && n > 0) B.quip(t, 'healed', user);
         await B.msg(t.name + ' recovers ' + n + ' HP.');
       } else if (e.t === 'sp') {
         const n = Math.min(t.maxSp - t.sp, e.n); t.sp += n; G.audio.sfx('buff'); B.addVfx({ k: 'rise', to: t, shape: 'spark', color: '#8ab4ff' }); B.float(t, '+' + n, '#8ab4ff'); B.refresh();
@@ -634,15 +637,23 @@ B.buildUI = function () {
   B.buildViewButtons();
   B.refresh();
 };
-B.clearUI = function () { if (B.logEl) B.logEl.remove(); if (B.panel) B.panel.remove(); if (B.turnEl) B.turnEl.remove(); if (B.viewEl) B.viewEl.remove(); B.logEl = B.panel = B.turnEl = B.viewEl = null; B.c = []; B.order = null; };
+B.clearUI = function () { if (B.inspect) B.inspect(null); if (B.logEl) B.logEl.remove(); if (B.panel) B.panel.remove(); if (B.turnEl) B.turnEl.remove(); if (B.viewEl) B.viewEl.remove(); B.logEl = B.panel = B.turnEl = B.viewEl = null; B.c = []; B.order = null; };
 B.setLog = function (text, sub, guide) {
   if (!B.logEl) return;
   B.logEl.classList.toggle('guide', !!guide);
   B.logEl.innerHTML = '<div class="l1">' + UI.esc(G.keyText(text)) + '</div>' + (sub ? '<div class="l2">' + UI.esc(G.keyText(sub)) + '</div>' : '');
 };
+// The battle log: every line the fight shows, with its roll, kept for this fight and the last one (G.S.blog).
+B.logBattle = function (text, sub) {
+  if (!text || !G.S) return;
+  const log = G.S.blog = G.S.blog || [];
+  log.push([B.round || 0, G.keyText(String(text)), sub ? G.keyText(String(sub)) : '']);
+  if (log.length > 160) log.splice(0, log.length - 160);
+};
 B.statusLine = c => c.statuses.length ? c.statuses.map(s => G.D.statuses[s.id].name).join(', ') : '';
 // Shows a line; advances on a key press or after a short pause. hold = wait for the key.
 B.msg = function (text, sub, hold, ms, routine) {
+  B.logBattle(text, sub);
   if (G.fast) return Promise.resolve();
   B.setLog(text, sub);
   ms = Math.max(260, Math.round((ms || (G.opts.textFast ? 700 : 1350)) * (routine ? 0.65 : 1) * B.speed()));
@@ -650,7 +661,7 @@ B.msg = function (text, sub, hold, ms, routine) {
     let done = false, tm = null;
     const fin = () => { if (done) return; done = true; clearTimeout(tm); UI.popModal(m); res(); };
     const m = { press(b) { if (b === 'a' || b === 'b') fin(); } };
-    if (!hold) tm = setTimeout(fin, ms);
+    if (!hold) { const later = () => { tm = setTimeout(() => G.hold ? later() : fin(), G.hold ? 150 : ms); }; later(); }   // G.hold: a log is open; wait
     UI.pushModal(m);
   });
 };
@@ -658,9 +669,10 @@ B.refreshFromState = function () {
   B.c.forEach(c => { if (c.side === 0 && c.m) { const st = G.stats(c.m); c.maxHp = st.maxHp; c.maxSp = st.maxSp; c.hp = c.m.hp; c.sp = c.m.sp; c.down = false; } });
   B.refresh();
 };
-B.float = function (c, text, color) {
+B.float = function (c, text, color, kind) {
   if (G.fast) return;
-  B.floats.push({ x: c.px, y: c.py - 30 * B.pieceSize(c), text, color, t: 0 });
+  const k = kind && B.DMG_KIND[kind];
+  B.floats.push({ x: c.px, y: c.py - 30 * B.pieceSize(c), text, color: color || (k && k[0]) || '#ff8a7a', glyph: k && k[1], crit: kind === 'crit', t: 0 });
 };
 
 
@@ -677,6 +689,14 @@ B.hitStyle = function (u) {
   if (G.gfx.pix[u.sprite] || (u.tags || []).indexOf('beast') >= 0) return 'claw';
   if ((d.scale || 3) >= 4) return 'smash';
   return 'blade';
+};
+// What kind of harm a damaging skill does, for the colour and glyph of its number.
+B.spellKind = function (u, e) {
+  if (e.sfx === 'fire') return 'fire';
+  if (u.id === 'maren' || e.vs === 'undead') return 'holy';
+  if (u.id === 'finch') return 'song';
+  if (u.id === 'runa' || u.id === 'dask') return 'hit';
+  return (u.tags || []).indexOf('undead') >= 0 ? 'frost' : 'magic';
 };
 B.castColor = function (u, ab) {
   const fx = ab.fx || [];

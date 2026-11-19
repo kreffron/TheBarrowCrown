@@ -178,7 +178,7 @@ Field.use = async function (th) {
   if (d.pz === 'beast') { th.dir = OPP[p.dir]; await Puzzle.beastUse(th); return; }
   if (d.pz && !d.script) { await Puzzle.look(th); return; }
   if (d.type === 'npc') { th.dir = OPP[p.dir]; await G.run(d.script || [], { thing: th }); }
-  else if (d.type === 'sign') { if (d.script) await G.run(d.script, { thing: th }); else await UI.say(null, d.text || '...'); }
+  else if (d.type === 'sign') { if (d.hidden) G.setFlag('rd.' + th.key); if (d.script) await G.run(d.script, { thing: th }); else await UI.say(null, d.text || '...'); }
   else if (d.type === 'chest') await Field.openChest(th);
   else if (d.type === 'pickup') Field.pickup(th);
   else if (d.script) await G.run(d.script, { thing: th });
@@ -399,8 +399,10 @@ Field.draw = function (c) {
     } else {
       const g = Field.thingGfx(th); if (!g) continue;
       const pop = Field.pops(th);
-      if (Field.isSolid(th) && d.type !== 'pz') list.push({ y: sy, g, x: sx, th: d.type === 'sign' || d.abil ? th : null, pop, furn: !pop && (Field.FURN[g] || Field.FURN_THING[g]), wall: Field.WALLMOUNT[g] && Field.wallAbove(th.x, th.y) });
+      const gl = Field.glintable(th) ? th : null;
+      if (Field.isSolid(th) && d.type !== 'pz') list.push({ y: sy, g, x: sx, gl, th: d.type === 'sign' || d.abil ? th : null, pop, furn: !pop && (Field.FURN[g] || Field.FURN_THING[g]), wall: Field.WALLMOUNT[g] && Field.wallAbove(th.x, th.y) });
       else if (pop) G.gfx.drawThing(c, g, sx, sy); else G.gfx.drawTile(c, g, sx, sy, 0);     // floor-level: under everyone
+      if (gl && !Field.isSolid(th)) Field.drawGlint(c, gl, sx, sy);
     }
   }
   if (!Field.hideP) list.push({ y: ppy - cy + 0.5, s: Field.leader(), x: ppx - cx, dir: p.dir, f: p.moving ? (p.t < 0.5 ? (p.step % 2 ? 1 : 2) : 0) : 0 });
@@ -411,6 +413,7 @@ Field.draw = function (c) {
       if (o.wall) { c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(o.x + 1, o.y + 10, 14, 3); }
       if (o.pop) G.gfx.drawThing(c, o.g, o.x, oy); else if (o.furn || o.wall) G.gfx.drawThing(c, o.g, o.x, oy, o.wall ? 'wall' : 'furn'); else G.gfx.drawTile(c, o.g, o.x, oy, 0);
       if (o.th && o.th.def.abil) Field.drawAbilMark(c, o.th, o.x, oy);
+      if (o.gl) Field.drawGlint(c, o.gl, o.x, oy);
     }
     else {
       if (o.hunt) {                                    // enemies: a red ring at their feet (brighter while they chase)
@@ -425,17 +428,18 @@ Field.draw = function (c) {
     if (o.th && !o.g) { const k = Field.questMark(o.th); if (k) Field.drawMark(c, k, o.x, o.y - 4); }
     else if (o.th && o.th.def.type === 'sign') { const k = Field.questMark(o.th); if (k) Field.drawMark(c, k, o.x, o.y - 4); }
   }
+  Field.drawClues(c, cx, cy);
   Field.drawPrompt(c, cx, cy);
   Field.weather(c);
+  Field.air(c, cx, cy);
   if (m.hasPz) { Puzzle.drawBeams(c, cx, cy); Puzzle.drawSight(c, cx, cy); }
   if (Puzzle.dark(c, cx, cy, ppx, ppy)) { /* puzzle darkness */ }
   else if (m.def.dark) {
     const lt = Field.hideP && m.def.light;
     const gx = lt ? lt[0] * T - cx + 8 : ppx - cx + 8, gy = lt ? lt[1] * T - cy + 8 : ppy - cy + 6;
-    const g = c.createRadialGradient(gx, gy, m.def.lightInner || 34, gx, gy, m.def.lightInner ? 110 : 170);
-    g.addColorStop(0, 'rgba(8,6,16,0)'); g.addColorStop(1, 'rgba(8,6,16,' + m.def.dark + ')');
-    c.fillStyle = g; c.fillRect(0, 0, G.W, G.H);
+    Field.drawDark(c, m, gx, gy, cx, cy);                // the dark, with holes round the party and every lamp
   }
+  else if (m.indoor) Field.drawIndoor(c, m, cx, cy);   // warm light round hearths and lamps, dimmer corners
   Field.hud();
   // emote bubbles (cutscenes)
   Field.emotes = Field.emotes.filter(e => G.time - e.t < 1100);
@@ -600,7 +604,7 @@ Field.drawAbilMark = function (c, th, x, y) {
   c.fillStyle = '#ffffff'; c.fillRect(X - 1, Y - 2, 1, 1);
 };
 // Things you can use stand out from the ground: an outline and a soft shadow (gfx.drawThing).
-Field.pops = th => { const t = th.def.type; if (th.def.pz) return Puzzle.pops(th); return t === 'chest' || t === 'sign' || (t === 'obj' && (th.def.script || th.def.abil)) || (t === 'warp' && th.def.gfx && th.def.gfx !== 'path'); };
+Field.pops = th => { const t = th.def.type; if (th.def.pz) return Puzzle.pops(th); return (t === 'chest' && !G.flag('o.' + th.key)) || t === 'sign' || (t === 'obj' && (th.def.script || th.def.abil)) || (t === 'warp' && th.def.gfx && th.def.gfx !== 'path'); };
 // The leader's portrait, and the other three: click one to bring them to the front.
 Field.hud = function (force) {
   let el = Field.hudEl;

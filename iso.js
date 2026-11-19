@@ -84,6 +84,10 @@
     B.threatBtn = btn('⚔', 'Show where enemies can strike next turn', () => B.toggleThreat(), 'threat');
     btn('⟲', 'Turn the board left', () => B.turnView(-1), 'rot_l');
     btn('⟳', 'Turn the board right', () => B.turnView(1), 'rot_r');
+    btn('📜', 'The battle log: every line of this fight, with its dice', () => { if (!B.logOpen) { B.logOpen = true; Menu.battleLog().then(() => { B.logOpen = false; }); } }, 'blog');
+    B.toggleZoom = () => { B.zoomFlip = !B.zoomOn(); if (B.zoomBtn) B.zoomBtn.classList.toggle('on', B.zoomOn()); };
+    B.zoomBtn = btn('🔍', 'Zoom in on the action, or see the whole board', () => B.toggleZoom(), 'bzoom');
+    B.zoomBtn.classList.toggle('on', B.zoomOn());
     UI.root.appendChild(el); B.viewEl = el; B.refreshView();
   };
   B.refreshView = function () {
@@ -299,6 +303,7 @@
         for (const [u0, v0, len, ph] of [[0.15, 0.3, 0.35, 0], [0.5, 0.65, 0.3, 2]]) { const du = Math.sin(tt + ph) * 0.08, p = proj(x + u0 + du, y + v0, z), q = proj(x + u0 + du + len, y + v0, z); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); }
         c.stroke();
       }
+      { const tk = B.ter(x, y); if (B.TER_GLYPH[tk]) { const p = proj(x + 0.2, y + 0.8, z); B.terrainMark(c, tk, p[0], p[1]); } }
       if (B.ter(x, y) === 'fire') {
         const p = proj(x + 0.5, y + 0.5, z), fg = c.createRadialGradient(p[0], p[1], 1, p[0], p[1], 14);
         fg.addColorStop(0, 'rgba(255,170,60,.6)'); fg.addColorStop(1, 'rgba(255,80,30,.06)'); c.fillStyle = fg; B.isoPath(c, x, y, 0, z); c.fill();

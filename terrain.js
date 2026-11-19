@@ -140,7 +140,7 @@
     if (!u || u.down || B.ter(u.gx, u.gy) !== 'fire') return;
     const dmg = B.scaleIn(u, B.burnDmg());
     B.addVfx({ k: 'burst', to: u, color: '#ff8a3a', n: 12 });
-    await B.hurt(u, dmg, { text: u.name + (why || ' is caught in the flames') + ' for ' + dmg + '.' });
+    await B.hurt(u, dmg, { kind: 'fire', text: u.name + (why || ' is caught in the flames') + ' for ' + dmg + '.' });
   };
   B.setFire = function (x, y, rounds) {
     if (!B.inside(x, y) || B.wall(x, y)) return false;
@@ -240,7 +240,7 @@
     for (const u of B.c.filter(u => B.living(u) && Math.max(Math.abs(u.gx - x), Math.abs(u.gy - y)) <= 1)) {
       const dmg = B.scaleIn(u, G.roll('2d6') + Math.floor((G.S.level || 1) / 2));
       if (by && u.side === by.side && u !== by) B.bondMoment(by, u, -1, 'caught in a blast');
-      await B.hurt(u, dmg, { text: u.name + ' is caught in the blast for ' + dmg + '.' });
+      await B.hurt(u, dmg, { kind: 'fire', text: u.name + ' is caught in the blast for ' + dmg + '.' });
     }
     for (const [k2, kind] of [...B.props]) {                     // kegs set each other off
       if (kind !== 'keg' && kind !== 'gas') continue; const [x2, y2] = k2.split(',').map(Number);
@@ -297,7 +297,7 @@
     await B.msg(c.name + "'s stone knocks the hive down. The bees boil out.");
     for (const u of B.c.filter(u => B.living(u) && Math.max(Math.abs(u.gx - p.x), Math.abs(u.gy - p.y)) <= 1)) {
       const dmg = B.scaleIn(u, G.roll('1d4') + 1);
-      await B.hurt(u, dmg, { text: u.name + ' is stung for ' + dmg + '.' });
+      await B.hurt(u, dmg, { kind: 'poison', text: u.name + ' is stung for ' + dmg + '.' });
       if (!u.down && B.addStatus(u, 'poison', 3, 2 + Math.floor((G.S.level || 1) / 4))) B.float(u, 'Poisoned', '#7ad04a');
     }
     B.refresh();
@@ -307,7 +307,7 @@
     if (!u || u.down || B.ter(u.gx, u.gy) !== 'hallowed' || !(u.tags || []).includes('undead')) return;
     const dmg = G.roll('1d6') + Math.floor((G.S.level || 1) / 3);
     B.addVfx({ k: 'rise', to: u, shape: 'spark', color: '#fff2b0' });
-    await B.hurt(u, dmg, { text: 'The hallowed ground burns ' + u.name + ' for ' + dmg + '.' });
+    await B.hurt(u, dmg, { kind: 'holy', text: 'The hallowed ground burns ' + u.name + ' for ' + dmg + '.' });
   };
 
   /* ---------- openings ---------- */
@@ -376,7 +376,7 @@
       if (round > limit) {
         B.objNote = 'Too late: it is at full strength.';
         if (!B.lateSaid) { B.lateSaid = true; if (B.bossUnit) B.addStatus(B.bossUnit, 'enraged', 99); await B.msg(ob.late || 'Too late!'); }
-        for (const t of B.c.filter(t => B.living(t) && t.side === 0)) { const dmg = B.scaleIn(t, G.roll(ob.dmg || '1d6')); await B.hurt(t, dmg, { text: t.name + ' is scalded for ' + dmg + '.' }); }
+        for (const t of B.c.filter(t => B.living(t) && t.side === 0)) { const dmg = B.scaleIn(t, G.roll(ob.dmg || '1d6')); await B.hurt(t, dmg, { kind: 'fire', text: t.name + ' is scalded for ' + dmg + '.' }); }
       } else B.objNote = 'Beat it within ' + (limit - round + 1) + ' more round' + (limit - round ? 's' : '') + '.';
     }
     return B.over();

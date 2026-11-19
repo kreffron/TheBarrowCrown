@@ -248,8 +248,9 @@
   B.fig = { face, limb, boot, cloth, shade, alpha, HEAD };
 
   const P = { runa, dask, maren, finch };
-  B.heroFace = name => P[name] ? [8, 0.5, 24] : null;               // head and shoulders, for portraits and turn chips
+  B.heroFace = name => (B.heroicFace && B.heroicFace(name)) || (P[name] ? [8, 0.5, 24] : null);               // head and shoulders, for portraits and turn chips
   B.heroPainter = function (name) {
+    const hp = B.heroicPainter && B.heroicPainter(name); if (hp) return hp;     // heroic-scale figures (heroic.js), unless Options say classic
     const fn = P[name]; if (!fn) return null;
     return c => { const K = B.paintKit(c); c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; const after = fn(c, K); c.restore(); return after ? (c2 => { c2.save(); after(B.paintKit(c2), c2); c2.restore(); }) : null; };
   };

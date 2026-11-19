@@ -422,14 +422,15 @@ const Puzzle = G.puzzle = { bumpT: 0, song: {} };
       g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       d.fillStyle = g; d.beginPath(); d.arc(x, y, R, 0, 6.283); d.fill();
     };
-    const lead = Field.leader();
+    const lead = Field.leader(), glow = [];
     hole(ppx - cx + 8, ppy - cy + 6, lead === 'maren' ? (dk.maren || 4.6) : (dk.r || 1.9), true);
     for (const th of m.things) {
       if (!Field.visible(th)) continue;
-      if (pz(th, 'lamp') && Puzzle.lit(th)) hole(th.x * 16 - cx + 8, th.y * 16 - cy + 6, th.def.radius || 3.5, true);
+      if (pz(th, 'lamp') && Puzzle.lit(th)) { hole(th.x * 16 - cx + 8, th.y * 16 - cy + 6, th.def.radius || 3.5, true); glow.push({ x: th.x * 16 - cx + 8, y: th.y * 16 - cy + 6, r: (th.def.radius || 3.5) * 14, col: '255,200,120', ph: th.x }); }
       else if (th.def.glow) hole(th.x * 16 - cx + 8, th.y * 16 - cy + 8, th.def.glow, true);
     }
     c.drawImage(cv, 0, 0);
+    Field.drawGlow(c, glow, 1);                             // and the warm light of every lit lamp
     return true;
   };
   Puzzle.drawExtra = function (c, th, x, y) {               // zzz over sleeping beasts

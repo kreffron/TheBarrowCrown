@@ -65,7 +65,7 @@
     const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
     const paint = (!G.D.sprites[name] && B.beastPainter && B.beastPainter(name)) || (B.heroPainter && B.heroPainter(name));
     if (paint) {                                                // a beast painted to match the heroes (beasts.js)
-      const after = paint(c), fin = softOutline(cv, '#1a1420', 2.2 * HD / 3); lightHD(fin);
+      const heroic = B.heroicOn && B.heroicOn(name), after = paint(c), fin = softOutline(cv, heroic ? '#1e1610' : '#1a1420', (heroic ? 1.4 : 2.2) * HD / 3); if (!heroic) lightHD(fin);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(fc); fc.restore(); }
       cache[k] = fin; return fin;
     }
@@ -100,6 +100,8 @@
   }
   // A white copy of a piece, flashed over it when it is hit.
   const wcache = {};
+  // Forget every painted piece and face (after the hero figures change in Options).
+  B.clearPieces = () => { for (const o of [cache, wcache, faces]) for (const k in o) delete o[k]; };
   B.pieceFlash = function (name, side) {
     const k = name + ':' + side; if (wcache[k]) return wcache[k];
     const src = B.piece(name, side), cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height;
@@ -423,7 +425,8 @@
     const th = B.THEME[B.bg] || B.THEME.forest;
     c.imageSmoothingEnabled = true; c.drawImage(backdrop(B.BG[B.bg] ? B.bg : 'forest'), 0, 0, 320, 240); c.imageSmoothingEnabled = false;
     const shake = B.shakeT && G.time - B.shakeT < 220 ? Math.round(Math.sin(G.time / 18) * 2) : 0;
-    c.save(); c.translate(shake, 0);
+    B.camUpdate(dt);
+    c.save(); c.translate(shake, 0); B.camApply(c);
     if (B.punch) {                                              // a short push in on a critical hit or a knockout
       const pa = (G.time - B.punch.t) / 300;
       if (pa >= 1 || !B.punch.o || B.punch.o.px == null) B.punch = null;
@@ -439,7 +442,7 @@
       if (o.down || o.gone) continue;
       const sz = B.pieceSize(o), x = Math.round(o.px - 7), y = Math.round(o.py - 33 * sz);
       if (!B.showBar(o)) {                                       // a hidden foe bar: its wounds show on the figure instead
-        o.statuses.slice(0, 4).forEach((st, i) => { c.fillStyle = G.D.statuses[st.id].good ? '#8ab4ff' : '#d49cf0'; c.fillRect(x + i * 4, y + 1, 3, 2); });
+        B.statusRow(c, o, o.px, y + 1);
         continue;
       }
       if (o.hpShow == null || o.hpShow < o.hp) o.hpShow = o.hp; else o.hpShow = Math.max(o.hp, o.hpShow - Math.max(0.5, (o.hpShow - o.hp) * 0.06) * dt / 16);
@@ -456,25 +459,28 @@
       c.fillStyle = '#1a1420'; c.fillText(hpTxt, tx + 0.5, y + 2); c.fillText(hpTxt, tx - 0.5, y + 2); c.fillText(hpTxt, tx, y + 2.5); c.fillText(hpTxt, tx, y + 1.5);
       c.fillStyle = o.hp <= o.maxHp / 4 ? '#ff8a7a' : '#f4f1e6'; c.fillText(hpTxt, tx, y + 2);
       c.textBaseline = 'alphabetic';
-      o.statuses.slice(0, 4).forEach((st, i) => { c.fillStyle = G.D.statuses[st.id].good ? '#8ab4ff' : '#d49cf0'; c.fillRect(x + i * 4, y - 3, 3, 2); });
+      B.statusRow(c, o, o.px, y - 3.5);
     }
     B.drawPreview(c);
     B.drawVfx(c);
     drawParts(c, Math.min(dt, 60));
     motes(c);
     c.restore();
+    c.save(); B.camApply(c);
     c.textAlign = 'center';
     B.floats = B.floats.filter(f => f.t < 1000);
     for (const f of B.floats) {
       f.t += dt;
-      const k = Math.min(1, f.t / 600), y = f.y - 4 - 18 * (1 - (1 - k) * (1 - k)), pop = f.t < 140 ? 1.6 - f.t / 140 * 0.6 : 1, big = f.color === '#ffd24a' ? 1.35 : 1;
+      const k = Math.min(1, f.t / 600), y = f.y - 4 - 18 * (1 - (1 - k) * (1 - k)), pop = f.t < 140 ? 1.6 - f.t / 140 * 0.6 : 1, big = f.crit || f.color === '#ffd24a' ? 1.35 : 1;
       c.save(); c.translate(f.x, y); c.scale(pop * big, pop * big); c.globalAlpha = f.t > 750 ? Math.max(0, 1 - (f.t - 750) / 250) : 1;
       c.font = 'bold 9px ui-monospace, Menlo, Consolas, monospace'; c.lineJoin = 'round';
       c.strokeStyle = '#1a1420'; c.lineWidth = 2.5; c.strokeText(f.text, 0, 0);
       c.fillStyle = f.color; c.fillText(f.text, 0, 0);
+      if (f.glyph) { const w = c.measureText(f.text).width / 2 + 4; c.beginPath(); c.arc(-w, -3, 3.4, 0, 7); c.fillStyle = 'rgba(26,20,32,.9)'; c.fill(); B.glyph(c, f.glyph, -w, -3, 2.5, f.color); }
       c.restore();
     }
     B.drawBubbles(c);
+    c.restore();
     banner(c);
     if (B.flashT && G.time - B.flashT < 110) { c.fillStyle = 'rgba(255,240,200,' + (0.22 * (1 - (G.time - B.flashT) / 110)) + ')'; c.fillRect(0, 0, 320, 240); }
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -502,6 +508,8 @@
         c.fillStyle = 'rgba(255,40,30,' + a + ')'; c.fillRect(x + 1, y + 1, B.TW - 2, B.TH - 2); c.strokeStyle = 'rgba(255,90,70,.9)'; c.lineWidth = 0.8; c.strokeRect(x + 1.5, y + 1.5, B.TW - 3, B.TH - 3); }
     }
     if (B.hangs) for (const k of B.hangs.keys()) { const [x, y] = k.split(',').map(Number), cx = B.BX + (x + 0.5) * B.TW, cy = B.BY + (y + 0.5) * B.TH; c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(cx, cy, B.TW * 0.38, B.TH * 0.3, 0, 0, 7); c.fill(); }
+    // a small mark in the corner of each square of special ground
+    if (B.terrain) for (const [k, kind] of B.terrain) { if (!B.TER_GLYPH[kind]) continue; const [gx, gy] = k.split(',').map(Number); B.terrainMark(c, kind, B.BX + gx * B.TW + 4, B.BY + gy * B.TH + B.TH - 4); }
     // highlights
     const ui = B.ui, sq = (x, y, col) => { c.fillStyle = col; c.fillRect(B.BX + x * B.TW + 1, B.BY + y * B.TH + 1, B.TW - 2, B.TH - 2); };
     if (B.showThreat()) for (const [k, n] of B.threat()) { const [x, y] = k.split(',').map(Number); flatThreat(c, x, y, n); }
@@ -664,11 +672,38 @@
     const oc = out.getContext('2d'); oc.drawImage(src, 0, 0); oc.drawImage(layer, 0, 0);
     woundCache[k] = out; return out;
   };
+  /* ---------- the camera: on a small screen the board is zoomed in and follows the action ----------
+     Zoom is on by default on touch screens (Options > Battle zoom: Auto / On / Off) and the board's 🔍 button flips it
+     for the current fight. The camera centres on the aiming cursor, else on whoever's turn it is, glides there, and never
+     shows past the edge of the scene. B.toWorld turns a tap on the screen back into board coordinates. */
+  B.CAM_Z = 1.6;
+  B.zoomOn = () => {
+    if (B.zoomFlip != null) return B.zoomFlip;
+    const o = G.opts.bzoom || 'auto';
+    return o === 'on' || (o === 'auto' && document.body.classList.contains('touch'));
+  };
+  B.cam = { z: 1, x: 160, y: 120 };
+  B.camUpdate = function (dt) {
+    const cam = B.cam, want = B.zoomOn() ? B.CAM_Z : 1;
+    let tx = 160, ty = 120;
+    if (want > 1) {
+      const u = B.ui && B.ui.cur ? null : B.inspected || B.active;
+      const p = B.ui && B.ui.cur ? posAt(B.ui.cur.x, B.ui.cur.y) : u && u.px != null ? { x: u.px, y: u.py } : null;
+      if (p) { tx = p.x; ty = p.y - 10; }
+    }
+    const k = Math.min(1, (dt || 16) / 160);
+    cam.z += (want - cam.z) * k; cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
+    const hw = 160 / cam.z, hh = 120 / cam.z;                    // keep the view inside the scene
+    cam.x = G.clamp(cam.x, hw, 320 - hw); cam.y = G.clamp(cam.y, hh, 240 - hh);
+  };
+  B.camApply = c => { const cam = B.cam; if (Math.abs(cam.z - 1) < 0.002) return; c.translate(160, 120); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y); };
+  B.toWorld = (lx, ly) => { const cam = B.cam; return [(lx - 160) / cam.z + cam.x, (ly - 120) / cam.z + cam.y]; };
+
   // A foe's health bar shows while you point at it or aim at it (or always, if the player chose that in Options).
   B.showBar = function (o) {
     if (o.side !== 1 || G.opts.foeHp === 'always') return true;
     const at = p => p && p.x === o.gx && p.y === o.gy;
-    return at(B.ui && B.ui.cur) || at(B.hoverCell);
+    return at(B.ui && B.ui.cur) || at(B.hoverCell) || o === B.inspected;
   };
 
   // shared with the diamond board (iso.js)
@@ -800,12 +835,17 @@
   const faces = {};
   function face(sprite, side) {
     const k = sprite + ':' + side; if (faces[k]) return faces[k];
-    const pc = B.piece(sprite, side), cv = document.createElement('canvas'); cv.width = 48; cv.height = 48;
+    let pc = B.piece(sprite, side), ks = HD;
+    const cv = document.createElement('canvas'); cv.width = 96; cv.height = 96;
+    if (B.heroicOn && B.heroicOn(sprite)) {                      // heroic heads are small: paint them again, larger, for a sharp face
+      ks = 14; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
+      const pcc = pc.getContext('2d'); pcc.scale(ks, ks); pcc.lineJoin = 'round'; pcc.lineCap = 'round'; const after = B.heroPainter(sprite)(pcc); if (after) after(pcc);
+    }
     const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
     const spec = Object.assign({}, G.D.sprites[sprite], (G.D.looks || {})[sprite], (G.D.battleLooks || {})[sprite]);
     const [sx, sy, sw] = box || (!isBeast && B.specFace ? B.specFace(spec) : [4, isBeast ? 16 : 3, 32]);   // the head and shoulders, in the piece's 40x64 layout
-    c.drawImage(pc, sx * HD, sy * HD, sw * HD, sw * HD, 0, 0, 48, 48);
+    c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, 96, 96);
     return (faces[k] = cv.toDataURL());
   }
   B.faceURL = face;

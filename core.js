@@ -31,7 +31,8 @@ G.roll = (spec, crit) => {                 // "2d6+3", "4", 4. crit doubles the 
   return t + (m[3] ? +m[3] : 0);
 };
 G.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-G.sleep = ms => G.fast ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
+// G.hold pauses the battle's pacing while the player reads the battle log
+G.sleep = ms => G.fast ? Promise.resolve() : new Promise(r => { const go = () => G.hold ? setTimeout(go, 150) : r(); setTimeout(go, ms); });
 G.Abort = class extends Error { constructor() { super('abort'); } };
 
 /* ---------- flags and conditions ---------- */
@@ -298,14 +299,14 @@ G.ACTIONS = [
   ['bt_attack', 'Attack', ['1']], ['bt_shot', 'Shoot / throw', ['2']], ['bt_skills', 'Skills', ['3']], ['bt_items', 'Battle items', ['4']],
   ['bt_move', 'Move', ['5']], ['bt_defend', 'Defend', ['6']], ['bt_end', 'End turn / flee', ['7', 'n']],
   ['bt_undo', 'Undo move', ['u', '8']],
-  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['threat', 'Show enemy reach', ['t']]
+  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['bzoom', 'Zoom the board', ['=', 'y']], ['blog', 'Battle log', ['l']], ['threat', 'Show enemy reach', ['t']]
 ];
 // Headings for the Controls screen: the first action of each group.
 G.ACTION_GROUPS = { up: 'Moving and choosing', menu: 'Menus (while exploring)', switch: 'Exploring', bt_attack: 'Battle commands', bview: 'Battle board' };
 G.REQUIRED = ['up', 'down', 'left', 'right', 'a', 'b'];         // these always keep at least one key
 // The battle board's keys only work in a fight, and there they come first, so they can share keys with exploring:
 // Z and C turn the board in battle, while Z is still OK and C still switches leader everywhere else.
-G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat'];
+G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat', 'bzoom', 'blog'];
 G.keyLayer = id => G.BOARD_KEYS.includes(id) ? 1 : 0;
 G.normKey = k => (k && k.length === 1 ? k.toLowerCase() : k);
 G.keyName = k => ({ Shift: 'Shift', ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Backspace: 'Bksp', Enter: 'Enter' }[k] || (k && k.length === 1 ? k.toUpperCase() : k) || '—');
@@ -358,8 +359,8 @@ G.skipPress = function () {
   }
 };
 G.down = function (b, repeat) {
-  if (b === 'bview' || b === 'rot_l' || b === 'rot_r' || b === 'threat') {   // the battle board's view: works even mid-choice
-    if (!repeat && G.scene === 'battle' && !G.keyCapture) { G.audio.unlock(); if (b === 'bview') B.toggleView(); else if (b === 'threat') B.toggleThreat(); else B.turnView(b === 'rot_l' ? -1 : 1); }
+  if (b === 'bview' || b === 'rot_l' || b === 'rot_r' || b === 'threat' || b === 'bzoom' || b === 'blog') {   // the battle board's view: works even mid-choice
+    if (!repeat && G.scene === 'battle' && !G.keyCapture) { G.audio.unlock(); if (b === 'bview') B.toggleView(); else if (b === 'threat') B.toggleThreat(); else if (b === 'bzoom') { if (B.toggleZoom) B.toggleZoom(); } else if (b === 'blog') { if (!B.logOpen) { B.logOpen = true; Menu.battleLog().then(() => { B.logOpen = false; }); } } else B.turnView(b === 'rot_l' ? -1 : 1); }
     return;
   }
   if (G.HOTKEYS.includes(b)) { if (!repeat) G.hotkey(b); return; }
@@ -409,7 +410,7 @@ G.layout = function () {
   s = Math.max(0.75, s);
   document.documentElement.style.fontSize = s + 'px';
   G.scale = s;
-  if (G.scene === 'battle' && typeof B !== 'undefined' && B.fitRes) B.fitRes();   // a turned phone or a resized window: repaint the board at the new size
+  if ((G.scene === 'battle' || G.scene === 'title') && typeof B !== 'undefined' && B.fitRes) B.fitRes();   // a turned phone or a resized window: repaint the board at the new size
 };
 
 /* ---------- main loop ---------- */

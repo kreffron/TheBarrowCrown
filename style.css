@@ -206,3 +206,52 @@ body.touch #pad { display: flex; width: 100%; max-width: 560px; justify-content:
 .lvpick .lvn { color: #f4e6b8; margin-top: 3rem; } .lvpick .lvn em { color: #9cc4ff; font-style: normal; font-size: 7rem; }
 .lvpick .lvd { font-size: 7.5rem; line-height: 10rem; color: #d8d4e8; }
 .lvmenu { left: 70rem; right: 70rem; top: 140rem; z-index: 6; }
+/* a piece's card, shown when you tap or click it outside aiming */
+.inspect { position: absolute; right: 4rem; top: 51rem; width: 112rem; padding: 3rem 5rem; font-size: 7rem; line-height: 9rem; z-index: 4; pointer-events: none; }
+.inspect .in-name { color: #ffe08a; }
+.inspect .in-bar { height: 4rem; margin: 2rem 0; background: #2a2440; border: 1rem solid #1a1420; border-radius: 2rem; overflow: hidden; }
+.inspect .in-bar i { display: block; height: 100%; }
+/* while a log or menu is open over a fight, the turn bar, board buttons and info card step back */
+.menuopen .bturn, .menuopen .bview, .menuopen .inspect { display: none; }
+/* the Player's Handbook reader */
+.hb { position: absolute; left: 6rem; right: 6rem; top: 6rem; bottom: 6rem; z-index: 30; display: flex; flex-direction: column; padding: 4rem 6rem; }
+.hb .hb-title { font-size: 9rem; color: #8ab4ff; margin-bottom: 3rem; border-bottom: 1rem solid #3a3f6c; padding-bottom: 2rem; }
+.hb .hb-title .dim { font-size: 6.5rem; }
+.hb .hb-body { flex: 1; overflow-y: auto; font-size: 7.5rem; line-height: 10rem; padding-right: 3rem; touch-action: pan-y; }
+.hb h3 { font-size: 8.5rem; color: #e8c14a; margin: 6rem 0 2rem; font-weight: normal; }
+.hb p { margin: 0 0 4rem; }
+.hb table { border-collapse: collapse; width: 100%; margin: 2rem 0 5rem; font-size: 7rem; line-height: 9rem; }
+.hb th { text-align: left; color: #8ab4ff; font-weight: normal; border-bottom: 1rem solid #3a3f6c; padding: 1rem 2.5rem; }
+.hb td { padding: 1rem 2.5rem; border-bottom: 0.5rem solid rgba(58,63,108,.5); vertical-align: top; }
+.hb .hb-lv td { text-align: center; } .hb .hb-lv td.learn { text-align: left; }
+.hb td.up { color: #ffd86a; }
+.hb .hb-hero { font-size: 9rem; border-left: 2rem solid; padding-left: 4rem; margin-bottom: 3rem; }
+/* dialogue portraits */
+.dport { display: none; position: absolute; left: 5rem; top: 6rem; width: 48rem; height: 48rem; border: 1.5rem solid #9cc4ff; border-radius: 3rem; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #3a4478, #141a38 75%); box-shadow: inset 0 0 6rem rgba(0,0,0,.6); }
+.dport img { width: 100%; height: 100%; display: block; image-rendering: auto; }
+.dlg.port .dport { display: block; }
+.dlg.port .dtext { margin-left: 56rem; }
+.dlg.port .dname { left: 60rem; }
+/* chapter title cards, over a painted scene */
+.card.chapter { background: #000; justify-content: flex-start; padding-top: 22rem; animation: chIn 1.4s ease-out; }
+.card.chapter .scenecv { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; animation: chPan 9s ease-out forwards; }
+.card.chapter::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(4,3,8,.72) 0%, rgba(4,3,8,.35) 30%, rgba(0,0,0,0) 48%); pointer-events: none; }
+.card.chapter .chint { position: absolute; bottom: 8rem; left: 0; right: 0; text-shadow: 0 1rem 3rem #000; }
+.card.chapter > * { position: relative; }
+.card.chapter .ctitle { color: #e8e2cc; text-shadow: 0 1rem 4rem #000; letter-spacing: 4rem; animation: chUp 1.6s ease-out .2s both; }
+.card.chapter .corn { color: #e8c14a; font-size: 8rem; margin: 2rem 0 0; opacity: .85; animation: chUp 1.6s ease-out .5s both; }
+.card.chapter .ctext { font-size: 22rem; line-height: 28rem; text-shadow: 0 1rem 6rem #000, 0 0 12rem rgba(232,193,74,.35); animation: chUp 1.8s ease-out .7s both; }
+.card.chapter .chint { animation: chUp 1s ease-out 1.6s both; }
+@keyframes chIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes chUp { from { opacity: 0; transform: translateY(6rem); } to { opacity: 1; transform: none; } }
+@keyframes chPan { from { transform: scale(1.06); } to { transform: scale(1); } }
+/* biographies */
+.biohead { display: flex; gap: 5rem; align-items: center; margin-bottom: 4rem; }
+.biohead img { width: 30rem; height: 30rem; border-radius: 3rem; border: 1rem solid #3a3f6c; background: radial-gradient(circle at 50% 35%, #3a4478, #141a38 75%); flex: none; }
+.biohead.big img { width: 44rem; height: 44rem; }
+.biohead .sumhead { margin: 0; }
+.biotext { font-size: 7.6rem; line-height: 10rem; margin-bottom: 3rem; }
+.hb .hb-hero { display: flex; align-items: center; gap: 5rem; }
+.hb .hb-hero img { width: 34rem; height: 34rem; border: 1.5rem solid; border-radius: 3rem; background: radial-gradient(circle at 50% 35%, #3a4478, #141a38 75%); }
+.hb .hb-hero small { font-size: 6.5rem; color: #aab0cc; }

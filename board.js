@@ -495,6 +495,20 @@
       UI.pushModal(m); hover();
     });
   };
+  // A card on a piece: name, health, armour and conditions. Shows for a few seconds, or until the next tap.
+  B.inspect = function (u) {
+    clearTimeout(B.inspectT);
+    if (B.inspectEl) { B.inspectEl.remove(); B.inspectEl = null; }
+    B.inspected = u || null;
+    if (!u) return;
+    const pct = Math.max(0, u.hp) / u.maxHp, col = pct > 0.5 ? '#5ad07a' : pct > 0.25 ? '#e8c14a' : '#e85a4a';
+    const el = UI.el('div', 'win inspect', '<div class="in-name">' + UI.esc(u.name) + (u.side === 1 ? '' : u.side === 2 ? ' <span class="dim">(ally)</span>' : '') + '</div>' +
+      '<div class="in-bar"><i style="width:' + Math.round(pct * 100) + '%;background:' + col + '"></i></div>' +
+      '<div>HP ' + u.hp + '/' + u.maxHp + ' · AC ' + (u.ac + B.mod(u, 'ac')) + ' · speed ' + (u.spd + B.mod(u, 'spd')) + '</div>' +
+      (u.statuses.length ? '<div class="dim">' + UI.esc(B.statusLine(u)) + '</div>' : ''));
+    document.getElementById('stage').appendChild(el); B.inspectEl = el;
+    B.inspectT = setTimeout(() => B.inspect(null), 5000);
+  };
   B.describe = function (t) {
     return t.name + '  HP ' + t.hp + '/' + t.maxHp + '  AC ' + (t.ac + B.mod(t, 'ac')) + (t.statuses.length ? '  · ' + B.statusLine(t) : '');
   };
@@ -637,6 +651,7 @@
 
   /* ---------- pointer: tap or click a square ---------- */
   B.tileAt = function (lx, ly) {
+    [lx, ly] = B.toWorld(lx, ly);
     if (B.isIso()) return B.isoPick(lx, ly);
     const gx = Math.floor((lx - BX) / TW), gy = Math.floor((ly - BY) / TH);
     return B.inside(gx, gy) ? [gx, gy] : null;
@@ -647,6 +662,13 @@
     const at = e => { if (e.target.closest && e.target.closest('.win, .bview')) return null; const r = st.getBoundingClientRect(); return B.tileAt((e.clientX - r.left) / r.width * 320, (e.clientY - r.top) / r.height * 240); };
     st.addEventListener('pointermove', e => { if (G.scene !== 'battle') return; const t = at(e); B.hoverCell = t ? { x: t[0], y: t[1] } : null; if (t && B.pointer) B.pointer(t[0], t[1], false); });
     st.addEventListener('pointerleave', () => { B.hoverCell = null; });
-    st.addEventListener('pointerdown', e => { if (G.scene !== 'battle' || !B.pointer) return; const t = at(e); if (t) { e.preventDefault(); e.stopPropagation(); B.pointer(t[0], t[1], true); } });
+    st.addEventListener('pointerdown', e => {
+      if (G.scene !== 'battle') return;
+      const t = at(e); if (!t) return;
+      if (B.pointer) { e.preventDefault(); e.stopPropagation(); B.pointer(t[0], t[1], true); return; }
+      // not aiming: a tap or click on anyone shows what you know of them; on empty ground it puts the card away
+      const u = (B.c || []).find(o => !o.gone && !o.down && o.gx === t[0] && o.gy === t[1]);
+      B.inspect(u || null);
+    });
   });
 })();

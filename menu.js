@@ -96,14 +96,18 @@ Menu.guidePage = function (title, text) {
   return '<div class="sumhead">' + UI.esc(title) + '</div><div class="guide" style="font-size:8rem;line-height:10.5rem">' + body + '</div>';
 };
 Menu.guide = async function () {
-  const items = [];
+  const items = [], hb = Menu.handbook();
+  // the Player's Handbook first: the long read, each page opening in a reader that scrolls
+  items.push({ head: true, label: "Player's Handbook" });
+  hb.forEach((pg, i) => items.push({ label: pg.title, value: 'hb:' + i, hb: pg }));
   for (const [group, pages] of G.D.guide || []) { items.push({ head: true, label: group }); for (const [title, text] of pages) items.push({ label: title, value: title, text }); }
-  let start = 1;
+  let start = items.findIndex(it => it.text);
   for (;;) {
     const pick = await UI.menu({ title: 'Guide', cls: 'journal', style: Menu.NAV + 'width:114rem;max-height:188rem;', start, items,
-      onMove: it => { Menu.pane(Menu.guidePage(it.label, it.text), 'journal'); Menu.desc(''); } });
+      onMove: it => { Menu.pane(it.hb ? '<div class="sumhead">' + UI.esc(it.hb.title) + '</div><div class="dim">The Player\'s Handbook: the rules in full' + (it.hb.hero ? ', and this hero\'s numbers level by level' : '') + '.</div><br><div>Press ' + UI.esc(G.keyName((G.bindings().a || [])[0])) + ' or tap to read.</div>' : Menu.guidePage(it.label, it.text), 'journal'); Menu.desc(''); } });
     if (pick == null) return;
     start = Math.max(1, items.findIndex(it => it.value === pick));
+    if (typeof pick === 'string' && pick.startsWith('hb:')) { const pg = hb[+pick.slice(3)]; await Menu.read(pg.title, pg.html()); }
   }
 };
 
@@ -282,6 +286,27 @@ Menu.equip = function (mem, id) {
   mem.gear[slot] = id; G.give(id, -1); if (old) G.give(old, 1);
   G.clampParty(); G.audio.sfx('item');
 };
+// Spare weapons and armour that nobody would want: for every hero who could use one, it is worse than what they wear
+// (Menu.compare scores below zero). Gear with a special effect or perk is kept; so are charms (their trade-offs are a
+// matter of taste). Sold at the usual half price, after a look at the list.
+Menu.outgrown = function () {
+  const I = G.D.items;
+  return Object.keys(G.S.bag).filter(k => {
+    const it = I[k]; if (!it || !G.S.bag[k] || !it.price || (it.type !== 'weapon' && it.type !== 'armor') || it.fx || it.perk || it.perks) return false;
+    const users = G.S.party.filter(m => !it.for || it.for.indexOf(m.id) >= 0);
+    return users.length && users.every(m => { const c = Menu.compare(m, k); return c && !c.same && c.score < 0; });
+  });
+};
+Menu.sellOutgrown = async function () {
+  const I = G.D.items, ids = Menu.outgrown(), half = k => Math.max(1, Math.floor((I[k].chapterPrice ? Math.round(I[k].price * [1, 1.75, 2.5, 3.5, 4.5][Math.min(4, (G.S.flags.chapter || 1) - 1)] / 5) * 5 : I[k].price) / 2));
+  if (!ids.length) { G.audio.sfx('error'); UI.toast('Nothing outgrown: every spare piece is still somebody\'s best.'); return; }
+  const total = ids.reduce((s, k) => s + half(k) * G.S.bag[k], 0);
+  Menu.desc(ids.map(k => UI.esc(I[k].name) + (G.S.bag[k] > 1 ? ' ×' + G.S.bag[k] : '') + ' <span class="gold">' + half(k) * G.S.bag[k] + 'g</span>').join('<br>'), true);
+  const ok = await UI.menu({ title: 'Sell ' + ids.reduce((s, k) => s + G.S.bag[k], 0) + ' for ' + total + ' gold?', style: 'left:88rem;top:40rem;width:226rem;', items: [{ label: 'Sell them', value: 'yes' }, { label: 'Keep them', value: 'no' }] });
+  if (ok !== 'yes') return;
+  for (const k of ids) G.give(k, -G.S.bag[k]);
+  G.S.gold += total; G.audio.sfx('coin'); UI.toast('Sold for ' + total + ' gold.');
+};
 // Just bought a piece of gear: offer to put it on, best upgrade first.
 Menu.offerEquip = async function (id) {
   const who = G.S.party.map(m => ({ m, c: Menu.compare(m, id) })).filter(o => o.c && !o.c.same).sort((a, b) => b.c.score - a.c.score);
@@ -390,6 +415,8 @@ Menu.journal = async function () {
     if (done.length) items.push({ label: 'Completed', right: String(done.length), value: '~done' });
     for (const n of chapters) items.push({ label: 'Chronicle ' + ['', 'I', 'II', 'III', 'IV', 'V'][n], value: '~chron' + n });
     if ((G.S.dlog || []).length) items.push({ label: 'Recent conversations', value: '~talk' });
+    if ((G.S.blog || []).length) items.push({ label: 'The last fight', value: '~blog' });
+    items.push({ label: 'Biographies', right: (G.D.bios || []).some(e => Menu.bioVisible(e) && Menu.bioNew(e)) ? '•' : '', value: '~bios' });
     if (Object.keys(G.S.foes || {}).length) items.push({ label: 'Bestiary', value: '~beast' });
     if (places.some(p => p.found && p.kind === 'pray')) items.push({ label: "Maren's prayers", value: '~pray' });
     if (places.some(p => p.found && p.kind === 'busk')) items.push({ label: "Finch's stages", value: '~busk' });
@@ -397,6 +424,8 @@ Menu.journal = async function () {
   };
   const show = v => {
     if (typeof v !== 'string') return;
+    if (v === '~blog') { Menu.pane('<div class="sumhead">The last fight</div><div class="dim">Every line of your most recent battle, with its dice, newest first.</div>', 'journal'); return; }
+    if (v === '~bios') { Menu.pane('<div class="sumhead">Biographies</div><div class="dim">The four of you, and the ' + (Menu.bioCount() - 4) + ' people of note you have met so far, friend and foe. Each grows as the story does. • something new to read.</div>', 'journal'); return; }
     if (v === '~beast') { Menu.pane('<div class="sumhead">Bestiary</div><div class="dim">Everything you have fought, what it is, and what hurts it.</div>', 'journal'); return; }
     if (v === '~talk') { Menu.pane('<div class="sumhead">Recent conversations</div><div class="dim">The last ' + G.S.dlog.length + ' lines said, newest first, and the choices you made. Open it to read back.</div>', 'journal'); return; }
     if (v === '~done') { Menu.pane('<div class="sumhead">Completed</div><div class="dim">' + done.length + ' quests done. Open the list to read them back, step by step.</div>', 'journal'); return; }
@@ -419,7 +448,9 @@ Menu.journal = async function () {
     if (pick == null) return;
     start = Math.max(0, items.findIndex(it => it.value === pick));
     if (pick === '~beast') await Menu.bestiary();
+    else if (pick === '~bios') await Menu.bios();
     else if (pick === '~talk') await Menu.talkLog();
+    else if (pick === '~blog') await Menu.battleLog();
     else if (pick === '~done') await Menu.completed(done);
     // picking a quest or a page leaves you where you are
   }
@@ -439,6 +470,25 @@ Menu.talkLog = async function () {
     if (pick == null) return;
     start = Math.max(0, idx.indexOf(pick));
   }
+};
+// The battle log: this fight (or the last one), newest line first; the pane shows the line with its roll and the lines
+// around it. Opened from the 📜 button by the board, its key, or Journal > Records after a fight.
+Menu.battleLog = async function () {
+  const log = G.S.blog || []; if (!log.length) { UI.toast('Nothing has happened yet.'); return; }
+  const idx = log.map((_, i) => i).reverse(), line = (e, me) => '<div style="margin-bottom:3rem;' + (me ? '' : 'color:#8a8ea8;font-size:7.5rem;line-height:9.5rem') + '">' + UI.esc(e[1]) + (e[2] ? '<br><span class="dim">' + UI.esc(e[2]) + '</span>' : '') + '</div>';
+  const shade = G.scene !== 'battle' ? null : UI.el('div', 'shade'); if (shade) UI.root.appendChild(shade);
+  G.hold = true; UI.root.classList.add('menuopen');               // the fight waits while you read; its HUD steps back
+  let start = 0;
+  for (;;) {
+    const pick = await UI.menu({ title: G.scene === 'battle' ? 'This fight' : 'The last fight', cls: 'journal', style: Menu.NAV + 'width:114rem;max-height:188rem;', start,
+      items: idx.map(i => ({ label: (log[i][0] ? 'R' + log[i][0] + ' ' : '') + log[i][1], value: i })),
+      onMove: it => { const i = it.value; Menu.pane('<div class="dim" style="font-size:7.5rem;margin-bottom:3rem">Round ' + (log[i][0] || 0) + '</div>' + (log[i - 1] ? line(log[i - 1]) : '') + line(log[i], true) + (log[i + 1] ? line(log[i + 1]) : ''), true); Menu.desc(''); } });
+    if (pick == null) break;
+    start = Math.max(0, idx.indexOf(pick));
+  }
+  G.hold = false; if (G.scene === 'battle') UI.root.classList.remove('menuopen');
+  if (shade) shade.remove();
+  if (G.scene === 'battle') { if (Menu.paneEl) Menu.paneEl.remove(); if (Menu.descEl) Menu.descEl.remove(); Menu.paneEl = Menu.descEl = null; }
 };
 // Completed quests, newest chapter first, each read back step by step.
 Menu.completed = async function (done) {
@@ -481,12 +531,16 @@ Menu.bestiary = async function () {
   const KIND = Object.assign({ undead: 'Undead', beast: 'Beast', human: 'Human', spirit: 'Spirit', construct: 'Construct', fey: 'Fey', goblin: 'Goblin' }, G.D.kindNames || {});
   const weak = d => Object.keys(A).filter(a => (A[a].fx || []).some(e => e.vs && (d.tags || []).indexOf(e.vs) >= 0)).map(a => A[a].name);
   const learned = id => G.S.party.some(m => G.stats(m).abilities.some(a => (A[a].fx || []).some(e => e.vs && (E[id].tags || []).indexOf(e.vs) >= 0)));
+  // the levels of the fights it turns up in (s_levels.js), as a range
+  const lvRange = id => { const F = (G.D.fightLevels || {}).groups || {}, ls = Object.keys(G.D.groups).filter(g => (G.D.groups[g].enemies || []).indexOf(id) >= 0 && F[g]).map(g => F[g]);
+    if (!ls.length) return ''; const lo = Math.min(...ls), hi = Math.max(...ls); return lo === hi ? String(lo) : lo + '–' + hi; };
   const IMM = { asleep: 'sleep', poison: 'poison', stunned: 'stuns', charmed: 'charms', weak: 'weakening', rattled: 'fear', marked: 'marking' };
   const sheet = id => {
     const d = E[id], n = G.S.foes[id], kinds = (d.tags || []).map(t => KIND[t] || t).join(', ');
     const w = weak(d), imm = (d.immune || []).map(s => IMM[s] || s);
     return '<div class="beast"><img src="' + pic(id) + '"><div><div class="sumhead">' + UI.esc(d.name) + '</div>' +
-      '<div>HP ' + Math.round(d.hp * B.diff().hp) + ' · AC ' + d.ac + ' · Attack +' + d.atk + '</div><div>Hits for ' + UI.esc(String(d.dmg)) + ' · Speed ' + (d.spd || 0) + '</div></div></div>' +
+      (n ? '<div>HP ' + Math.round(d.hp * B.diff().hp) + ' · AC ' + d.ac + ' · Attack +' + d.atk + '</div><div>Hits for ' + UI.esc(String(d.dmg)) + ' · Speed ' + (d.spd || 0) + '</div>'
+         : '<div>HP ? · AC ? · Attack ?</div><div class="dim">Beat one to learn its measure.</div>') + (lvRange(id) ? '<div class="dim">Met around level ' + lvRange(id) + '</div>' : '') + '</div></div>' +
       (kinds ? '<div class="dim">Kind: ' + UI.esc(kinds) + '</div>' : '') +
       (w.length ? '<div class="dim gold">Weak to: ' + UI.esc(w.join(', ')) + (learned(id) ? '' : ' (none of these learned yet)') + '</div>' : '') +
       (imm.length ? '<div class="dim">Shrugs off: ' + UI.esc(imm.join(', ')) + '</div>' : '') +
@@ -516,9 +570,9 @@ Menu.options = async function () {
       title: 'Options', style: Menu.NAV + 'width:164rem;', start,
       items: [
         { label: 'Music', right: G.opts.music ? 'On' : 'Off', value: 0 }, { label: 'Sound', right: G.opts.sfx ? 'On' : 'Off', value: 1 },
-        { label: 'Text', right: G.opts.textFast ? 'Fast' : 'Normal', value: 2 }, { label: 'Difficulty', right: B.diff().name, value: 6 }, { label: 'Battle board', right: G.opts.bview === 'flat' ? 'Flat' : 'Diamond', value: 7 }, { label: 'Battle speed', right: (B.SPEEDS[G.opts.bspeed || 'fast'] || B.SPEEDS.fast).name, value: 8 }, { label: 'Party chatter', right: B.chatter().name, value: 9 }, { label: 'Enemy health', right: G.opts.foeHp === 'always' ? 'Always' : 'On hover', value: 12 }, { label: 'Always run', right: G.opts.alwaysRun ? 'On' : 'Off', value: 10 }, { label: 'Interact prompts', right: G.opts.prompts === false ? 'Off' : 'On', value: 11 }, { label: 'Controls', value: 5 }, { label: 'Export save', value: 3 }, { label: 'Import save', value: 4 }
+        { label: 'Text', right: G.opts.textFast ? 'Fast' : 'Normal', value: 2 }, { label: 'Difficulty', right: B.diff().name, value: 6 }, { label: 'Battle board', right: G.opts.bview === 'flat' ? 'Flat' : 'Diamond', value: 7 }, { label: 'Battle speed', right: (B.SPEEDS[G.opts.bspeed || 'fast'] || B.SPEEDS.fast).name, value: 8 }, { label: 'Party chatter', right: B.chatter().name, value: 9 }, { label: 'Enemy health', right: G.opts.foeHp === 'always' ? 'Always' : 'On hover', value: 12 }, { label: 'Battle zoom', right: { auto: 'Auto', on: 'On', off: 'Off' }[G.opts.bzoom || 'auto'], value: 13 }, { label: 'Hero figures', right: G.opts.figures === 'classic' ? 'Classic' : 'Heroic', value: 14 }, { label: 'Always run', right: G.opts.alwaysRun ? 'On' : 'Off', value: 10 }, { label: 'Interact prompts', right: G.opts.prompts === false ? 'Off' : 'On', value: 11 }, { label: 'Controls', value: 5 }, { label: 'Export save', value: 3 }, { label: 'Import save', value: 4 }
       ],
-      onMove: it => side(it.value) || Menu.desc(['Background music.', 'Sound effects.', 'How quickly text and battle messages move.', 'Show a save code you can copy.', 'Load a game from a save code.', 'See and change which keys do what.', 'Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and they hit harder. Change it any time.', G.keyText('Diamond: the battle seen from an angle, with high ground standing up; turn it with {rot_l} and {rot_r} (or the buttons by the board). Flat: straight down. Switch any time, even mid-fight with {bview}.'), 'How quickly fights move: how long each message stays up and how fast pieces move and strike. Routine hits and misses are always quicker, since their numbers pop up over the pieces. Press to skip any message.', 'How often the party talks during a fight, in speech bubbles over their heads. The bubbles never hold up play.', 'Walk at a run without holding the Run key (Shift). With it on, holding Run walks.', 'A small key over whatever you can talk to, search or use when you face it.', 'On hover: an enemy\'s health bar shows only while you point at it or aim at it; otherwise read its wounds. Hurt foes bleed or crack, badly hurt ones darken, and one near death trembles. Always: every bar shows.'][it.value])
+      onMove: it => side(it.value) || Menu.desc(['Background music.', 'Sound effects.', 'How quickly text and battle messages move.', 'Show a save code you can copy.', 'Load a game from a save code.', 'See and change which keys do what.', 'Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and they hit harder. Change it any time.', G.keyText('Diamond: the battle seen from an angle, with high ground standing up; turn it with {rot_l} and {rot_r} (or the buttons by the board). Flat: straight down. Switch any time, even mid-fight with {bview}.'), 'How quickly fights move: how long each message stays up and how fast pieces move and strike. Routine hits and misses are always quicker, since their numbers pop up over the pieces. Press to skip any message.', 'How often the party talks during a fight, in speech bubbles over their heads. The bubbles never hold up play.', 'Walk at a run without holding the Run key (Shift). With it on, holding Run walks.', 'A small key over whatever you can talk to, search or use when you face it.', 'On hover: an enemy\'s health bar shows only while you point at it or aim at it; otherwise read its wounds. Hurt foes bleed or crack, badly hurt ones darken, and one near death trembles. Always: every bar shows.', 'Auto: on a phone or tablet the board zooms in and follows whoever\'s turn it is (or your aim). On: always. Off: never. The 🔍 button by the board flips it for one fight.', 'Heroic: the four heroes as realistic painted miniatures. Classic: the earlier, rounder figures with bigger heads.'][it.value])
     });
     if (pick == null) return false;
     start = pick;
@@ -529,6 +583,8 @@ Menu.options = async function () {
     else if (pick === 5) await Menu.controls();
     else if (pick === 10) G.opts.alwaysRun = !G.opts.alwaysRun;
     else if (pick === 11) G.opts.prompts = G.opts.prompts === false;
+    else if (pick === 14) { G.opts.figures = G.opts.figures === 'classic' ? 'heroic' : 'classic'; B.clearPieces(); if (Field.hudEl) Field.hud(true); if (G.scene === 'battle' && B.drawTurns) B.drawTurns(); }   // every face repaints: leader bar, turn chips, and (as they open) dialogue and biographies
+    else if (pick === 13) G.opts.bzoom = { auto: 'on', on: 'off', off: 'auto' }[G.opts.bzoom || 'auto'];
     else if (pick === 12) G.opts.foeHp = G.opts.foeHp === 'always' ? 'hover' : 'always';
     else if (pick === 9) G.opts.chatter = { some: 'often', often: 'off', off: 'some' }[G.opts.chatter || 'some'];
     else if (pick === 8) G.opts.bspeed = { normal: 'fast', fast: 'swift', swift: 'normal' }[G.opts.bspeed || 'fast'];
@@ -652,8 +708,10 @@ Menu.shop = async function (shopId) {
   let mode = 0;
   for (;;) {
     head(); Menu.desc('');
-    mode = await UI.menu({ style: Menu.NAV, start: mode || 0, items: [{ label: 'Buy', value: 0 }, { label: 'Sell', value: 1 }, { label: 'Leave', value: 2 }] });
+    mode = await UI.menu({ style: Menu.NAV, start: mode || 0, items: [{ label: 'Buy', value: 0 }, { label: 'Sell', value: 1 }, { label: 'Sell outgrown', value: 3 }, { label: 'Leave', value: 2 }],
+      onMove: it => Menu.desc(it.value === 3 ? 'Sell every spare weapon and armour that is worse than what each hero who could use it wears now.' : '') });
     if (mode == null || mode === 2) break;
+    if (mode === 3) { await Menu.sellOutgrown(); continue; }
     let start = 0;
     for (;;) {
       head();
