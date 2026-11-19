@@ -388,4 +388,10 @@
     }
     throw new Error('placeNear: no room on ' + mapId);
   };
+  // Lay a path across a run of tiles (trees, rock), so something placed in a pocket can be walked to.
+  D.carve = function (mapId, x0, y0, x1, y1, ch) {
+    const m = D.maps[mapId], rows = m.rows.map(r => r.split(''));
+    for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) if (rows[y] && rows[y][x] && !(m.things || {})[rows[y][x]]) rows[y][x] = ch || ':';
+    m.rows = rows.map(r => r.join(''));
+  };
 })();

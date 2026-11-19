@@ -143,6 +143,7 @@
   D.scripts.grainSack = [['if', 'q.millgrain=1', [['note', 'A sack of seed-grain, marked with a T. You heave it onto your shoulder.'], ['give', 'seedgrain'], ['remove']],
     [['note', 'A heavy sack of grain, marked with a T. Not yours.']]]];
   M.mill.things.w.at = D.placeNear('thornwood', null, 41, 12, { tag: 'toMill', type: 'warp', to: 'mill', at: 'w', gfx: 'path', under: 'path', out: 'left' });
+  D.carve('thornwood', 31, 11, 34, 11);                 // the mill road: through the trees from the forest track to the mill gate
   D.placeNear('thornwood', null, 40, 9, { type: 'sign', gfx: 'notice', text: "EAST TO TEAGUE'S MILL. Underneath, in charcoal: TOLL. PAY GOBLINS. NO REFUND." });
   // the barrow opens once the key is in hand
   D.scripts.openBarrow = [['quest', 'act1', 3]];

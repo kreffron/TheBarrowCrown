@@ -59,7 +59,7 @@
       ['Journal and map',
         'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, Biographies (who you have met, growing as the story does), the bestiary, Recent conversations and The last fight are there too.\n\nThe map shows where you have been. + marks a place Maren can pray, ♪ a place Finch can play.'],
       ['Options',
-        '· Difficulty. Easy: foes have a quarter less health and hit softer. Hard: more health, harder hits.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars only when you point or aim (else read wounds), or always.\n· Hero figures: heroic or classic.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
+        '· Difficulty. Easy: foes have a quarter less health and hit softer. Hard: more health, harder hits.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
     ]]
   ];
 })();
