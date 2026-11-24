@@ -708,6 +708,28 @@ With Options -> Battle figures on Heroic (the default), every figure on the boar
 - **All of them** get the heroes' finish (`B.heroicKit`, `H.finish`): their own layer, a warm key light, a cool rim,
   weave or fur grain, road dirt toward the feet, a little less saturation, a contact shadow, and the thinner outline.
 
+## Heroic figures, second pass (`src/heroic2.js`)
+
+The four heroes are repainted on a shared anatomy kit (`B.heroicAnatomy(H)`, made by `A.make` in heroic2.js), and
+every other person uses the same kit through `B.paintSpec`:
+- **The kit**: `X.limb` (tapered limbs with knees and elbows, lit from the upper left; `fill` and `edgeFrom` let an arm
+  share the body's light and keep its edge shading below the elbow), `X.boot`, `X.fist`, `X.head` (one face for all:
+  lids and creases, ringed irises, a soft nose, shaped lips, brows, a slim neck under the back of the skull; options for
+  freckles, age lines and spots, a mole, a dimple, woad), `X.cloth`, `X.tex` (wool and linen weave, leather grain, worn
+  metal, wood grain, fur, hair strands), `X.stitch`, `X.rivet`, `X.band` (embroidered borders), `X.buckle`.
+- **The heroes** (`B.HEROIC2`): Runa in a wide stance with the axe across her; Dask low with two knives under his hood;
+  Maren with her lantern raised; Finch en garde with the rapier, the lute on his back. The old painters stay in
+  `B.HEROIC_OLD` for comparison. Their portrait crops are `FACE2` at the end of heroic2.js.
+- **Everyone else** (`src/figures.js`): tapered arms that run from the base of the neck over the shoulder to the wrist,
+  lit with the body's own gradient; the garment's shoulders laid over them, trimmed to the body and arms and faded
+  down the arm (or, for a sleeve of another colour, a sewn seam); bare arms come out of an armhole under a strap.
+  Legs with knees, real boots, rag-bound feet; textures by armour (leather, linen, wool, plate with rivets, mail
+  inside the sleeves); embroidered tabards; long hair, braids and beards with strands; robed undead wear sleeves.
+- **The finish** (`H.finish`): `clean` keeps the weave off faces, `pop` brightens and `grade` lightens the shadow
+  corner; people, heroes and beasts all use them.
+- **Portraits**: people and beasts are painted again at 7x for turn chips and dialogue (`paintHi` in pieces.js), the
+  heroes at 14x. Options -> Battle figures -> Classic is untouched.
+
 ## Reachability pass
 
 `tools/reachtest.py` walks the whole game from the new-game start, through every door, stair and story move, and lists any map or thing the party can never reach. It found three sealed areas, fixed in `data/ch9_world/u_fixes.js`:

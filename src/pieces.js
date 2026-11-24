@@ -80,7 +80,7 @@
     if (B.figHeroic && B.figHeroic()) {                          // heroic style: realistic figure, the heroes' light, wear and outline
       let seed = 7; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
       const H = B.heroicKit(c, seed + 1), after = B.paintSpec(H.c, H.K, s, side, H);
-      H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11 });
+      H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11, clean: [s.short ? [19.9, 19.8, 2.7, 3.6] : [19.9, 11.8, 3.3, 4.5]], grade: 0.14, pop: 'saturate(1.12) brightness(1.06)' });
       const fin = softOutline(cv, '#1e1610', 1.4 * HD / 3);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(B.paintKit(fc), fc); fc.restore(); }
       cache[k] = fin; return fin;
@@ -961,6 +961,8 @@
     if (B.heroicOn && B.heroicOn(sprite)) {                      // heroic heads are small: paint them again, larger, for a sharp face
       ks = 14; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
       const pcc = pc.getContext('2d'); pcc.scale(ks, ks); pcc.lineJoin = 'round'; pcc.lineCap = 'round'; const after = B.heroPainter(sprite)(pcc); if (after) after(pcc);
+    } else if (B.figHeroic && B.figHeroic()) {                   // everyone else in the heroic style: the same, painted again at portrait size
+      const hi = paintHi(sprite, side, 7); if (hi) { pc = hi; ks = 7; }
     }
     const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
@@ -970,6 +972,19 @@
     return (faces[k] = cv.toDataURL());
   }
   B.faceURL = face;
+  B.paintHi = (n, sd, ks) => paintHi(n, sd, ks);
+  // a person or beast painted again at ks times the layout, for a sharp portrait (heroic style only)
+  function paintHi(name, side, ks) {
+    const cv = document.createElement('canvas'); cv.width = 40 * ks; cv.height = 64 * ks;
+    const c = cv.getContext('2d'); c.scale(ks, ks); c.lineJoin = 'round'; c.lineCap = 'round';
+    if (!G.D.sprites[name]) { const paint = B.beastPainter && B.beastPainter(name); if (!paint) return null; const after = paint(c); if (after) { c.save(); after(c); c.restore(); } return cv; }
+    const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], (G.D.battleLooks || {})[name]);
+    let seed = 7; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
+    const H = B.heroicKit(c, seed + 1), after = B.paintSpec(H.c, H.K, s, side, H);
+    H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11, clean: [s.short ? [19.9, 19.8, 2.7, 3.6] : [19.9, 11.8, 3.3, 4.5]], grade: 0.14, pop: 'saturate(1.12) brightness(1.06)' });
+    if (after) { c.save(); after(B.paintKit(c), c); c.restore(); }
+    return cv;
+  }
   B.drawTurns = function () {
     const el = B.turnEl; if (!el) return;
     const order = (B.order || []).filter(c => B.c.indexOf(c) >= 0);

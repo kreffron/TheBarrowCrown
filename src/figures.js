@@ -26,8 +26,11 @@
     const heldShield = s.held === 'shield', held = heldShield ? null : s.held, off = heldShield ? 'shield' : s.off;
     const L = { x: 11.6 - W, y: 33.6 }, Rh = { x: 29.4 + W, y: 32.4 };            // the hands
     const afters = [], hk = (s.short ? 1.22 : B.fig.HEAD) * (s.big ? 1.04 : 1);
+    const X = H && B.heroicAnatomy ? B.heroicAnatomy(H) : null;
+    const clothTex = armor === 'leather' ? 'leather' : armor === 'rags' || s.robe ? 'wool' : 'linen';
     const inHead = f => { const g = (K2, c2) => { c2.save(); if (H) headT(c2); else { c2.translate(20, 20); c2.scale(hk, hk); c2.translate(-20, -20); } f(K2, c2); c2.restore(); }; g.head = true; return g; };
     if (s.short) { c.save(); c.translate(20, 51.6); c.scale(0.8, 0.8); c.translate(-20, -51.6); }
+    const M00 = c.getTransform();
     if (H) { c.save(); bodyT(c); }
 
     /* ----- behind the body ----- */
@@ -36,8 +39,14 @@
       const cp = s.cape;
       K.shape(q => { q.moveTo(13 - W, 21); q.quadraticCurveTo(7.6 - W, 34, 7.8 - W, 48.6); q.quadraticCurveTo(11, 47.4, 14, 49.4); q.quadraticCurveTo(20, 48.4, 26, 49.4); q.quadraticCurveTo(29, 47.4, 32.2 + W, 48.6); q.quadraticCurveTo(32.4 + W, 34, 27 + W, 21); q.closePath(); },
         K.lin(8, 0, 32, 0, [[0, shade(cp, 16)], [0.5, shade(cp, -14)], [1, shade(cp, -42)]]));
+      if (X) { const cpp = K.shape(q => { q.moveTo(13 - W, 21); q.quadraticCurveTo(7.6 - W, 34, 7.8 - W, 48.6); q.quadraticCurveTo(11, 47.4, 14, 49.4); q.quadraticCurveTo(20, 48.4, 26, 49.4); q.quadraticCurveTo(29, 47.4, 32.2 + W, 48.6); q.quadraticCurveTo(32.4 + W, 34, 27 + W, 21); q.closePath(); }); X.tex(cpp, 'wool', [7, 20, 33.4, 50]); K.clip(cpp, () => { H.fold([11.6, 26, 9.6, 38, 9.4, 48], 1.1); H.fold([28.4, 26, 30.4, 38, 30.6, 48], 1.1); }); }
     }
-    if (s.long && !s.hood && ['braids', 'bun', 'mohawk'].indexOf(s.hs) < 0) K.shape(q => { q.moveTo(14.2, 12); q.quadraticCurveTo(13, 22, 14.6, 26.4); q.lineTo(25.6, 26.4); q.quadraticCurveTo(27.4, 22, 26.2, 12); q.closePath(); }, K.lin(0, 12, 0, 27, [[0, shade(hair, 6)], [1, shade(hair, -36)]]));
+    if (X && s.long && !s.hood && ['braids', 'bun', 'mohawk'].indexOf(s.hs) < 0) {   // long hair falling from the head behind the shoulders, in the head's own scale
+      c.save(); c.setTransform(M00); headT(c);
+      const lh = K.shape(q => { q.moveTo(14.6, 11); q.quadraticCurveTo(12.6, 20, 13.2, 27.4); q.quadraticCurveTo(14.6, 28.8, 16.2, 27.8); q.quadraticCurveTo(18, 29.4, 20.4, 28.4); q.quadraticCurveTo(22.8, 29.4, 24.6, 27.8); q.quadraticCurveTo(26.2, 28.8, 27.6, 27.4); q.quadraticCurveTo(28.2, 20, 26, 11); q.closePath(); }, K.lin(13, 0, 28, 0, [[0, shade(hair, 16)], [0.5, shade(hair, -8)], [1, shade(hair, -40)]]));
+      X.tex(lh, 'hair', [12.6, 10.6, 28.4, 29.4], { col: hair, n: 1.2, w: 0.1, len: 2.2, flow: (x) => 1.57 + (x - 20.4) * 0.015 });
+      c.restore();
+    } else if (s.long && !s.hood && ['braids', 'bun', 'mohawk'].indexOf(s.hs) < 0) K.shape(q => { q.moveTo(14.2, 12); q.quadraticCurveTo(13, 22, 14.6, 26.4); q.lineTo(25.6, 26.4); q.quadraticCurveTo(27.4, 22, 26.2, 12); q.closePath(); }, K.lin(0, 12, 0, 27, [[0, shade(hair, 6)], [1, shade(hair, -36)]]));
 
     /* ----- legs and boots ----- */
     if (!s.robe) {
@@ -45,14 +54,21 @@
         for (const [x, d] of [[17.4, 0], [22.6, -20]]) { K.line([x, 35, x - 0.4, 41, x, 47], 1.3, shade(BONE, d)); K.ell(x - 0.4, 41, 1.1, 1, shade(BONE, d + 10)); }
         K.ell(16.8, 48.4, 2.6, 1.3, BONE_D); K.ell(23.4, 48.4, 2.6, 1.3, shade(BONE_D, -16));
       } else {
-        K.R(15.4, 35, 4.2, 12, F.cloth(K, 15.4, 19.6, legs), 1.2); K.R(20.4, 35, 4.2, 12, F.cloth(K, 20.4, 24.6, legs, 4), 1.2);
-        if (H) for (const x of [17.5, 22.5]) { H.soft(0.18, () => K.curve([x - 1.6, 40.6, x, 41.2, x + 1.6, 40.6], 0.35, 'rgba(0,0,0,.4)')); H.soft(0.2, () => K.line([x - 0.9, 36, x - 1.1, 44], 0.4, 'rgba(255,248,230,.18)')); }
+        const legEnd = X && armor === 'rags' ? 49.6 : 45.6;
+        if (X) { X.limb([[17.4, 34.6], [17.1, 40.4], [17.3, legEnd]], [4.4, 3.6, 3.0], legs, { joint: 1, inner: p => X.tex(p, armor === 'leather' ? 'leather' : 'linen', [14.6, 34, 20, 46.4]) }); X.limb([[22.6, 34.6], [22.9, 40.4], [22.7, legEnd]], [4.4, 3.6, 3.0], shade(legs, -8), { joint: 1, inner: p => X.tex(p, armor === 'leather' ? 'leather' : 'linen', [20, 34, 25.4, 46.4]) }); }
+        else { K.R(15.4, 35, 4.2, 12, F.cloth(K, 15.4, 19.6, legs), 1.2); K.R(20.4, 35, 4.2, 12, F.cloth(K, 20.4, 24.6, legs, 4), 1.2); }
+        if (H && !X) for (const x of [17.5, 22.5]) { H.soft(0.18, () => K.curve([x - 1.6, 40.6, x, 41.2, x + 1.6, 40.6], 0.35, 'rgba(0,0,0,.4)')); H.soft(0.2, () => K.line([x - 0.9, 36, x - 1.1, 44], 0.4, 'rgba(255,248,230,.18)')); }
         if (armor === 'plate') {
           for (const [x, d] of [[15, 6], [20.2, -14]]) { K.R(x, 40.2, 4.8, 8, K.lin(x, 0, x + 4.8, 0, [[0, shade(metal, 30 + d)], [0.5, shade(metal, d)], [1, shade(metal, -46 + d)]]), 1.4); K.ell(x + 2.4, 40.8, 2.2, 1.3, shade(metal, 20 + d)); }
           for (const [x, d] of [[14.4, 0], [20.2, -18]]) K.R(x, 47.2, 5.6, 4.2, K.lin(0, 47, 0, 51.4, [[0, shade(metal, 10 + d)], [1, shade(metal, -50 + d)]]), [1.6, 1.6, 0.8, 0.8]);
         } else {
           const bootCol = s.boots || (armor === 'rags' ? '#4a3c30' : '#4a3424');
-          if (armor === 'rags') { K.ell(17.2, 49.6, 2.6, 1.6, shade(skin, -30)); K.ell(22.8, 49.6, 2.6, 1.6, shade(skin, -40)); }
+          if (armor === 'rags' && X) for (const [fx, d, dk] of [[17.3, -1, -30], [22.7, 1, -40]]) {     // feet bound in rags, on the ground
+            const ft = K.shape(q => { q.moveTo(fx - 1.6, 48.2); q.lineTo(fx + 1.6, 48.2); q.quadraticCurveTo(fx + 1.7 + (d > 0 ? 1.4 : 0), 49.6, fx + 1.5 + (d > 0 ? 1.6 : 0), 51.4); q.lineTo(fx - 1.5 - (d < 0 ? 1.6 : 0), 51.4); q.quadraticCurveTo(fx - 1.7 - (d < 0 ? 1.4 : 0), 49.6, fx - 1.6, 48.2); q.closePath(); }, K.lin(fx - 2, 0, fx + 2, 0, [[0, shade('#6a5a48', dk + 30)], [1, shade('#6a5a48', dk)]]));
+            X.tex(ft, 'linen', [fx - 3.4, 48, fx + 3.4, 51.6], { a: 0.12 }); for (let k = 0; k < 3; k++) K.line([fx - 1.6, 48.8 + k * 0.8, fx + 1.6, 49.2 + k * 0.8], 0.12, 'rgba(30,20,10,.35)');
+          }
+          else if (armor === 'rags') { K.ell(17.2, 49.6, 2.6, 1.6, shade(skin, -30)); K.ell(22.8, 49.6, 2.6, 1.6, shade(skin, -40)); }
+          else if (X) { for (const [bx, d, dk] of [[17.3, -1, 0], [22.7, 1, -10]]) { const bp = X.boot(bx, 51.4, 3.7, 6.6, shade(bootCol, dk), d, { cuff: 1 }); X.tex(bp, 'leather', [bx - 4, 44, bx + 4, 51.4]); X.stitch([bx + 1.2, 46.2, bx + 1.3, 50.4], 'rgba(255,226,180,.35)', 0.06); } }
           else { F.boot(K, 15, 44.4, 4.8, 7, bootCol, -0.6); F.boot(K, 20.2, 44.4, 4.8, 7, shade(bootCol, -10), 0.8); }
         }
       }
@@ -66,8 +82,9 @@
         for (const x of [13.6, 17, 24.4, 27.4]) K.line([x + (x - 20) * 0.1, 36, x + (x - 20) * 0.42, 51], 0.5, alpha('#000000', 0.16));
         if (s.trim) { K.R(19, 21, 2.2, 31, s.trim, 0); K.shape(q => { q.moveTo(8, 49.2); q.quadraticCurveTo(20, 51, 32, 49.2); q.lineTo(32, 53); q.lineTo(8, 53); q.closePath(); }, s.trim); }
         if (armor === 'rags') for (let x = 9; x < 31; x += 3) K.poly([x, 53, x + 1.5, 47.6 + (x % 2), x + 3, 53], alpha('#000000', 0.28));
-        K.ell(16, 25, 3.6, 1.4, 'rgba(255,255,255,.14)');
-        if (H) { for (const [x, w] of [[13.4, 1.2], [16.8, 1.3], [23.4, 1.4], [26.8, 1.2]]) H.fold([x, 29, x + (x - 20) * 0.2, 40, x + (x - 20) * 0.44, 51.4], w, 'rgba(0,0,0,.38)', 'rgba(255,248,230,.26)'); H.soft(0.5, () => K.R(9, 23, 22, 1.4, 'rgba(0,0,0,.28)', 0.6)); }
+        if (!X) K.ell(16, 25, 3.6, 1.4, 'rgba(255,255,255,.14)');
+        if (X) X.tex(torso, 'wool', [9, 20, 31.2, 53]);
+        if (H) { for (const [x, w] of [[13.4, 1.2], [16.8, 1.3], [23.4, 1.4], [26.8, 1.2]]) H.fold([x, X ? 31 : 29, x + (x - 20) * 0.2, 40, x + (x - 20) * 0.44, 51.4], w, 'rgba(0,0,0,.38)', 'rgba(255,248,230,.26)'); H.soft(0.5, () => K.R(9, 23, 22, 1.4, 'rgba(0,0,0,.28)', 0.6)); }
       });
     } else {
       torso = K.shape(q => { q.moveTo(13.2 - W, 22); q.quadraticCurveTo(20, 20.4, 26.8 + W, 22); q.quadraticCurveTo(27.6 + W, 29, 26.6 + W * 0.6, 33.6); q.lineTo(27.4 + W * 0.6, 37.4); q.quadraticCurveTo(20, 38.4, 12.6 - W * 0.6, 37.4); q.lineTo(13.4 - W * 0.6, 33.6); q.quadraticCurveTo(12.4 - W, 29, 13.2 - W, 22); }, F.cloth(K, 12.4 - W, 27.6 + W, top, 26, -40));
@@ -83,35 +100,99 @@
           for (let y = 22.6; y < 38; y += 1.3) for (let x = 12 + ((y * 10) % 2 ? 0.65 : 0); x < 28.6; x += 1.3) { c.beginPath(); c.arc(x, y, 0.55, 0.2, 2.9); c.stroke(); }
           K.R(10, 21, 20, 18, K.lin(10, 0, 30, 0, [[0, alpha(metal, 0.35)], [1, alpha('#000000', 0.25)]]), 0);
         }
-        K.ell(16.2, 24.6, 3.4, 1.2, 'rgba(255,255,255,.14)');
-        if (H && armor !== 'mail' && !skel) { H.fold([16.4, 23, 16, 29, 16.6, 37.6], 0.8, 'rgba(0,0,0,.34)', 'rgba(255,248,230,.24)'); H.fold([23.8, 23, 24.2, 29, 23.6, 37.6], 0.8, 'rgba(0,0,0,.4)', false); H.soft(0.3, () => K.curve([14, 33, 20, 34.4, 26, 33], 0.6, 'rgba(0,0,0,.3)')); }
+        if (!X) K.ell(16.2, 24.6, 3.4, 1.2, 'rgba(255,255,255,.14)');
+        if (X && armor !== 'mail' && !skel) { X.tex(torso, clothTex, [11, 20, 29, 39]); X.stitch(X.qp(16.6, 21.9, 20, 23.6, 23.4, 21.9), 'rgba(255,240,210,.35)', 0.06); if (armor === 'leather') { X.stitch(X.qp(13.6, 22.6, 12.8, 29, 13.8, 33.4), 'rgba(255,226,180,.4)'); X.stitch(X.qp(26.4, 22.6, 27.2, 29, 26.2, 33.4), 'rgba(255,226,180,.3)'); } }
+        if (H && armor !== 'mail' && !skel) { if (X) { H.fold([16.6, 29, 16.3, 33, 16.6, 37.6], 0.7, 'rgba(0,0,0,.2)', 'rgba(255,248,230,.14)'); H.fold([23.6, 29, 23.9, 33, 23.6, 37.6], 0.7, 'rgba(0,0,0,.24)', false); } else { H.fold([16.4, 23, 16, 29, 16.6, 37.6], 0.8, 'rgba(0,0,0,.34)', 'rgba(255,248,230,.24)'); H.fold([23.8, 23, 24.2, 29, 23.6, 37.6], 0.8, 'rgba(0,0,0,.4)', false); } H.soft(0.3, () => K.curve([14, 33, 20, 34.4, 26, 33], 0.6, 'rgba(0,0,0,.3)')); }
       });
     }
     // plate: breastplate, faulds and a gorget over whatever is beneath
     if (armor === 'plate') {
       const bp = K.shape(q => { q.moveTo(13.6 - W, 22.4); q.quadraticCurveTo(20, 20.6, 26.4 + W, 22.4); q.quadraticCurveTo(27.4 + W, 28.6, 25.6 + W * 0.5, 33.4); q.quadraticCurveTo(20, 35, 14.4 - W * 0.5, 33.4); q.quadraticCurveTo(12.6 - W, 28.6, 13.6 - W, 22.4); }, K.lin(13, 0, 27, 0, [[0, shade(metal, 34)], [0.42, shade(metal, 10)], [0.58, shade(metal, -8)], [1, shade(metal, -52)]]));
+      if (X) { X.tex(bp, 'metal', [12.6, 20.6, 27.4, 35], { dir: 1.4 }); for (const [rx, ry] of [[14.4, 23.2], [25.6, 23.2], [14.8, 32.4], [25.2, 32.4]]) X.rivet(rx, ry, 0.32, metal); }
       K.clip(bp, () => { K.line([20, 21.4, 20, 34], 0.5, 'rgba(255,255,255,.5)'); K.ell(16.6, 25.4, 2.4, 3.6, 'rgba(255,255,255,.28)'); K.curve([14, 30, 20, 31.6, 26, 30], 0.4, alpha('#000000', 0.3)); });
       for (let i = 0; i < 2; i++) K.shape(q => { const y = 33.2 + i * 2.2; q.moveTo(13.8 - W * 0.5, y); q.quadraticCurveTo(20, y + 1.6, 26.2 + W * 0.5, y); q.lineTo(26.6 + W * 0.5, y + 2.4); q.quadraticCurveTo(20, y + 4, 13.4 - W * 0.5, y + 2.4); q.closePath(); }, K.lin(13, 0, 27, 0, [[0, shade(metal, 20 - i * 8)], [1, shade(metal, -46 - i * 8)]]));
     }
     if (s.tabard) {
       const tb = s.tabard;
-      K.shape(q => { q.moveTo(16.6, 22); q.lineTo(23.4, 22); q.lineTo(24.2, 42.6); q.lineTo(20, 44.4); q.lineTo(15.8, 42.6); q.closePath(); }, F.cloth(K, 15.8, 24.2, tb, 20, -34));
-      if (s.trim) K.line([16.6, 22.6, 16, 42.2, 20, 43.8, 24, 42.2, 23.4, 22.6], 0.45, s.trim);
+      const tbp = K.shape(q => { q.moveTo(16.6, 22); q.lineTo(23.4, 22); q.lineTo(24.2, 42.6); q.lineTo(20, 44.4); q.lineTo(15.8, 42.6); q.closePath(); }, F.cloth(K, 15.8, 24.2, tb, 20, -34));
+      if (X) { X.tex(tbp, 'wool', [15.6, 21.8, 24.4, 44.6], { a: 0.1 }); K.clip(tbp, () => H.fold([19.6, 30, 19.4, 37, 19.8, 43], 0.7)); }
+      if (s.trim) { if (X) X.band([16.75, 22.6, 16.1, 42.4, 20, 44.0, 23.9, 42.4, 23.25, 22.6], 0.6, tb, s.trim); else K.line([16.6, 22.6, 16, 42.2, 20, 43.8, 24, 42.2, 23.4, 22.6], 0.45, s.trim); }
       sigil(c, K, s.sigil, 20, 29.4, 2.6, s.trim || (shade(tb, 0) && luminous(tb) ? '#3a3448' : GOLD), tb);
     } else if (s.sigil && !armor) sigil(c, K, s.sigil, 20, 27.6, 2.2, s.trim || GOLD, top);
-    if (s.apron) K.R(16, 25, 8, 15.6, F.cloth(K, 16, 24, s.apron, 14, -20), 1.4);
-    if (s.belt || (!s.robe && !s.tabard && armor !== 'plate')) { const bc = s.belt || shade(legs, -30); K.R(13.2 - W * 0.6, 32.6, 13.6 + W * 1.2, 2, bc, 0.6); K.R(18.8, 32.3, 2.4, 2.6, s.belt ? GOLD : shade(bc, 30), 0.5); }
+    if (s.apron) {
+      if (X) { const ap = K.shape(q => { q.moveTo(16.2, 25); q.lineTo(23.8, 25); q.quadraticCurveTo(24.6, 33, 24.6, 40); q.quadraticCurveTo(20, 41.4, 15.4, 40); q.quadraticCurveTo(15.4, 33, 16.2, 25); q.closePath(); }, K.lin(15.4, 0, 24.6, 0, [[0, shade(s.apron, 6)], [0.5, shade(s.apron, -10)], [1, shade(s.apron, -36)]]));
+        X.tex(ap, 'linen', [15, 24.6, 25, 41.6], { a: 0.1 }); K.clip(ap, () => { H.fold([18, 30, 17.6, 35, 17.8, 40.4], 0.7); H.fold([21.8, 30, 22.4, 35, 22.4, 40.4], 0.6); H.soft(0.5, () => K.R(15, 37, 10, 4, 'rgba(120,96,70,.18)', 0)); for (let i = 0; i < 6; i++) K.ell(16.4 + H.rr() * 7, 32 + H.rr() * 7, 0.3 + H.rr() * 0.4, 0.2 + H.rr() * 0.3, 'rgba(110,80,50,.12)'); });
+        X.stitch(X.qp(15.7, 39.6, 20, 40.8, 24.3, 39.6), 'rgba(120,100,80,.5)', 0.07); K.line([15.6, 32.9, 24.4, 32.9], 0.5, shade(s.apron, -20)); K.curve([24.2, 33, 25.4, 34.4, 24.8, 36.4], 0.3, shade(s.apron, -30)); }
+      else K.R(16, 25, 8, 15.6, F.cloth(K, 16, 24, s.apron, 14, -20), 1.4);
+    }
+    if (s.belt || (!s.robe && !s.tabard && armor !== 'plate')) { const bc = s.belt || shade(legs, -30); const blt = K.shape(q => q.roundRect(13.2 - W * 0.6, 32.6, 13.6 + W * 1.2, 2, 0.6), bc); if (X) { X.tex(blt, 'leather', [12, 32.4, 28, 34.8]); X.stitch([13.8 - W * 0.6, 33.0, 26.2 + W * 0.6, 33.0], 'rgba(255,226,180,.3)', 0.06); X.stitch([13.8 - W * 0.6, 34.2, 26.2 + W * 0.6, 34.2], 'rgba(255,226,180,.3)', 0.06); } K.R(18.8, 32.3, 2.4, 2.6, s.belt ? GOLD : shade(bc, 30), 0.5); if (X) K.R(19.35, 32.85, 1.3, 1.5, shade(bc, -10), 0.2); }
     else if (s.belt || s.tabard) K.R(14.4, 33, 11.2, 1.6, s.belt || '#3a2a1e', 0.5);
 
     /* ----- arms ----- */
     const sleeve = s.sleeves || (armor === 'plate' ? metal : armor === 'mail' ? shade(metal, -20) : top);
-    const boneArm = skel && !armor && !s.sleeves;
+    const mailRings = (x0, x1) => { c.save(); c.strokeStyle = alpha('#ffffff', 0.3); c.lineWidth = 0.22; for (let y = 22; y < 34; y += 1.1) for (let xx = x0; xx < x1; xx += 1.1) { c.beginPath(); c.arc(xx + ((y * 10) % 2 ? 0.55 : 0), y, 0.45, 0.2, 2.9); c.stroke(); } c.restore(); };
+    const boneArm = skel && !armor && !s.sleeves && !(H && (s.robe || s.hood));
     if (boneArm) {
-      F.limb(K, c, [13.6 - W, 23.6, 12.2 - W, 28, L.x, L.y - 1], 1.6, 1.2, BONE, null); F.limb(K, c, [26.4 + W, 23.6, 28.2 + W, 28, Rh.x, Rh.y - 1], 1.6, 1.2, shade(BONE, -20), null);
-      K.ell(13.2 - W, 23.2, 2, 1.7, BONE); K.ell(26.8 + W, 23.2, 2, 1.7, shade(BONE, -14));
+      if (X) { X.limb([[13.6 - W, 23.2], [12.2 - W, 28], [L.x, L.y - 1]], [1.5, 1.1, 1.0], BONE, { joint: 1 }); X.limb([[26.4 + W, 23.2], [28.2 + W, 28], [Rh.x, Rh.y - 1]], [1.5, 1.1, 1.0], shade(BONE, -20), { joint: 1 }); K.ell(13.6 - W, 23.2, 1.3, 1.1, BONE); K.ell(26.4 + W, 23.2, 1.3, 1.1, shade(BONE, -14)); }
+      else { F.limb(K, c, [13.6 - W, 23.6, 12.2 - W, 28, L.x, L.y - 1], 1.6, 1.2, BONE, null); F.limb(K, c, [26.4 + W, 23.6, 28.2 + W, 28, Rh.x, Rh.y - 1], 1.6, 1.2, shade(BONE, -20), null);
+      K.ell(13.2 - W, 23.2, 2, 1.7, BONE); K.ell(26.8 + W, 23.2, 2, 1.7, shade(BONE, -14)); }
     } else {
+      if (X) {
+        const st = armor === 'plate' ? 'metal' : armor === 'mail' ? null : armor === 'leather' ? 'leather' : clothTex;
+        const dist = (a, b) => { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), Bc = p(b); return Math.abs(A[0] - Bc[0]) + Math.abs(A[1] - Bc[1]) + Math.abs(A[2] - Bc[2]); };
+        const bare = !!(s.sleeves && /^#[0-9a-f]{6}$/i.test(s.sleeves) && /^#[0-9a-f]{6}$/i.test(skin) && dist(s.sleeves, skin) < 30);
+        const armCol = bare ? skin : sleeve, ast = bare ? null : st;
+        // each arm one form: from the base of the neck over the shoulder, down the upper arm, the elbow, into the wrist
+        // the arms share the body's light: one gradient across arm, torso and arm, so their tones meet without a step
+        const x0g = 8 - W, x1g = 32 + W, pg = x => (x - x0g) / (x1g - x0g), tx0 = 12.4 - W, tx1 = 27.6 + W;
+        const bodyLight = col => K.lin(x0g, 0, x1g, 0, [[0, shade(col, 32)], [pg(tx0), shade(col, 26)], [pg(tx0 + 0.45 * (tx1 - tx0)), col], [pg(tx1), shade(col, -40)], [1, shade(col, -50)]]);
+        const armPaths = [];
+        for (const [sg, hp] of [[-1, L], [1, Rh]]) {
+          const col = armCol, ex = 20 + sg * (8.2 + W), sx = 20 + sg * (6.2 + W);
+          const box = sg < 0 ? [8 - W, 20, 18, 34] : [22, 20, 32 + W, 34];
+          armPaths[armPaths.length] = X.limb([[20 + sg * (bare || armor === 'plate' ? 3.4 : 4.2), bare || armor === 'plate' ? 21.5 : 22.2], [sx, 22.4], [20 + sg * (7.6 + W), 24.4], [ex, 28.4], [hp.x, hp.y - 0.4]], [2.2, 3.6, 3.9, 3.1, 2.4], col, { joint: 3, fill: bodyLight(col), edgeFrom: 2, edgeA: 0.24, inner: p => {
+            if (ast) X.tex(p, ast, box); if (armor === 'mail') mailRings(box[0], box[2]);
+            H.soft(0.7, () => K.ell(20 + sg * (7.2 + W), 27.6, 1.3, 2.6, sg < 0 ? alpha(shade(col, 30), 0.18) : 'rgba(0,0,0,.14)'));         // the roundness of the upper arm
+            H.soft(0.6, () => K.curve([20 + sg * 5.9, 26.8, 20 + sg * 6.3, 28.4, 20 + sg * 6.6, 30.2], 0.9, 'rgba(0,0,0,.24)'));               // the arm's inside, below the armpit
+          } });
+          H.soft(0.7, () => K.curve([20 + sg * 6.0, 27.2, 20 + sg * 6.2, 29, 20 + sg * 6.4, 31.4], 0.8, 'rgba(0,0,0,.13)'));               // where the arm meets the body, from the armpit down
+        }
+        // the garment's shoulders laid over the tops of the arms, in the torso's own cloth and light, fading out down the
+        // arm and in toward the chest: the shoulder belongs to the body, and the arm comes out from under it
+        if (!bare && armor !== 'plate') {
+          const cv2 = document.createElement('canvas'); cv2.width = c.canvas.width; cv2.height = c.canvas.height;
+          const o = cv2.getContext('2d'); o.setTransform(c.getTransform()); o.lineJoin = 'round'; o.lineCap = 'round'; const K2 = B.paintKit(o);
+          const yc = armor === 'mail' ? sleeve : top, Wd = 7.9 + W;
+          const seam = /^#[0-9a-f]{6}$/i.test(sleeve) && /^#[0-9a-f]{6}$/i.test(yc) && dist(sleeve, yc) > 60;   // a sleeve of another colour: a sewn seam, not a fade
+          const yoke = seam ? q => { q.moveTo(20 - 2.8, 20.8); q.quadraticCurveTo(20 - Wd + 0.5, 20.7, 20 - Wd - 0.15, 23.4); q.quadraticCurveTo(20 - Wd + 0.6, 24.8, 20 - 4.6, 26.8); q.lineTo(20 + 4.6, 26.8); q.quadraticCurveTo(20 + Wd - 0.6, 24.8, 20 + Wd + 0.15, 23.4); q.quadraticCurveTo(20 + Wd - 0.5, 20.7, 20 + 2.8, 20.8); q.closePath(); } : q => { q.rect(20 - 13 - W, 19, 26 + 2 * W, 10.6); };
+          const yp = K2.shape(yoke, s.robe ? F.cloth(K2, 9, 31, yc, 18, -42) : K2.lin(x0g, 0, x1g, 0, [[0, shade(yc, 32)], [pg(tx0), shade(yc, 26)], [pg(tx0 + 0.45 * (tx1 - tx0)), yc], [pg(tx1), shade(yc, -40)], [1, shade(yc, -50)]]));
+          o.save(); o.clip(yp);
+          o.filter = 'blur(' + (0.5 * H.S) + 'px)'; K2.ell(20 - Wd + 2.2, 22.0, 2.6, 0.9, alpha(shade(yc, 40), 0.4)); K2.ell(20 + Wd - 1.6, 22.6, 2.2, 1.6, 'rgba(0,0,0,.18)');   // light on the near shoulder, the far one turning away
+          o.filter = 'none';
+          if (armor === 'mail') { o.strokeStyle = alpha('#ffffff', 0.3); o.lineWidth = 0.22; for (let y = 21; y < 28; y += 1.1) for (let xx = 10 - W; xx < 30 + W; xx += 1.1) { o.beginPath(); o.arc(xx + ((y * 10) % 2 ? 0.55 : 0), y, 0.45, 0.2, 2.9); o.stroke(); } }
+          else { for (let x = 10 - W - 8; x < 30 + W; x += 0.24) { o.strokeStyle = 'rgba(255,248,232,.06)'; o.lineWidth = 0.045; o.beginPath(); o.moveTo(x, 20.5); o.lineTo(x + 8, 28.5); o.stroke(); o.strokeStyle = 'rgba(0,0,0,.06)'; o.beginPath(); o.moveTo(x + 8, 20.5); o.lineTo(x, 28.5); o.stroke(); } }
+          o.restore();
+          o.globalCompositeOperation = 'destination-in';                        // fade: down the arm, and toward the middle of the chest
+          if (!seam) { o.fillStyle = K2.lin(0, 23.6, 0, 28.6, [[0, 'rgba(0,0,0,1)'], [0.45, 'rgba(0,0,0,.6)'], [1, 'rgba(0,0,0,0)']]); o.fillRect(0, 0, 40, 64); }
+          const f0 = (20 - 5.6 - W * 0.4) / 40, f1 = (20 - 4.2) / 40;
+          o.fillStyle = K2.lin(0, 0, 40, 0, [[0, 'rgba(0,0,0,1)'], [f0, 'rgba(0,0,0,1)'], [f1, 'rgba(0,0,0,0)'], [1 - f1, 'rgba(0,0,0,0)'], [1 - f0, 'rgba(0,0,0,1)'], [1, 'rgba(0,0,0,1)']]); o.fillRect(0, 0, 40, 64);
+          const mk = document.createElement('canvas'); mk.width = cv2.width; mk.height = cv2.height; const mc = mk.getContext('2d'); mc.setTransform(c.getTransform()); mc.fillStyle = '#000';   // trimmed to the body and the arms
+          mc.fill(torso); for (const ap of armPaths) if (ap) mc.fill(ap);
+          o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = 'destination-in'; o.drawImage(mk, 0, 0);
+          c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(cv2, 0, 0); c.restore();
+          if (seam) for (const sg of [-1, 1]) { const pts = X.qp(20 + sg * (Wd + 0.15), 23.4, 20 + sg * (Wd - 0.6), 24.8, 20 + sg * 5.2, 26.4); H.soft(0.12, () => K.line(pts, 0.35, alpha(shade(yc, -50), 0.6))); X.stitch(pts.map((v, i) => i % 2 ? v - 0.3 : v), alpha(shade(yc, 40), 0.55), 0.06); }
+        }
+        if (armor !== 'plate') for (const [sg, dk] of [[-1, 4], [1, -14]]) {
+          const sx = 20 + sg * (6.6 + W);
+          if (bare) {                                                         // a sleeveless top: its strap over the shoulder and the edge of the armhole
+            K.shape(q => { q.moveTo(20 + sg * 2.6, 21.0); q.quadraticCurveTo(20 + sg * 4.6, 20.9, 20 + sg * 5.6, 21.8); q.lineTo(20 + sg * 5.2, 23.2); q.quadraticCurveTo(20 + sg * 4.2, 22.4, 20 + sg * 2.8, 22.6); q.closePath(); }, shade(top, dk));
+            H.soft(0.1, () => K.curve([20 + sg * 5.3, 22.6, sx - sg * 0.2, 24.8, 20 + sg * 6.1, 26.8], 0.3, alpha(shade(top, -40 + dk), 0.7)));
+          }
+        }
+      } else {
       F.limb(K, c, [13.4 - W, 23.6, 11.6 - W, 28.6, L.x, L.y - 1], 3.4, 2.8, shade(sleeve, 4), alpha('#ffffff', 0.22));
       F.limb(K, c, [26.6 + W, 23.6, 28.8 + W, 28, Rh.x, Rh.y - 1], 3.4, 2.8, shade(sleeve, -20), null);
+      }
       if (armor === 'plate') for (const [x, d] of [[12.6 - W, 0], [27.4 + W, -22]]) K.ell(x, 23.4, 3.2, 2.6, K.rad(x - 0.8, 22.6, 0.3, 3.4, [[0, shade(metal, 40 + d)], [1, shade(metal, -30 + d)]]));
     }
     const hand = H ? (p, d) => {
@@ -138,7 +219,7 @@
     /* ----- the head ----- */
     if (H) c.restore();                                                      // out of the body's stretch
     const M0 = c.getTransform();
-    if (H && !skel) K.R(HX - 1.6, HY + 1.4, 3.2, 3.8, K.lin(HX - 1.6, 0, HX + 1.6, 0, [[0, shade(skin, -6)], [1, shade(skin, -50)]]), 1.2);   // a real neck
+    if (H && !skel && !X) K.R(HX - 1.6, HY + 1.4, 3.2, 3.8, K.lin(HX - 1.6, 0, HX + 1.6, 0, [[0, shade(skin, -6)], [1, shade(skin, -50)]]), 1.2);   // a real neck
     c.save(); if (H) headT(c); else { c.translate(20, 20); c.scale(hk, hk); c.translate(-20, -20); }
     const hx = 20.3, hy = 13.8, r = 4.8;
     if (!skel) { if (!H) K.R(18.4, 17.4, 3.4, 3, shade(skin, -24), 1); } else K.line([20, 17, 20, 21], 1.2, BONE_D);
@@ -147,7 +228,7 @@
     // hair behind the head
     if (!s.bald && !s.hood && !skel) {
       if (s.hs === 'curly') for (const [x, y, rr] of [[15.4, 10.6, 2.8], [18.6, 8.4, 3], [22.4, 8.4, 3], [25.4, 10.8, 2.8], [15, 14.4, 2.4], [25.8, 14.4, 2.4]]) K.ell(x, y, rr, rr, K.rad(x - 0.8, y - 0.8, 0.2, rr, [[0, shade(hair, 30)], [1, shade(hair, -16)]]));
-      else if (s.hs !== 'mohawk' && !covered) K.ell(20, 12.4, 6.2, 5.8, K.rad(18, 10, 0.5, 7, [[0, shade(hair, 26)], [1, shade(hair, -18)]]));
+      else if (s.hs !== 'mohawk' && !covered) { const hb = K.shape(q => q.ellipse(20, 12.4, 6.2, 5.8, 0, 0, 6.283), K.rad(18, 10, 0.5, 7, [[0, shade(hair, 26)], [1, shade(hair, -18)]])); if (X) X.tex(hb, 'hair', [13.8, 6.6, 26.2, 18.2], { col: hair, n: 1.2, w: 0.09, len: 1.6, flow: (x, y) => Math.atan2(y - 6, x - 20) }); }
       if (s.hs === 'pony') { K.ell(14.4, 11, 2, 2, hair); K.shape(q => { q.moveTo(13.6, 11); q.quadraticCurveTo(10, 15, 11.6, 21.6); q.quadraticCurveTo(13.4, 17, 15.2, 12); q.closePath(); }, K.lin(0, 11, 0, 22, [[0, hair], [1, shade(hair, -30)]])); K.R(12.8, 11.6, 2, 1, GOLD, 0.3); }
       if (s.hs === 'bun') K.ell(20, 7, 3, 2.7, K.rad(19, 6, 0.3, 3.2, [[0, shade(hair, 30)], [1, shade(hair, -20)]]));
     }
@@ -158,7 +239,11 @@
     else {
       if (H) {                                                                // a real face, at real size, under the old head's hair and hats
         const M1 = c.getTransform(); c.setTransform(M0); c.translate(HX, HY + 3.2); c.scale(1.1, 1.1); c.translate(-HX, -(HY + 3.2));
-        H.face(HX - 0.3, HY + (s.hood ? 0.4 : 0), { skin, eye: s.eyes || '#3a3040', brow: s.bald ? shade(skin, -60) : shade(hair, -20), mouth: s.beard ? 'set' : foe ? 'set' : null, browTilt: foe ? 0.22 : 0, jaw: s.big ? 3.4 : 3 });
+        if (X) {
+          const EYES = ['#5a3a24', '#4a6a9a', '#5a7a4a', '#7a5a30', '#3a5a7a', '#4a3020'], ey = s.eyes || EYES[Math.floor(H.rr() * EYES.length)];
+          const grey = !s.bald && /^#([c-f][0-9a-f]){3}$/i.test(hair) && Math.abs(parseInt(hair.slice(1, 3), 16) - parseInt(hair.slice(5, 7), 16)) < 40;
+          X.head(HX - 0.12, HY + (s.hood ? 0.4 : 0), { skin, eye: ey, brow: s.bald ? shade(skin, -60) : shade(hair, -20), mouth: s.beard ? 'set' : foe ? (s.eyes ? 'set' : 'frown') : 'smile', browTilt: foe ? -0.3 : 0.06, jaw: s.big ? 3.4 : 3.05, wide: s.big ? 1.08 : 1, neckW: s.big ? 2.6 : 2.15, neckLen: 1.7, lines: grey || s.old, lip: shade(skin, -26) });
+        } else H.face(HX - 0.3, HY + (s.hood ? 0.4 : 0), { skin, eye: s.eyes || '#3a3040', brow: s.bald ? shade(skin, -60) : shade(hair, -20), mouth: s.beard ? 'set' : foe ? 'set' : null, browTilt: foe ? 0.22 : 0, jaw: s.big ? 3.4 : 3 });
         c.setTransform(M1);
       }
       else F.face(K, c, { x: hx, y: hy + (s.hood ? 0.8 : 0), r: s.hood ? 4.3 : r, skin, hair, eye: s.eyes || '#241820', mouth: s.beard ? 'none' : foe ? 'set' : null, brow: foe ? 1.8 : 0, browCol: s.bald ? shade(skin, -60) : shade(hair, -20), blush: !foe && !s.eyes });
@@ -170,10 +255,18 @@
       if (!s.bald && !covered && s.hs !== 'curly') {
         if (s.hs === 'mohawk') K.R(18.6, 6.2, 3.4, 7.6, K.lin(0, 6, 0, 14, [[0, shade(hair, 30)], [1, hair]]), 1.4);
         else if (s.hs === 'spiky') { for (let i = 0; i < 6; i++) K.poly([14.6 + i * 2.1, 11.6, 15.8 + i * 2.1, 5.6 - (i % 2) * 1.6, 17 + i * 2.1, 11], i % 2 ? hair : shade(hair, 20)); K.shape(q => { q.moveTo(14.6, 12.6); q.quadraticCurveTo(15, 8, 20.6, 8.2); q.quadraticCurveTo(26, 8.2, 25.8, 12); q.quadraticCurveTo(21, 9.8, 14.6, 12.6); }, hair); }
-        else K.shape(q => { q.moveTo(14.8, 13.4); q.quadraticCurveTo(15, 7.8, 20.6, 7.8); q.quadraticCurveTo(25.8, 8, 25.8, 12.6); q.quadraticCurveTo(23, 10, 20.2, 10.8); q.quadraticCurveTo(17.4, 10.8, 14.8, 13.4); }, K.lin(0, 8, 0, 13, [[0, shade(hair, 34)], [1, hair]]));
+        else { const hf = K.shape(q => { q.moveTo(14.8, 13.4); q.quadraticCurveTo(15, 7.8, 20.6, 7.8); q.quadraticCurveTo(25.8, 8, 25.8, 12.6); q.quadraticCurveTo(23, 10, 20.2, 10.8); q.quadraticCurveTo(17.4, 10.8, 14.8, 13.4); }, K.lin(0, 8, 0, 13, [[0, shade(hair, 34)], [1, hair]])); if (X) X.tex(hf, 'hair', [14.6, 7.6, 26, 13.6], { col: hair, n: 2, w: 0.09, len: 1.6, flow: (x, y) => Math.atan2(y - 6.4, x - 20.4) }); }
       }
-      if (s.hs === 'braids') for (const sgn of [-1, 1]) { for (let i = 0; i < 5; i++) K.ell(20 + sgn * 5.4 + (sgn > 0 ? 0.4 : 0), 15.6 + i * 2, 1.3 - i * 0.06, 1.05, i % 2 ? shade(hair, -18) : shade(hair, 6)); K.R(20 + sgn * 5.4 - 0.7 + (sgn > 0 ? 0.4 : 0), 25.4, 1.4, 1.1, GOLD, 0.4); }
-      if (s.beard) K.shape(q => { q.moveTo(15.8, 14.4); q.quadraticCurveTo(15.6, 21.6, 20.6, 22.4); q.quadraticCurveTo(25.4, 21.6, 25.2, 14.4); q.quadraticCurveTo(24.6, 17.6, 22.6, 17.2); q.quadraticCurveTo(20.6, 16.4, 18.6, 17.2); q.quadraticCurveTo(16.6, 17.4, 15.8, 14.4); }, K.lin(0, 14, 0, 23, [[0, shade(hair, 20)], [1, shade(hair, -26)]]));
+      if (s.hs === 'braids') for (const sgn of [-1, 1]) {
+        const bx = 20 + sgn * 5.3 + (sgn > 0 ? 0.4 : 0);
+        if (X) { K.shape(q => { q.moveTo(bx - sgn * 1.6, 11.6); q.quadraticCurveTo(bx + sgn * 0.6, 12.4, bx + sgn * 0.3, 15.4); q.lineTo(bx - sgn * 1.1, 15.6); q.closePath(); }, shade(hair, -6));
+          for (let i = 0; i < 8; i++) { const y = 15.4 + i * 1.3, x = bx + Math.sin(i * 0.5) * 0.15, sd = i % 2 ? 1 : -1, w = 1.15 - i * 0.04;
+            K.shape(q => { q.moveTo(x - w, y - 0.7 + sd * 0.25); q.quadraticCurveTo(x, y - 1.15, x + w, y - 0.7 - sd * 0.25); q.quadraticCurveTo(x + w * 0.6, y + 0.6, x, y + 0.8); q.quadraticCurveTo(x - w * 0.6, y + 0.6, x - w, y - 0.7 + sd * 0.25); q.closePath(); }, K.lin(x - w, y - 1, x + w, y + 0.8, sd > 0 ? [[0, shade(hair, 30)], [1, shade(hair, -40)]] : [[0, shade(hair, 10)], [1, shade(hair, -50)]]));
+            for (let k = 0; k < 3; k++) K.curve([x - w * 0.8 + k * 0.45, y - 0.8 + sd * 0.15, x - w * 0.3 + k * 0.5, y, x + k * 0.25, y + 0.6], 0.07, alpha(shade(hair, -50), 0.45)); }
+          K.R(bx - 0.7, 25.6, 1.4, 1.0, GOLD, 0.3); for (let k = 0; k < 4; k++) K.line([bx - 0.45 + k * 0.3, 26.5, bx - 0.5 + k * 0.33, 27.8], 0.2, shade(hair, k % 2 ? -20 : 10)); }
+        else { for (let i = 0; i < 5; i++) K.ell(bx, 15.6 + i * 2, 1.3 - i * 0.06, 1.05, i % 2 ? shade(hair, -18) : shade(hair, 6)); K.R(bx - 0.7, 25.4, 1.4, 1.1, GOLD, 0.4); }
+      }
+      if (s.beard) { const bd = K.shape(q => { q.moveTo(15.8, 14.4); q.quadraticCurveTo(15.6, 21.6, 20.6, 22.4); q.quadraticCurveTo(25.4, 21.6, 25.2, 14.4); q.quadraticCurveTo(24.6, 17.6, 22.6, 17.2); q.quadraticCurveTo(20.6, 16.4, 18.6, 17.2); q.quadraticCurveTo(16.6, 17.4, 15.8, 14.4); }, K.lin(0, 14, 0, 23, [[0, shade(hair, 20)], [1, shade(hair, -26)]])); if (X) X.tex(bd, 'hair', [15.4, 14.2, 25.6, 22.6], { col: hair, n: 2.4, w: 0.1, len: 1.4, flow: (x) => 1.57 + (20.6 - x) * 0.06 }); }
       const mc = s.mus === 1 || s.goatee === 1 ? hair : (s.mus || s.goatee);
       if (s.mus) K.shape(q => { q.moveTo(17.6, 17.4); q.quadraticCurveTo(20.6, 15.2, 23.8, 17.2); q.quadraticCurveTo(20.6, 16.6, 17.6, 17.4); }, mc), K.curve([17.8, 17.2, 20.6, 15.8, 23.6, 17], 0.9, mc);
       if (s.goatee) K.ell(21, 19.4, 1.3, 1.6, mc);

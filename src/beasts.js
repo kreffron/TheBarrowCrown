@@ -439,7 +439,7 @@
       const H = B.heroicKit(c, seed + 3), K = kit(H.c); K.real = true; H.c.save(); H.c.lineJoin = 'round'; H.c.lineCap = 'round';
       const real = B.REAL_BEASTS && B.REAL_BEASTS[name];          // the animals have their own realistic painters (beasts2.js)
       const after = real ? real(H.c, K, H) : fn(H.c, K); H.c.restore();
-      H.finish({ wear: FURRED[name] && !real ? 'fur' : 'cloth', fur: real ? null : FURRED[name], real: true, shadowW: (FACE[name] && FACE[name][2] > 24) ? 14 : 11 });
+      H.finish({ wear: FURRED[name] && !real ? 'fur' : 'cloth', fur: real ? null : FURRED[name], grade: 0.16, pop: 'contrast(1.05) brightness(1.05)', shadowW: (FACE[name] && FACE[name][2] > 24) ? 14 : 11 });
       return after ? (c2 => { c2.save(); c2.lineCap = 'round'; after(kit(c2), c2); c2.restore(); }) : null;
     };
     // paints into c (already scaled to the 40x64 layout); returns the after-pass, if any, to draw on the outlined piece

@@ -346,12 +346,14 @@
           for (let i = 0; i < 1600; i++) { const x = 4 + rr() * 32, y = 6 + rr() * 46, l = 0.6 + rr() * 0.6; K.line([x, y, x + dx * l, y + dy * l], 0.1, rr() > 0.55 ? 'rgba(255,250,236,.22)' : 'rgba(0,0,0,.22)'); }
         }
         if (o && o.wear) {                                    // the weave of cloth and the grain of leather, and the road's dirt toward the feet
-          for (let i = 0; i < (o.wear === 'fur' ? 1400 : 900); i++) { const x = 4 + rr() * 32, y = 2 + rr() * 50; K.ell(x, y, 0.045, o.wear === 'fur' ? 0.12 : 0.045, rr() > 0.5 ? 'rgba(255,248,232,.1)' : 'rgba(0,0,0,.13)'); }
+          const clean = o.clean || [], inClean = (x, y) => clean.some(e => ((x - e[0]) / e[2]) ** 2 + ((y - e[1]) / e[3]) ** 2 < 1);   // faces stay clear of the weave
+          for (let i = 0; i < (o.wear === 'fur' ? 1400 : 900); i++) { const x = 4 + rr() * 32, y = 2 + rr() * 50; if (inClean(x, y)) continue; K.ell(x, y, 0.045, o.wear === 'fur' ? 0.12 : 0.045, rr() > 0.5 ? 'rgba(255,248,232,.1)' : 'rgba(0,0,0,.13)'); }
           c.fillStyle = K.lin(0, 43, 0, 52, [[0, 'rgba(60,44,26,0)'], [1, 'rgba(60,44,26,.32)']]); c.fillRect(0, 40, 40, 13);
         }
-        c.fillStyle = K.lin(8, 4, 32, 44, [[0, 'rgba(255,236,200,.16)'], [0.5, 'rgba(255,255,255,0)'], [1, 'rgba(20,14,30,.26)']]); c.fillRect(0, 0, 40, 64);
+        c.fillStyle = K.lin(8, 4, 32, 44, [[0, 'rgba(255,236,200,.16)'], [0.5, 'rgba(255,255,255,0)'], [1, 'rgba(20,14,30,' + (o && o.grade != null ? o.grade : 0.26) + ')']]); c.fillRect(0, 0, 40, 64);
         if (o && o.light) { const [x, y, r, col, a] = o.light; c.fillStyle = K.rad(x, y, 0.5, r, [[0, 'rgba(' + col + ',' + a + ')'], [0.4, 'rgba(' + col + ',' + a * 0.4 + ')'], [1, 'rgba(' + col + ',0)']]); c.fillRect(0, 0, 40, 64); }
         c.restore();
+        if (o && o.pop) { const t = document.createElement('canvas'); t.width = off.width; t.height = off.height; const tc = t.getContext('2d'); tc.filter = o.pop; tc.drawImage(off, 0, 0); c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, off.width, off.height); c.drawImage(t, 0, 0); c.restore(); }
         if (o && o.real) { const t = document.createElement('canvas'); t.width = off.width; t.height = off.height; const tc = t.getContext('2d'); tc.filter = 'saturate(0.8) contrast(1.06)'; tc.drawImage(off, 0, 0); c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, off.width, off.height); c.drawImage(t, 0, 0); c.restore(); }
         const W = off.width, Hh = off.height, sil = document.createElement('canvas'); sil.width = W; sil.height = Hh;
         const sc = sil.getContext('2d'); sc.drawImage(off, 0, 0); sc.globalCompositeOperation = 'source-in'; sc.fillStyle = '#c8daff'; sc.fillRect(0, 0, W, Hh);
