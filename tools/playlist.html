@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Barrow Crown: soundtrack</title>
+<style>
+  :root { --bg: #15110d; --panel: #201a14; --line: #3a3026; --ink: #efe4cf; --muted: #a8998a; --gold: #d9a441; --keep: #86b56f; --change: #e07b55; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 28px 18px 8px; max-width: 760px; margin: 0 auto; }
+  h1 { font: 600 26px/1.15 Georgia, "Iowan Old Style", serif; margin: 0 0 6px; color: var(--gold); letter-spacing: .01em; }
+  header p { margin: 4px 0; color: var(--muted); font-size: 14px; }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .pill { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; background: var(--panel); }
+  .pill:hover { border-color: var(--gold); }
+  .pill.on { border-color: var(--gold); color: var(--gold); }
+  main { max-width: 760px; margin: 0 auto; padding: 0 10px 170px; }
+  h2 { font: 600 18px/1.2 Georgia, serif; margin: 26px 8px 2px; color: var(--ink); }
+  .gnote { margin: 0 8px 10px; color: var(--muted); font-size: 13px; }
+  .row { border-top: 1px solid var(--line); padding: 10px 8px; display: grid; grid-template-columns: 36px 1fr auto; gap: 4px 10px; align-items: start; }
+  .row.playing { background: linear-gradient(90deg, rgba(217,164,65,.12), transparent 70%); }
+  .play { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 13px; color: var(--gold); margin-top: 1px; }
+  .row.playing .play { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+  .t { font-weight: 600; cursor: pointer; }
+  .w { color: var(--muted); font-size: 13px; }
+  .len { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; padding-top: 6px; }
+  .verdict { grid-column: 2 / 4; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .v { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--muted); }
+  .v.keep.on { border-color: var(--keep); color: var(--keep); }
+  .v.change.on { border-color: var(--change); color: var(--change); }
+  .note { flex: 1 1 200px; min-width: 0; background: var(--panel); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 5px 9px; font: inherit; font-size: 13px; }
+  .note:focus { outline: none; border-color: var(--gold); }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(28,23,18,.97); border-top: 1px solid var(--line); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); backdrop-filter: blur(6px); }
+  #bar .in { max-width: 760px; margin: 0 auto; }
+  #now { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #nowwhere { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #prog { height: 18px; margin: 6px 0 2px; position: relative; cursor: pointer; }
+  #prog::before { content: ''; position: absolute; left: 0; right: 0; top: 7px; height: 4px; background: var(--line); border-radius: 2px; }
+  #fill { position: absolute; left: 0; top: 7px; height: 4px; background: var(--gold); border-radius: 2px; width: 0; }
+  .ctl { display: flex; align-items: center; gap: 10px; }
+  .ctl .big { width: 44px; height: 44px; border-radius: 50%; background: var(--gold); color: var(--bg); font-size: 17px; }
+  .ctl .sm { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); font-size: 13px; }
+  #time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+  #vol { width: 90px; accent-color: var(--gold); }
+  #notesPanel { display: none; position: fixed; inset: 0; background: rgba(10,8,6,.85); z-index: 5; padding: 20px; }
+  #notesPanel .box { max-width: 640px; margin: 5vh auto 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  #notesPanel textarea { width: 100%; height: 50vh; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 13px/1.45 ui-monospace, Menlo, monospace; }
+  #notesPanel h3 { margin: 0 0 6px; font: 600 18px Georgia, serif; color: var(--gold); }
+  #notesPanel p { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .row .len .tick { color: var(--keep); }
+  @media (max-width: 520px) { #vol { display: none; } h1 { font-size: 23px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Barrow Crown: the soundtrack</h1>
+  <p>__COUNT__ tracks, about __TOTAL__ in all, played by the game's own music engine.</p>
+  <p>Tap a track to play it. Mark each one <b style="color:var(--keep)">Keep</b> or <b style="color:var(--change)">Change</b> and add a note if you like, then tap <b>My notes</b> and paste them back to Claude. Your marks are saved in this browser.</p>
+  <div class="tools">
+    <button class="pill on" id="once" title="Each track plays through once, then the next one starts">Play through once, then next</button>
+    <button class="pill" id="unmarked">Next unmarked</button>
+    <button class="pill" id="mynotes">My notes</button>
+  </div>
+</header>
+<main id="list"></main>
+<div id="bar"><div class="in">
+  <div id="now">Nothing playing</div><div id="nowwhere">Tap any track to start.</div>
+  <div id="prog" title="Jump to here (to the nearest bar)"><div id="fill"></div></div>
+  <div class="ctl">
+    <button class="sm" id="prev" aria-label="Previous">&#9198;</button>
+    <button class="big" id="pp" aria-label="Play or pause">&#9654;</button>
+    <button class="sm" id="next" aria-label="Next">&#9197;</button>
+    <input type="range" id="vol" min="1" max="10" value="7" aria-label="Volume">
+    <span id="time">0:00 / 0:00</span>
+  </div>
+</div></div>
+<div id="notesPanel"><div class="box">
+  <h3>My notes</h3>
+  <p>Copy this and paste it to Claude.</p>
+  <textarea id="notesText" readonly></textarea>
+  <div class="tools"><button class="pill on" id="copy">Copy</button><button class="pill" id="closeNotes">Close</button><button class="pill" id="clear">Clear all marks</button></div>
+</div></div>
+<script>
+const MUSIC = /*__MUSIC__*/;
+const GROUPS = /*__GROUPS__*/;
+window.G = { opts: { music: true, sfx: false, musicVol: 7, sfxVol: 0 }, D: { music: MUSIC }, fast: false };
+/*__AUDIO__*/
+(function () {
+  const KEY = 'barrow-crown-playlist-v1';
+  let marks = {};
+  try { marks = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { marks = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} };
+  const order = [], rowsEl = {}, byId = {};
+  const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const list = document.getElementById('list');
+  for (const g of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = g.name; list.appendChild(h);
+    if (g.note) { const p = document.createElement('p'); p.className = 'gnote'; p.textContent = g.note; list.appendChild(p); }
+    for (const r of g.rows) {
+      order.push(r.id); byId[r.id] = r;
+      const where = [r.where, r.places.length ? r.places.join(', ') + (r.more ? ' and ' + r.more + ' more' : '') : ''].filter(Boolean).join(' ');
+      const el = document.createElement('div'); el.className = 'row';
+      el.innerHTML = '<button class="play" aria-label="Play">&#9654;</button><div><div class="t">' + esc(r.title) + '</div><div class="w">' + esc(where) + '</div></div><div class="len">' + fmt(r.secs) + '</div>' +
+        '<div class="verdict"><button class="v keep">Keep</button><button class="v change">Change</button><input class="note" placeholder="Note (what to change, what you like)" value=""></div>';
+      el.querySelector('.play').onclick = () => (cur !== r.id ? play(r.id) : playing ? pause() : resume());
+      el.querySelector('.t').onclick = () => play(r.id);
+      const m = marks[r.id] || {};
+      const keep = el.querySelector('.keep'), change = el.querySelector('.change'), note = el.querySelector('.note');
+      note.value = m.note || '';
+      const paint = () => { const v = (marks[r.id] || {}).v; keep.classList.toggle('on', v === 'keep'); change.classList.toggle('on', v === 'change'); };
+      const set = v => { marks[r.id] = Object.assign({}, marks[r.id], { v: (marks[r.id] || {}).v === v ? null : v }); save(); paint(); };
+      keep.onclick = () => set('keep'); change.onclick = () => set('change');
+      note.oninput = () => { marks[r.id] = Object.assign({}, marks[r.id], { note: note.value }); save(); };
+      paint(); rowsEl[r.id] = el; list.appendChild(el);
+    }
+  }
+  // iPhones mute web audio with the ring switch unless the page also plays an <audio> element: a silent one, looped
+  let silent = null;
+  function wake() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (!silent) {
+      try {
+        const n = 4410, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+        w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, 44100, true); v.setUint32(28, 88200, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+        silent = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }))); silent.loop = true; silent.setAttribute('playsinline', '');
+      } catch (e) { silent = false; }
+    }
+    if (silent) { const p = silent.play(); if (p && p.catch) p.catch(() => {}); }
+    G.audio.unlock();
+  }
+  let cur = null, playing = false, pausedAt = 0, once = true;
+  const now = document.getElementById('now'), nowwhere = document.getElementById('nowwhere'), fill = document.getElementById('fill'), time = document.getElementById('time'), pp = document.getElementById('pp');
+  function show() {
+    for (const id in rowsEl) rowsEl[id].classList.toggle('playing', id === cur);
+    pp.innerHTML = playing ? '&#10074;&#10074;' : '&#9654;';
+    for (const id in rowsEl) rowsEl[id].querySelector('.play').innerHTML = id === cur && playing ? '&#10074;&#10074;' : '&#9654;';
+    if (cur) { const r = byId[cur]; now.textContent = r.title; nowwhere.textContent = rowsEl[cur].querySelector('.w').textContent || cur; }
+  }
+  function start(id, fromStep) {
+    wake(); G.audio.music(null); G.__from = fromStep || 0; G.audio.music(id); cur = id; playing = true; show();
+  }
+  function play(id) { pausedAt = 0; start(id, 0); const el = rowsEl[id]; const r = el.getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight - 150) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  function pause() { const i = G.audio.info(); pausedAt = i ? i.t % i.len : 0; G.audio.music(null); playing = false; show(); }
+  function resume() { if (!cur) return play(order[0]); const t = MUSIC[cur], step = 30 / t.bpm; start(cur, Math.floor(pausedAt / step / 8) * 8); }
+  const step = d => { const i = order.indexOf(cur); play(order[(i + d + order.length) % order.length]); };
+  pp.onclick = () => (playing ? pause() : resume());
+  document.getElementById('prev').onclick = () => step(-1);
+  document.getElementById('next').onclick = () => step(1);
+  document.getElementById('once').onclick = e => { once = !once; e.currentTarget.classList.toggle('on', once); };
+  document.getElementById('unmarked').onclick = () => { const i = order.indexOf(cur); for (let k = 1; k <= order.length; k++) { const id = order[(i + k + order.length) % order.length]; if (!(marks[id] || {}).v) return play(id); } };
+  document.getElementById('vol').oninput = e => { G.opts.musicVol = +e.target.value; G.audio.setOpts(); };
+  document.getElementById('prog').onclick = e => {
+    if (!cur) return; const r = e.currentTarget.getBoundingClientRect(), f = Math.max(0, Math.min(0.999, (e.clientX - r.left) / r.width));
+    const i = G.audio.info(), t = MUSIC[cur]; let steps = i ? i.steps : 0;
+    if (!steps) { const s = 30 / t.bpm; steps = Math.round(byId[cur].secs / s); }
+    pausedAt = Math.floor(f * steps / 8) * 8 * (30 / t.bpm); start(cur, Math.floor(f * steps / 8) * 8);
+  };
+  setInterval(() => {
+    const i = playing && G.audio.info();
+    if (i) {
+      if (once && i.t >= i.len - 0.05) { step(1); return; }
+      const t = i.t % i.len; fill.style.width = (100 * t / i.len) + '%'; time.textContent = fmt(t) + ' / ' + fmt(i.len);
+    } else if (cur) { const len = byId[cur].secs; fill.style.width = (100 * pausedAt / len) + '%'; time.textContent = fmt(pausedAt) + ' / ' + fmt(len); }
+  }, 200);
+  // notes to send back
+  const panel = document.getElementById('notesPanel'), ta = document.getElementById('notesText');
+  function notesText() {
+    const ch = [], kp = [], nt = [];
+    for (const id of order) {
+      const m = marks[id] || {}, r = byId[id], n = (m.note || '').trim(), label = r.title + ' [' + id + ']';
+      if (m.v === 'change') ch.push('- ' + label + (n ? ': ' + n : ''));
+      else if (m.v === 'keep') kp.push(label + (n ? ' (' + n + ')' : ''));
+      else if (n) nt.push('- ' + label + ': ' + n);
+    }
+    const out = ['Barrow Crown soundtrack notes', ''];
+    out.push('CHANGE (' + ch.length + '):', ...(ch.length ? ch : ['- none']), '');
+    if (nt.length) out.push('NOTES (not marked):', ...nt, '');
+    out.push('KEEP (' + kp.length + '): ' + (kp.length ? kp.join('; ') : 'none'), '');
+    const left = order.filter(id => !(marks[id] || {}).v).length;
+    out.push(left ? left + ' tracks not marked yet.' : 'Every track marked.');
+    return out.join('\n');
+  }
+  document.getElementById('mynotes').onclick = () => { ta.value = notesText(); panel.style.display = 'block'; };
+  document.getElementById('closeNotes').onclick = () => { panel.style.display = 'none'; };
+  document.getElementById('copy').onclick = async e => {
+    ta.select(); let ok = false;
+    try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (err) { try { ok = document.execCommand('copy'); } catch (err2) {} }
+    e.currentTarget.textContent = ok ? 'Copied' : 'Select and copy'; setTimeout(() => { e.currentTarget.textContent = 'Copy'; }, 1600);
+  };
+  document.getElementById('clear').onclick = () => {
+    if (!document.getElementById('clear').dataset.sure) { document.getElementById('clear').dataset.sure = 1; document.getElementById('clear').textContent = 'Tap again to clear'; return; }
+    marks = {}; save(); location.reload();
+  };
+})();
+</script>
+</body>
+</html>
