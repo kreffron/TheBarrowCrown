@@ -48,7 +48,11 @@
       h('A turn') + p('Move and act once each, in either order. You can undo a move before acting. Rough ground and shallows cost 2 squares to enter.') +
       h('Free strikes') + p('Stepping away from an enemy beside you gives it one free attack at −2. Dask and anyone hidden never provoke.') +
       h('Defend') + p('+4 AC until your next turn, and 1 SP back.') +
-      h('Fleeing') + p('d20 + the party\'s best Speed against 8 + the enemies\' best Speed. You cannot flee from bosses. Losing a fight lets you try again, or retreat for a tenth of your gold.')],
+      h('Fleeing') + p('d20 + the party\'s best Speed against 8 + the enemies\' best Speed. You cannot flee from bosses. Losing a fight lets you try again, or retreat for a tenth of your gold.') +
+      h('Team-ups') + p('Two heroes who are close (a companion Trusting Runa, or two companions who are Friends) and standing side by side can pull off a joint move, once per pair each fight, for the action of whoever calls it. Runa and Dask: Over the Line. Runa and Maren: Hammer and Lamp. Runa and Finch: Battle Hymn. Dask and Maren: Blind and Bleed. Dask and Finch: Look Over There. Maren and Finch: Two-Part Hymn, a heal for everyone near them.') +
+      h('Auto-battle') + p('In a fight the party has outgrown (no boss, and the party above the fight\'s level), the ⏩ button (' + (Menu.keyHint ? Menu.keyHint('bauto') || 'R' : 'R') + ') lets the heroes fight on their own, quickly. Press it again to take back control.') +
+      h('Weather') + p('Rain (the coast, the fen): fires burn out fast, and a powder keg is too damp to light by hand. Snow: shots at more than 4 squares are at −2. The Ashlands: embers on the wind can set the dry scrub burning.') +
+      h('Enemy habits') + p('Each kind of foe has a usual habit: pack hunters pile onto one hero, archers pick on the least armoured, the dead are drawn to Maren\'s lamp, and so on. Beat one to see its habit in the bestiary. A habit is a good guess, never a promise.')],
     ['Levels and experience', () => {
       const T = G.D.xpTable; let rows = '';
       for (let L = 1; L <= 30; L++) rows += '<tr><td>' + L + '</td><td>' + (L === 1 ? '0' : T[L - 1].toLocaleString()) + '</td><td>' + (L === 1 ? '' : (T[L - 1] - T[L - 2]).toLocaleString()) + '</td><td>' + (G.AC_LEVELS.includes(L) ? '+1 AC for everyone' : '') + '</td></tr>';

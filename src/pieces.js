@@ -390,12 +390,85 @@
   B.parts = [];
   B.spark = function (x, y, color, n, speed, life, grav) {
     if (G.fast || B.parts.length > 800) return;                  // nothing is drawn while skipping; and never let them pile up
-    for (let i = 0; i < (n || 8); i++) { const an = Math.random() * 6.283, sp = (speed || 40) * (0.4 + Math.random() * 0.8); B.parts.push({ x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - (grav ? 20 : 0), t: 0, life: (life || 450) * (0.6 + Math.random() * 0.6), color, g: grav || 0 }); }
+    for (let i = 0; i < (n || 8); i++) { const an = Math.random() * 6.283, sp = (speed || 40) * (0.4 + Math.random() * 0.8); B.parts.push({ x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - (grav ? 20 : 0), t: 0, life: (life || 450) * (0.6 + Math.random() * 0.6), color, g: grav || 0, s: 1.2 + Math.random() * (grav > 60 ? 1.4 : 0.8) }); }
   };
   function drawParts(c, dt) {
     const s = dt / 1000; B.parts = B.parts.filter(p => (p.t += dt) < p.life);
-    c.save(); c.globalCompositeOperation = 'lighter';
-    for (const p of B.parts) { p.x += p.vx * s; p.y += p.vy * s; p.vy += p.g * s; p.vx *= 0.96; const a = 1 - p.t / p.life; c.globalAlpha = a; c.fillStyle = p.color; c.fillRect(p.x - 0.75, p.y - 0.75, 1.5, 1.5); }
+    // sparks glow on a dark board; on a bright one (snow, sand, daylight) adding light would wash them out, so they
+    // are painted solid there, with a dark edge on the heavier bits (debris, bone, stone) so they read against snow
+    const glow = !!(B.ambient && B.ambient()) || /^(cave|crypt|throne|sewer|ash|tavern)$/.test(B.bg);
+    c.save(); c.globalCompositeOperation = glow ? 'lighter' : 'source-over';
+    for (const p of B.parts) {
+      p.x += p.vx * s; p.y += p.vy * s; p.vy += p.g * s; p.vx *= 0.96; const a = 1 - p.t / p.life, z = p.s || 1.5;
+      if (!glow && p.g > 60) { c.globalAlpha = a * 0.55; c.fillStyle = '#2a2430'; c.fillRect(p.x - z / 2 + 0.4, p.y - z / 2 + 0.4, z, z); }
+      c.globalAlpha = glow ? a : Math.min(1, a * 1.2); c.fillStyle = p.color; c.fillRect(p.x - z / 2, p.y - z / 2, z, z);
+    }
+    c.restore();
+  }
+
+  // How a foe falls, and the particles that go with it.
+  B.deathFx = function (t) {
+    const wk = B.woundKind(t), beast = (t.tags || []).indexOf('beast') >= 0 && (t.def && (t.def.scale || 3) < 4);
+    t.death = wk === 'bone' ? 'bone' : wk === 'spirit' || wk === 'slime' ? 'spirit' : wk === 'stone' ? 'stone' : beast ? 'flee' : 'fall';
+    const src = B.active; t.fleeDir = src && src.gx > t.gx ? -1 : 1;
+    if (!B.spark || t.px == null) return;
+    const x = t.px, y = t.py - 12 * B.pieceSize(t);
+    if (t.death === 'bone') { B.spark(x, y, '#e8e0cc', 16, 50, 800, 140); B.spark(x, t.py - 2, '#a8a090', 10, 30, 900, 60); }
+    else if (t.death === 'spirit') B.spark(x, y, wk === 'slime' ? '#9ad08a' : '#c8d8ff', 22, 30, 1100, -40);
+    else if (t.death === 'stone') { B.spark(x, y, '#9a9488', 20, 80, 900, 170); B.spark(x, y, '#d8d0c0', 8, 60, 700, 150); }
+    else if (t.death === 'flee') B.spark(x, t.py - 1, '#a89878', 10, 25, 600, 10);
+  };
+  // What a spell leaves where it lands: embers rise from fire, frost shards fall, holy light drifts up.
+  B.impactParts = function (t, kind) {
+    if (!B.spark || !t || t.px == null) return;
+    const x = t.px, y = t.py - 13 * B.pieceSize(t);
+    const K = { fire: [['#ff9a2e', 18, 45, 900, -50], ['#ffe07a', 8, 30, 700, -40]], frost: [['#bfe4ff', 16, 60, 700, 110], ['#ffffff', 8, 40, 600, 90]],
+      holy: [['#fff2b0', 18, 25, 1100, -30], ['#ffe07a', 8, 40, 800, -20]], song: [['#f08aa6', 12, 30, 900, -25]], shadow: [['#8a6ac8', 16, 35, 900, -15], ['#2a1a3a', 8, 25, 800, 10]],
+      magic: [['#b48cf0', 14, 40, 800, -20], ['#ffffff', 6, 30, 600, 0]] }[kind] || [];
+    for (const [col, n, sp, life, g] of K) B.spark(x, y, col, n, sp, life, g);
+  };
+  // Weather over the board, by where the fight is: snow in the frost, ash and embers in the Ashlands, rain on the
+  // coast, a drizzle in the fen, leaves in the woods. Worked out from the time alone, so it costs nothing to keep.
+  function weather(c) {
+    const t = G.time / 1000, bg = B.bg;
+    const wrap = (v, m) => ((v % m) + m) % m;
+    c.save();
+    if (bg === 'snow') {
+      const wind = 10 + Math.sin(t * 0.5) * 14;
+      c.fillStyle = '#ffffff';
+      for (let i = 0; i < 90; i++) {                            // far flakes small and slow, a few near ones big, soft and quick
+        const near = i % 9 === 0, sp = near ? 34 + (i % 5) * 4 : 12 + (i * 13) % 18, r = near ? 1.6 : i % 3 === 0 ? 0.9 : 0.65;
+        const y = wrap((i * 37) % 260 + t * sp, 260) - 10, x = wrap((i * 71) % 340 + t * wind * (near ? 1.5 : 0.6 + (i % 5) * 0.12) + Math.sin(t * 1.4 + i) * (near ? 7 : 4), 340) - 10;
+        c.globalAlpha = near ? 0.55 : 0.75; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      }
+    } else if (bg === 'ash') {
+      for (let i = 0; i < 46; i++) {                            // grey ash drifting down
+        const sp = 6 + (i * 7) % 10, y = wrap((i * 41) % 250 + t * sp, 250) - 5, x = wrap((i * 89) % 330 + Math.sin(t * 0.8 + i) * 8 + t * 4, 330) - 5;
+        c.globalAlpha = 0.6; c.fillStyle = i % 3 ? '#9a9088' : '#c8beb4'; c.fillRect(x, y, 1.7, 1.7);
+      }
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 22; i++) {                            // embers lifting off the board
+        const sp = 10 + (i * 11) % 18, y = 250 - wrap((i * 53) % 260 + t * sp, 260), x = wrap((i * 97) % 330 + Math.sin(t * 2 + i * 1.3) * 6, 330) - 5;
+        c.globalAlpha = 0.5 + 0.4 * Math.sin(t * 7 + i); c.fillStyle = i % 2 ? '#ff8a3a' : '#ffc060'; c.fillRect(x, y, 1.3, 1.3);
+      }
+    } else if (bg === 'beach' || bg === 'fen') {
+      c.globalAlpha = bg === 'beach' ? 0.08 : 0.05; c.fillStyle = '#3a4a68'; c.fillRect(0, 0, 320, 240);   // the light goes grey and cool under the rain
+      const n = bg === 'beach' ? 70 : 34; c.strokeStyle = bg === 'beach' ? '#cfe4ff' : '#c8dcd0'; c.lineWidth = 0.7;
+      for (let i = 0; i < n; i++) {
+        const sp = 150 + (i * 17) % 80, y = wrap((i * 43) % 260 + t * sp, 260) - 10, x = wrap((i * 61) % 360 + t * sp * 0.25, 360) - 20;
+        c.globalAlpha = bg === 'beach' ? 0.32 : 0.22; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 2.5, y - 9); c.stroke();
+      }
+      if (bg === 'beach') for (let i = 0; i < 10; i++) {       // splashes on the board
+        const ph = wrap(t * 1.7 + i * 0.37, 1), x = B.BX + ((i * 83) % (B.N * B.TW)), y = B.BY + ((i * 47) % (B.N * B.TH));
+        c.globalAlpha = 0.4 * (1 - ph); c.beginPath(); c.ellipse(x, y, 1 + ph * 4, 0.5 + ph * 1.5, 0, 0, 7); c.stroke();
+      }
+    } else if (bg === 'forest') {
+      for (let i = 0; i < 9; i++) {                             // a few leaves turning on the way down
+        const sp = 9 + (i * 5) % 8, y = wrap((i * 59) % 250 + t * sp, 250) - 5, x = wrap((i * 113) % 330 + Math.sin(t * 0.9 + i) * 14 + t * 5, 330) - 5;
+        c.globalAlpha = 0.8; c.fillStyle = ['#c87a2a', '#d8a83a', '#8a9a3a'][i % 3];
+        c.save(); c.translate(x, y); c.rotate(Math.sin(t * 2 + i) * 1.2); c.fillRect(-1.5, -0.7, 3, 1.4); c.restore();
+      }
+    }
     c.restore();
   }
 
@@ -420,11 +493,21 @@
     const pos = posAt(gx, gy);
     if (o.fx) {
       const a = G.time - o.fx.t;
-      if (o.fx.k === 'lunge' && a < 220) { const k = Math.sin(a / 220 * Math.PI) * 6; if (B.isIso()) { const v = B.isoVec(o.fx.dx || 0, o.fx.dy || 0); pos.x += v[0] / 14 * k; pos.y += v[1] / 14 * k; } else { pos.x += (o.fx.dx || 0) * k; pos.y += (o.fx.dy || 0) * k * 0.6; } }
+      const push = (dx, dy, k) => { if (B.isIso()) { const v = B.isoVec(dx || 0, dy || 0); pos.x += v[0] / 14 * k; pos.y += v[1] / 14 * k; } else { pos.x += (dx || 0) * k; pos.y += (dy || 0) * k * 0.6; } };
+      // a lunge: a little draw back first, then the drive forward
+      if (o.fx.k === 'lunge' && a < 240) push(o.fx.dx, o.fx.dy, a < 70 ? -Math.sin(a / 70 * Math.PI / 2) * 2 : Math.sin((a - 70) / 170 * Math.PI) * 8);
       else if (o.fx.k === 'cast' && a < 300) pos.y -= Math.sin(a / 300 * Math.PI) * 3;
-      else if (o.fx.k === 'hit' && a < 260) pos.x += (Math.floor(a / 40) % 2 ? 1 : -1);
+      else if (o.fx.k === 'hit' && a < 300) {                  // knocked back a step's worth, held through the hit-stop, then eased home
+        const hold = B.stopDur || 45, k = a < hold ? 1 : 1 - (a - hold) / (300 - hold);
+        if (o.fx.dx || o.fx.dy) push(o.fx.dx, o.fx.dy, 3.5 * k * k / B.pieceSize(o) / (o.def && (o.def.scale || 3) >= 4 ? 1.6 : 1)); else pos.x += (Math.floor(a / 40) % 2 ? 1 : -1);
+      }
       else if (o.fx.k === 'enter' && a < 520) pos.x += (1 - a / 520) * 60;
     }
+    if (o.cheerT && !o.down) {                                  // a hop or two of joy
+      const a = G.time - o.cheerT, n = o.cheers || 1;
+      if (a > 0 && a < 260 * n) pos.y -= Math.abs(Math.sin(a / 260 * Math.PI)) * 5; else if (a >= 260 * n) o.cheerT = 0;
+    }
+    if (o.gone && o.death === 'flee' && o.downT) { const a = Math.min(1, (G.time - o.downT) / 700); pos.x += (o.fleeDir || 1) * a * a * 46; pos.y -= Math.abs(Math.sin(a * 9)) * 2; }
     return pos;
   }
   B.draw = function (c) {
@@ -432,16 +515,21 @@
     c.setTransform(B.RES, 0, 0, B.RES, 0, 0); c.imageSmoothingEnabled = false;
     const th = B.THEME[B.bg] || B.THEME.forest;
     c.imageSmoothingEnabled = true; c.drawImage(backdrop(B.BG[B.bg] ? B.bg : 'forest'), 0, 0, 320, 240); c.imageSmoothingEnabled = false;
-    const shake = B.shakeT && G.time - B.shakeT < 220 ? Math.round(Math.sin(G.time / 18) * 2) : 0;
+    const sa = B.shakeT ? G.time - B.shakeT : 1e9, amp = sa < 260 ? (B.shakeAmp || 2) * (1 - sa / 260) : 0;
+    const shake = amp ? Math.sin(G.time / 16) * amp : 0, shakeY = amp ? Math.cos(G.time / 23) * amp * 0.55 : 0;
+    const held = B.stopT && G.time - B.stopT < (B.stopDur || 0), fdt = held ? 0 : dt;   // the hit-stop: sparks and numbers hang in the air
     B.camUpdate(dt);
-    c.save(); c.translate(shake, 0); B.camApply(c);
+    c.save(); c.translate(shake, shakeY); B.camApply(c);
     if (B.punch) {                                              // a short push in on a critical hit or a knockout
-      const pa = (G.time - B.punch.t) / 300;
+      const pa = (G.time - B.punch.t) / (B.punch.dur || 300), Z = B.punch.z || 0.05;
       if (pa >= 1 || !B.punch.o || B.punch.o.px == null) B.punch = null;
-      else { const z = 1 + 0.05 * Math.sin(pa * Math.PI) * (1 - pa * 0.4), p = B.center(B.punch.o); c.translate(p.x, p.y); c.scale(z, z); c.translate(-p.x, -p.y); }
+      else {                                                    // in and out; a held push (a boss's arrival) eases in, stays, eases out
+        const e = B.punch.hold ? Math.min(1, pa / 0.15, (1 - pa) / 0.2) : Math.sin(pa * Math.PI) * (1 - pa * 0.4);
+        const z = 1 + Z * Math.max(0, e), p = B.center(B.punch.o); c.translate(p.x, p.y); c.scale(z, z); c.translate(-p.x, -p.y);
+      }
     }
     const W = B.N * B.TW, H = B.N * B.TH;
-    const units = B.c.filter(o => !o.gone || (o.downT && G.time - o.downT < 450));
+    const units = B.c.filter(o => !o.gone || (o.downT && G.time - o.downT < 760));
     units.forEach(o => { const p = unitPos(o); o.px = p.x; o.py = p.y; });
     if (B.isIso()) B.isoBoard(c, dt, units); else flatBoard(c, units);
     fog(c); drawLight(c, dt); beams(c);
@@ -471,23 +559,28 @@
     }
     B.drawPreview(c);
     B.drawVfx(c);
-    drawParts(c, Math.min(dt, 60));
-    motes(c);
+    drawParts(c, Math.min(fdt, 60));
+    motes(c); weather(c);
     c.restore();
     c.save(); B.camApply(c);
+    B.drawBubbles(c);                                           // party chatter first, so a number is never hidden under a bubble
     c.textAlign = 'center';
     B.floats = B.floats.filter(f => f.t < 1000);
     for (const f of B.floats) {
-      f.t += dt;
-      const k = Math.min(1, f.t / 600), y = f.y - 4 - 18 * (1 - (1 - k) * (1 - k)), pop = f.t < 140 ? 1.6 - f.t / 140 * 0.6 : 1, big = f.crit || f.color === '#ffd24a' ? 1.35 : 1;
-      c.save(); c.translate(f.x, y); c.scale(pop * big, pop * big); c.globalAlpha = f.t > 750 ? Math.max(0, 1 - (f.t - 750) / 250) : 1;
+      f.t += fdt;
+      // numbers pop out, a critical bigger and with a bounce, a heavy blow a little bigger than a light one
+      const k = Math.min(1, f.t / 600), y = f.y - 4 - 18 * (1 - (1 - k) * (1 - k)) - (f.crit && f.t < 360 ? Math.abs(Math.sin(f.t / 360 * Math.PI * 2)) * 4 * (1 - f.t / 360) : 0);
+      const pop = f.t < 160 ? (f.crit ? 1.8 : 1.6) - f.t / 160 * (f.crit ? 0.8 : 0.6) : 1, big = f.crit ? 1.35 : f.big || f.color === '#ffd24a' ? 1.25 : 1;
+      // never under the bars along the top of the screen: work out where the number lands on screen, and nudge it down
+      const m = c.getTransform(), top = 68 * B.RES + 9 * pop * big * m.d + (f.crit ? 7 * pop * big * m.d : 0); let yy = y; if (m.d * yy + m.f < top) yy = (top - m.f) / m.d;   // the top of the text, label included, clears the bars
+      c.save(); c.translate(f.x + (f.crit && f.t < 200 ? Math.sin(f.t / 18 + f.wob) * 1.2 : 0), yy); c.scale(pop * big, pop * big); c.globalAlpha = f.t > 750 ? Math.max(0, 1 - (f.t - 750) / 250) : 1;
+      if (f.crit) { c.font = 'bold 5px ui-monospace, Menlo, Consolas, monospace'; c.lineJoin = 'round'; c.strokeStyle = '#1a1420'; c.lineWidth = 1.8; c.strokeText('CRITICAL', 0, -8.5); c.fillStyle = '#ffe07a'; c.fillText('CRITICAL', 0, -8.5); }
       c.font = 'bold 9px ui-monospace, Menlo, Consolas, monospace'; c.lineJoin = 'round';
       c.strokeStyle = '#1a1420'; c.lineWidth = 2.5; c.strokeText(f.text, 0, 0);
       c.fillStyle = f.color; c.fillText(f.text, 0, 0);
       if (f.glyph) { const w = c.measureText(f.text).width / 2 + 4; c.beginPath(); c.arc(-w, -3, 3.4, 0, 7); c.fillStyle = 'rgba(26,20,32,.9)'; c.fill(); B.glyph(c, f.glyph, -w, -3, 2.5, f.color); }
       c.restore();
     }
-    B.drawBubbles(c);
     c.restore();
     banner(c);
     if (B.flashT && G.time - B.flashT < 110) { c.fillStyle = 'rgba(255,240,200,' + (0.22 * (1 - (G.time - B.flashT) / 110)) + ')'; c.fillRect(0, 0, 320, 240); }
@@ -594,18 +687,28 @@
     const sz = B.pieceSize(o), side = o.side === 1 ? 1 : o.guest ? 2 : 0, pc = B.piece(o.sprite, side);
     const w = 20 * sz, h = 32 * sz;
     let alpha = 1;
-    if (o.gone) alpha = Math.max(0, 1 - (G.time - o.downT) / 450);
+    const da = o.gone && o.downT ? G.time - o.downT : 0, dk = o.death || 'fall';
+    if (o.gone) alpha = Math.max(0, 1 - Math.max(0, da - (dk === 'fall' ? 250 : dk === 'stone' ? 120 : 0)) / (dk === 'spirit' ? 700 : dk === 'flee' ? 700 : 480));
     if (B.has(o, 'hidden')) alpha *= 0.45;
     if (o.fx && o.fx.k === 'enter' && G.time - o.fx.t < 520) alpha *= (G.time - o.fx.t) / 520;
     // a soft shadow under the base
     if (!o.down) { const sg = c.createRadialGradient(o.px, o.py + 1, 1, o.px, o.py + 1, 10 * sz); sg.addColorStop(0, 'rgba(0,0,0,' + (0.42 * alpha) + ')'); sg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sg; c.beginPath(); c.ellipse(o.px + 1, o.py + 1, 10 * sz, 4 * sz, 0, 0, 7); c.fill(); }
     if (o.bob == null) o.bob = Math.random() * 6.283;
-    const breathe = o.down || o.anim ? 0 : Math.sin(G.time / 520 + o.bob) * 0.5;
+    const breathe = o.down || o.anim || o.gone ? 0 : Math.sin(G.time / 520 + o.bob) * 0.75;
     c.globalAlpha = alpha;
     c.save(); c.translate(o.px, Math.round(o.py * 2) / 2);
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const face = B.isIso() ? B.isoFace(o) : o.face;
     if (o.down && !o.gone) { c.globalAlpha = 0.55 * alpha; c.rotate(face > 0 ? -1.45 : 1.45); c.translate(0, 3); }
+    if (o.gone && da) {                                          // how each kind falls
+      const t = Math.min(1, da / 700);
+      if (dk === 'fall') { const r = Math.min(1, da / 250); c.rotate((face > 0 ? -1 : 1) * 1.45 * r * r); c.translate(0, 3 * r); }
+      else if (dk === 'bone') { c.translate(0, 0); c.scale(1 + t * 0.25, Math.max(0.15, 1 - t * 0.9)); }                 // the bones fold down into a heap
+      else if (dk === 'spirit') { c.translate(Math.sin(da / 60) * 1.5, -t * 14); c.scale(1 - t * 0.4, 1 + t * 0.5); }      // a spirit thins and rises away
+      else if (dk === 'stone') { if (da < 120) c.translate(Math.sin(da / 12) * 1.5, 0); else c.scale(1, Math.max(0.2, 1 - (da - 120) / 500)); }
+      else if (dk === 'flee') c.scale(-1, 1);                    // a beast turns tail
+    }
+    if (!o.down && !o.gone && o.side === 0 && B.woundStage(o) >= 2) { c.rotate((face > 0 ? 1 : -1) * 0.06); c.scale(1, 0.97); }   // badly hurt: a hero sags and leans
     if (face < 0) c.scale(-1, 1);
     const ring = !o.down && !o.gone ? (o === B.active ? '#ffd24a' : B.ui && B.ui.cur && B.ui.tint === 'foe' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy && o.side === 1 ? '#ff5a4a' : B.ui && B.ui.cur && B.ui.tint === 'ally' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy ? '#8af0a0' : null) : null;
     if (ring) {                                                 // a glowing outline on the piece whose turn it is, or the one being aimed at
@@ -767,6 +870,14 @@
       hole(o.px, o.py - 10 * sz, (o.side === 1 ? 17 : 25) * sz * (act ? 1.35 : 1), o.down ? 0.25 : o.side === 1 ? 0.5 : 0.8);
     }
     for (const tc of torches) { const f = 1 + Math.sin(t * 9 + tc.x) * 0.05 + Math.sin(t * 23 + tc.x * 3) * 0.03; hole(tc.x, tc.y + 8, 62 * f, 0.95); glows.push([tc.x, tc.y + 4, 40 * f, '255,160,70', 0.22]); }
+    // braziers and burning ground light the squares round them, flickering
+    const fires = [];
+    if (B.props) for (const [k, kind] of B.props) if (kind === 'brazier') { const [x, y] = k.split(',').map(Number); fires.push([x, y, 1]); }
+    if (B.terrain) for (const [k, ter] of B.terrain) if (ter === 'fire') { const [x, y] = k.split(',').map(Number); fires.push([x, y, 0.7]); }
+    for (const [x, y, s] of fires.slice(0, 24)) {
+      const p = B.tileCenter(x, y), f = 1 + Math.sin(t * 11 + x * 2.3 + y) * 0.07 + Math.sin(t * 27 + x * 5) * 0.04;
+      hole(p.x, p.y, 40 * s * f, 0.9 * s); glows.push([p.x, p.y - 3, 26 * s * f, '255,150,60', 0.2 * s]);
+    }
     for (const v of (B.vfx || [])) {
       if (v.k === 'whiff') continue;
       const a = Math.min(1, (G.time - v.t0) / v.dur); let p = null;
@@ -812,7 +923,8 @@
   function banner(c) {
     const bn = B.banner; if (!bn) return;
     const a = (G.time - bn.t0) / bn.dur; if (a >= 1 || G.fast) { B.banner = null; return; }
-    const cy = B.BY + B.N * B.TH / 2, inA = Math.min(1, a / 0.15), outA = a > 0.8 ? 1 - (a - 0.8) / 0.2 : 1, al = inA * outA, h = bn.boss ? 34 : 20;
+    const cy = B.BY + B.N * B.TH / 2, inA = Math.min(1, a / 0.15), outA = a > 0.8 ? 1 - (a - 0.8) / 0.2 : 1, al = inA * outA, h = bn.boss ? 40 : 20;
+    if (bn.boss) { const bar = 22 * al; c.fillStyle = '#000'; c.fillRect(0, 0, 320, bar); c.fillRect(0, 240 - bar, 320, bar); }   // the screen narrows for a boss
     const slide = (1 - inA) * -40 + (a > 0.8 ? (a - 0.8) / 0.2 * 40 : 0);
     c.save(); c.globalAlpha = al * 0.88;
     const g = c.createLinearGradient(0, 0, 320, 0); g.addColorStop(0, 'rgba(10,8,20,0)'); g.addColorStop(0.22, 'rgba(10,8,20,.92)'); g.addColorStop(0.78, 'rgba(10,8,20,.92)'); g.addColorStop(1, 'rgba(10,8,20,0)');
@@ -821,7 +933,7 @@
     c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
     const F = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
     if (bn.sub) { c.font = 'bold 6px ' + F; c.fillStyle = '#ff8a6a'; c.fillText(bn.sub.split('').join(' '), 160 + slide, cy - 9); }
-    c.font = 'bold ' + (bn.boss ? 12 : 10) + 'px ' + F; c.strokeStyle = '#120c18'; c.lineWidth = 3;
+    c.font = 'bold ' + (bn.boss ? 15 : 10) + 'px ' + F; c.strokeStyle = '#120c18'; c.lineWidth = 3;
     const ty = cy + (bn.sub ? 4 : 0.5); c.strokeText(bn.text, 160 + slide, ty); c.fillStyle = bn.boss ? '#ffe2c8' : '#f4e6b8'; c.fillText(bn.text, 160 + slide, ty);
     c.restore(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }

@@ -52,7 +52,7 @@ UI.menu = function (o) {
       set(j); G.audio.sfx('move');
     }
     const m = {
-      el: box,
+      el: box, cls: o.cls || '', done: v => done(v),   // done: lets the game close it from outside (auto-battle taking over a turn)
       press(b) {
         if (b === 'up') move(-cols); else if (b === 'down') move(cols);
         else if (b === 'left' || b === 'right') {

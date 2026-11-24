@@ -410,7 +410,7 @@ PLAY3 = r"""
     for (const [who, id] of want) if (G.has(id)) { const m = G.S.party.find(p => p.id === who), it = G.D.items[id]; if (it.type === 'charm' && m.gear.charm === 'shardworn') continue; const old = m.gear[it.type]; m.gear[it.type] = id; G.give(id, -1); if (old) G.give(old, 1); }
   };
   T.pick = async (ch, label) => { const old = T.prefs; T.prefs = ['^' + label + '$']; await T.use(ch); T.prefs = old; };
-  for (let i = 0; i < 12 && G.S.map !== 'karrow'; i++) { await T.go('saltmere'); await T.use('n'); }
+  for (let i = 0; i < 40 && G.S.map !== 'karrow'; i++) { await T.go('saltmere'); await T.use('n'); }
   if (G.S.map !== 'karrow' || G.S.flags.chapter !== 3) throw new Error('the north road did not start chapter 3');
   T.mark('karrow'); T.buy();
   await T.go('k_hall'); await T.use('c');
@@ -523,7 +523,7 @@ PLAY4 = r"""
   };
   T.pick = async (ch, labels) => { const old = T.prefs; T.prefs = labels.map(l => '^' + l + '$'); await T.use(ch); T.prefs = old; };
   T.pickup = ch => { const th = Field.map.things.find(t => t.ch === ch && Field.visible(t)); if (th) Field.pickup(th); };
-  for (let i = 0; i < 12 && G.S.map !== 'highmoor'; i++) { await T.go('karrow'); await T.use('n'); }
+  for (let i = 0; i < 40 && G.S.map !== 'highmoor'; i++) { await T.go('karrow'); await T.use('n'); }
   if (G.S.map !== 'highmoor' || G.S.flags.chapter !== 4) throw new Error('the road did not start chapter 4');
   T.mark('highmoor'); T.buy();
   for (let i = 0; i < 6 && G.flag('q.main4') < 2; i++) { await T.go('highmoor'); await T.use('a'); }

@@ -62,6 +62,13 @@
   B.statusRow = function (c, o, cx, y) {
     const list = o.statuses.filter(s => G.D.statuses[s.id]).slice(0, 4), r = 2.7, gap = 6.2;
     const x0 = cx - (list.length - 1) * gap / 2;
-    list.forEach((st, i) => B.statusBadge(c, st.id, x0 + i * gap, y, r));
+    list.forEach((st, i) => {
+      B.statusBadge(c, st.id, x0 + i * gap, y, r);
+      // how many turns it has left, small at the badge's corner (nothing for the ones that last the fight)
+      const n = st.turns; if (n == null || n <= 0 || n >= 9) return;
+      const x = x0 + i * gap + r * 0.95, yy = y + r * 0.95;
+      c.save(); c.font = 'bold 3.6px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+      c.strokeStyle = '#120c18'; c.lineWidth = 1.3; c.strokeText(String(n), x, yy); c.fillStyle = '#ffffff'; c.fillText(String(n), x, yy); c.restore();
+    });
   };
 })();

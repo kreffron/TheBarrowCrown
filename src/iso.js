@@ -88,6 +88,9 @@
     B.toggleZoom = () => { B.zoomFlip = !B.zoomOn(); if (B.zoomBtn) B.zoomBtn.classList.toggle('on', B.zoomOn()); };
     B.zoomBtn = btn('🔍', 'Zoom in on the action, or see the whole board', () => B.toggleZoom(), 'bzoom');
     B.zoomBtn.classList.toggle('on', B.zoomOn());
+    // auto-battle: only offered in a fight the party has clearly outgrown
+    B.autoBtn = B.autoOk && B.autoOk() ? btn('⏩', 'Auto-battle: the party fights this easy fight on its own, quickly. Press again to take back control.', () => B.toggleAuto(), 'bauto') : null;
+    if (B.autoBtn) B.autoBtn.classList.toggle('on', !!B.autoOn);
     UI.root.appendChild(el); B.viewEl = el; B.refreshView();
   };
   B.refreshView = function () {

@@ -13,7 +13,7 @@
   const key = B.key;
   /* ---------- pace ---------- */
   B.SPEEDS = { normal: { name: 'Normal', f: 1 }, fast: { name: 'Fast', f: 0.62 }, swift: { name: 'Swift', f: 0.38 } };
-  B.speed = () => (B.SPEEDS[(G.opts && G.opts.bspeed) || 'fast'] || B.SPEEDS.fast).f;
+  B.speed = () => (B.SPEEDS[B.autoOn ? 'swift' : (G.opts && G.opts.bspeed) || 'fast'] || B.SPEEDS.fast).f;   // auto-battle runs at the swiftest pace
   B.pace = ms => Math.round(ms * Math.max(0.5, B.speed()));            // animations: never so quick you can't follow them
 
   /* ---------- holding ground ---------- */

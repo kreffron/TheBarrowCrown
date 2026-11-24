@@ -569,6 +569,8 @@ Menu.bestiary = async function () {
       (kinds ? '<div class="dim">Kind: ' + UI.esc(kinds) + '</div>' : '') +
       (w.length ? '<div class="dim gold">Weak to: ' + UI.esc(w.join(', ')) + (learned(id) ? '' : ' (none of these learned yet)') + '</div>' : '') +
       (imm.length ? '<div class="dim">Shrugs off: ' + UI.esc(imm.join(', ')) + '</div>' : '') +
+      // its usual habit, once you have beaten one and seen how it fights
+      (n ? '<div class="dim">Habit: ' + UI.esc((G.D.roleText || {})[B.roleFor(id, d)] || '') + '</div>' : '<div class="dim">Beat one to learn its habits.</div>') +
       '<div class="dim">' + (n ? 'Defeated ' + n + (n === 1 ? ' time.' : ' times.') : 'Met, not yet beaten.') + '</div>';
   };
   await UI.menu({

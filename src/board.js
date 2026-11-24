@@ -399,6 +399,43 @@
     return moved > 0;
   };
 
+  /* ---------- enemy roles: usual habits (data/ch9_world/y_roles.js) ---------- */
+  const CAST = /^(spark|hex|bonestorm|frostbreath|gravechill|tolling|lampfire|steamburst|ashstorm|kingsvoice)$/, VENOM = /^(venombite|poisonblade)$/;
+  B.roleFor = function (id, d) {
+    d = d || G.D.enemies[id] || {};
+    const R = G.D.enemyRoles || {}; if (R[id]) return R[id];
+    const moves = (d.moves || []).map(m => m[1]), tags = d.tags || [], A = G.D.abilities;
+    if (Object.values(G.D.groups).some(g => g.boss && (g.enemies || []).indexOf(id) >= 0 && Math.max(...g.enemies.map(e => (G.D.enemies[e] || {}).hp || 0)) === d.hp)) return 'boss';
+    if (/archer|bow|slinger|crossbow/i.test(id + ' ' + (d.name || '')) || d.shot) return 'archer';
+    if (moves.some(m => A[m] && (A[m].fx || []).some(e => e.t === 'heal'))) return 'healer';
+    if (moves.some(m => CAST.test(m)) && !moves.some(m => /^(crush|maul|headbutt|stomp)$/.test(m))) return 'caster';
+    if (moves.some(m => VENOM.test(m))) return 'venom';
+    if (moves.some(m => /^(shieldwall|shellguard|crownguard)$/.test(m))) return 'guardian';
+    if (moves.indexOf('chant') >= 0) return 'zealot';
+    if (tags.indexOf('beast') >= 0) return (d.scale || 3) >= 4 ? 'brute' : 'pack';
+    if (tags.indexOf('undead') >= 0) return 'undead';
+    if (tags.indexOf('construct') >= 0 || tags.indexOf('giant') >= 0) return 'brute';
+    if (moves.some(m => /^(crush|maul|headbutt|stomp)$/.test(m))) return 'brute';
+    return 'skirmisher';
+  };
+  B.roleOf = u => u.role !== undefined ? u.role : (u.role = u.side === 1 && !u.guest ? B.roleFor(u.id, u.def) : null);
+  // How much a foe's habit makes it want to strike t (standing at sx, sy to do it, after a walk of len squares).
+  B.roleBias = function (u, t, sx, sy, len) {
+    const role = B.roleOf(u); if (!role || B.CLASSIC) return 0;
+    const near = (a, b) => Math.max(Math.abs(a.gx - b.gx), Math.abs(a.gy - b.gy)) <= 1, hurt = 1 - t.hp / t.maxHp;
+    const mates = B.c.filter(o => o !== u && o.side === u.side && B.living(o)), heroes = B.c.filter(o => o !== t && o.side === t.side && B.living(o));
+    let s = 0;
+    if (role === 'pack' || role === 'zealot') { if (mates.some(m => near(m, t))) s += 8; if (!heroes.some(h => near(h, t))) s += 5; }
+    else if (role === 'brute') s -= len * 1.2 + hurt * 6;
+    else if (role === 'skirmisher') { s += hurt * 8; if (mates.some(m => near(m, t))) s += 4; }
+    else if (role === 'archer') s += Math.max(0, 18 - (t.ac + B.mod(t, 'ac'))) * 1.1;
+    else if (role === 'caster') s += t.id === 'maren' || t.id === 'finch' ? 9 : 0;
+    else if (role === 'venom') s += B.has(t, 'poison') ? -10 : 4;
+    else if (role === 'guardian') { if (mates.some(m => near(m, t))) s += 8; s -= len * 0.6; }
+    else if (role === 'undead') s += t.id === 'maren' ? 8 : 0;
+    return s;
+  };
+
   /* ---------- deciding (enemies, allies and the autopilot) ---------- */
   // Score one way of using an action. Higher is better; null = not worth doing.
   function score(u, ab, spec, o, pref) {
@@ -412,6 +449,7 @@
         s += 10 + (1 - t.hp / t.maxHp) * 6 + (B.has(t, 'taunt') ? 30 : 0) + (pref && pref.indexOf(t) >= 0 ? 12 : 0);
         if (spec.melee && B.flanked(u, t, o.sx, o.sy)) s += 4;
         if (u.sneak && B.flanked(u, t, o.sx, o.sy)) s += 6;
+        if (u.side === 1 && !u.guest) s += B.roleBias(u, t, o.sx, o.sy, o.path ? Math.max(0, o.path.length - 1) : 0) + (G.rand() - 0.5) * 5;
       }
     } else if (spec.unit === 'down' || spec.side === 'party') s = tg.filter(t => t.down).length * 20 + tg.length;
     else s = tg.reduce((a, t) => a + (1 - t.hp / t.maxHp) * 10 + 2, 0) + (pref && tg.some(t => pref.indexOf(t) >= 0) ? 8 : 0);
@@ -462,7 +500,9 @@
       const opts = B.options(u, { unit: 'ally', range: 1 }, false).filter(o => o.targets[0] !== u && mates.indexOf(o.targets[0]) >= 0);
       if (opts.length) { const o = opts[0]; return toAct(u, o, 'attack'); }
     }
-    const tries = [G.wpick(u.moves.map(m => [m[1], m[0]]))].concat(u.moves.map(m => m[1]), ['attack']);
+    let tries = [G.wpick(u.moves.map(m => [m[1], m[0]]))].concat(u.moves.map(m => m[1]), ['attack']);
+    if (B.roleOf(u) === 'healer' && B.allies(u).some(x => x.hp < x.maxHp * 0.6) && G.rand() < 0.8)   // a healer mends first, usually
+      tries = u.moves.map(m => m[1]).filter(m => A[m] && (A[m].fx || []).some(e => e.t === 'heal')).concat(tries);
     for (const id of tries) {
       const ab = id === 'attack' ? null : A[id];
       if (ab && ab.target === 'ally' && !B.allies(u).some(x => x.hp < x.maxHp * 0.7)) continue;
@@ -641,6 +681,7 @@
         Object.assign({ label: 'Skills', value: 'ab', disabled: acted || !c.abilities.length }, hk('bt_skills')),
         Object.assign({ label: 'Items', value: 'item', disabled: acted }, hk('bt_items')),
         ...(B.usable(c).length ? [{ label: 'Use', value: 'use', disabled: acted }] : []),
+        ...(!acted && B.teamUps && B.teamUps(c).length ? [{ label: 'Team-up', value: 'team' }] : []),
         undo ? Object.assign({ label: 'Undo move', value: 'undo' }, hk('bt_undo')) : Object.assign({ label: 'Move', value: 'move', disabled: moved }, hk('bt_move')),
         Object.assign({ label: 'Defend', value: 'defend', disabled: acted }, hk('bt_defend')),
         Object.assign({ label: acted || moved || B.boss ? 'End turn' : 'Flee', value: acted || moved || B.boss ? 'end' : 'flee' }, hk('bt_end'))
@@ -650,6 +691,7 @@
       B.setLog(c.name + "'s turn." + (moved ? '' : ' Move ' + c.mov + '.'), B.statusLine(c) || 'Move and act once each, in either order.');
       B.ui = { show: !moved ? B.reach(c, Math.max(1, c.mov - (B.has(c, 'weak') ? 1 : 0))) : null, unit: c };
       const cmd = await UI.menu({ cls: 'bcmd', title: c.name, cancel: false, start, items });
+      if (cmd === 'auto' || B.autoOn) return await B.aiTurn(c);   // auto-battle took over
       B.ui = null;
       if (cmd === 'move') {
         const map = B.reach(c, Math.max(1, c.mov - (B.has(c, 'weak') ? 1 : 0)));
@@ -683,6 +725,12 @@
         const act = cmd === 'attack' || cmd === 'shot' ? { type: cmd, targets: op.targets } : cmd === 'ab' ? { type: 'ability', ab, targets: op.targets, center: [op.tx, op.ty] } : { type: 'item', id, targets: op.targets, center: [op.tx, op.ty] };
         await B.exec(c, act); acted = true;
         if (B.over()) return null;
+      } else if (cmd === 'team') {
+        const ups = B.teamUps(c);
+        const pick = ups.length === 1 ? 1 : await UI.menu({ cls: 'bsub', title: 'Team-up', items: ups.map((x, i) => ({ label: x.t.name, right: x.partner.name, value: i + 1 })),
+          onMove: it => { const x = ups[it.value - 1]; B.setLog(x.t.name + ' (with ' + x.partner.name + ')', x.t.say); } });
+        if (!pick) continue;
+        if (await B.teamUp(c, ups[pick - 1])) { acted = true; if (B.over()) return null; }
       } else if (cmd === 'use') {
         const list = B.usable(c);
         const pick = await UI.menu({ cls: 'bsub', title: 'Use', items: list.map((p, i) => ({ label: p.label, value: i + 1 })), onMove: it => { const p = list[it.value - 1], d = (p.hang ? B.HANG : B.PROP)[p.kind], hits = B.propHits(c, p); B.ui = { cur: { x: p.x, y: p.y }, area: { cells: B.blastSquares(c, p) } }; B.setLog(...B.blastLog(d.name, d.desc, hits)); } });

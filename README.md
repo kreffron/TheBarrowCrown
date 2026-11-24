@@ -779,3 +779,21 @@ Out of reach on purpose: cutscene maps (v_*), shopkeepers behind counters, priso
 - `src/` the engine, `data/` the game (with a folder per chapter, `ch9_world/` for the whole-world passes), `tools/` the build, the tests and the puzzle solver, `playlist/` the soundtrack page.
 - `.nojekyll` tells GitHub Pages to serve the files as they are.
 - To update the game: change the source, run `python3 tools/build.py`, run the tests, commit everything (the new `index.html` included).
+
+## Livelier battles, and combat with more to it
+
+**Look and feel** (`src/battle.js`, `src/pieces.js`, `src/terrain.js`)
+- Hits land: a jolt back from the attacker, a screen shake as heavy as the blow, a heartbeat's hit-stop (longer on a critical); bigger, bouncier numbers for heavy hits and criticals (with a CRITICAL label), kept clear of the top bars and drawn above chatter bubbles.
+- Attacks: a lunge draws back first; arrows and thrown blades arc, nose first, with a trail; spells leave sparks of their kind (`B.impactParts`); kegs throw debris and leave smoke.
+- Weather by place (`weather()`): snow at two depths, ash and embers, rain with splashes and a cool wash, drizzle, falling leaves. Braziers and burning ground light the dark.
+- Figures: a slightly stronger idle breath, badly hurt heroes sag, a hop for a kill, and foes fall by kind (`B.deathFx`: bones fold, spirits rise away, stone crumbles, beasts bolt, others topple).
+- Big moments: a boss card with the screen narrowed and the camera pushed in; the camera leans in on a boss's great blow and on the finishing blow; the party cheers and sparkles on a win, and a level-up gets a column of light.
+- Particles glow on dark boards and are painted solid (with a dark edge on debris) on bright ones. A device set to reduce motion gets gentle shakes and no hit-stop (`B.calm`).
+
+**Combat**
+- **Auto-battle** (`B.autoOk`, `B.toggleAuto`; ⏩ button, key R): only in a fight the party has outgrown (no boss, not scripted, party above the fight's level). The autopilot takes the heroes' turns at the swiftest pace; pressing again hands control back, even mid-turn.
+- **Weather that matters** (`B.weather`): rain (coast, fen) halves how long fires burn and stops kegs being lit by hand; snow puts shots at more than 4 squares at -2; Ashlands embers sometimes set dry scrub alight at the end of a round. The first fight in each weather says so.
+- **Team-ups** (`src/bonds.js`, `B.TEAM`): a pair standing side by side who are close (Trusting Runa, or Friends) get one joint move each fight: Over the Line, Hammer and Lamp, Battle Hymn, Blind and Bleed, Look Over There, Two-Part Hymn.
+- **Enemy habits** (`data/ch9_world/y_roles.js`, `B.roleFor`, `B.roleBias`): pack, brute, skirmisher, archer, caster, venom, guardian, undead, zealot, healer, boss. A habit tips who a foe goes for (with a little chance in it, so it is a good guess, never a certainty); the bestiary shows it once one has been beaten. Healers mend first, usually. Balance runs across all five chapters came out the same as before.
+- **Status turns**: the turns left on each status icon over a figure.
+- The handbook's battle page covers team-ups, auto-battle, weather and habits.

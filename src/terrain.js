@@ -131,6 +131,7 @@
     if (up > 0) { bonus += 1; notes.push('high ground +1'); } else if (up < 0) { bonus -= 1; notes.push('uphill -1'); }
     if (ranged && B.coverFor(sx, sy, t)) { bonus -= 2; notes.push('cover -2'); }
     if (!ranged && B.ter(sx, sy) === 'ice') { bonus -= 1; notes.push('on ice -1'); }
+    if (ranged && B.weather() === 'snow' && Math.max(Math.abs(t.gx - sx), Math.abs(t.gy - sy)) > 4) { bonus -= 2; notes.push('snowfall -2'); }
     return { bonus, notes };
   };
   B.rangeFrom = (spec, sx, sy) => spec.range + (spec.range > 1 && B.high(sx, sy) ? 1 : 0);
@@ -143,15 +144,32 @@
     B.addVfx({ k: 'burst', to: u, color: '#ff8a3a', n: 12 });
     await B.hurt(u, dmg, { kind: 'fire', text: u.name + (why || ' is caught in the flames') + ' for ' + dmg + '.' });
   };
+  // Weather by place: rain on the coast and in the fen, snow in the frost, embers on the wind in the Ashlands.
+  B.weather = () => B.CLASSIC ? null : ({ beach: 'rain', fen: 'rain', snow: 'snow', ash: 'embers' })[B.bg] || null;
+  B.WEATHER_TEXT = {
+    rain: 'Rain. Fires burn out fast, and a powder keg is too damp to light by hand (a shot or a spell still sets one off).',
+    snow: 'Snow is falling. Long shots, more than 4 squares, are at -2, and the ground is icy in places.',
+    embers: 'Embers on the wind. Now and then one catches the dry scrub and sets it burning.'
+  };
   B.setFire = function (x, y, rounds) {
     if (!B.inside(x, y) || B.wall(x, y)) return false;
     const was = B.ter(x, y);
     if (was === 'shallows' || was === 'bridge') return false;
     if (was === 'ice') { B.terrain.set(key(x, y), 'shallows'); B.boardRev++; return false; }
+    if (rounds && B.weather() === 'rain') rounds = Math.max(1, Math.ceil(rounds / 2));   // the rain puts it out sooner
     B.terrain.set(key(x, y), 'fire'); if (rounds) B.fireT.set(key(x, y), rounds); return true;
   };
-  B.roundEnd = function () {           // temporary fires burn down
+  B.roundEnd = async function () {     // temporary fires burn down; in the Ashlands an ember may catch the scrub
     for (const [k, n] of [...B.fireT]) { if (n <= 1) { B.fireT.delete(k); if (B.terrain.get(k) === 'fire') B.terrain.delete(k); } else B.fireT.set(k, n - 1); }
+    if (B.weather() === 'embers' && G.rand() < 0.35) {
+      const scrub = [...B.terrain].filter(([k, t]) => t === 'rough').map(([k]) => k.split(',').map(Number)).filter(([x, y]) => !B.occupant(x, y));
+      if (scrub.length) {
+        const [x, y] = scrub[Math.floor(G.rand() * scrub.length)];
+        B.terrain.set(key(x, y), 'fire'); B.fireT.set(key(x, y), 2); B.boardRev++;
+        if (B.spark && !G.fast) { const p = B.tileCenter(x, y); B.spark(p.x, p.y - 2, '#ffb04a', 14, 40, 700, -30); }
+        B.refresh(); await B.msg('An ember lands in the dry scrub, and it catches.', null, false, 0, true);
+      }
+    }
   };
 
   /* ---------- props ---------- */
@@ -159,7 +177,7 @@
     const out = [];
     for (const [k, kind] of B.props || []) {
       const [x, y] = k.split(',').map(Number), d = Math.max(Math.abs(x - c.gx), Math.abs(y - c.gy));
-      if (kind === 'keg' && d <= 5 && B.los(c, { gx: x, gy: y })) out.push({ k, x, y, kind, label: d <= 1 ? 'Light the powder keg' : 'Fling a torch at the powder keg' });
+      if (kind === 'keg' && d <= 5 && B.weather() !== 'rain' && B.los(c, { gx: x, gy: y })) out.push({ k, x, y, kind, label: d <= 1 ? 'Light the powder keg' : 'Fling a torch at the powder keg' });
       if (kind === 'brazier' && d === 1) out.push({ k, x, y, kind, label: 'Topple the brazier' });
       if ((kind === 'boulder' || kind === 'log') && d === 1) {
         const dx = Math.sign(x - c.gx), dy = Math.sign(y - c.gy), nx = x + dx, ny = y + dy, o = B.occupant(nx, ny);
@@ -268,6 +286,8 @@
     G.audio.sfx('crit'); B.shakeT = G.time; B.flashT = G.time;
     B.addVfx({ k: 'blast', at: [x, y], r: 1, color: kind === 'gas' ? '#7ac8ff' : '#ff8a3a' });
     if (B.spark) { const p = B.tileCenter(x, y); B.spark(p.x, p.y - 4, kind === 'gas' ? '#9ad8ff' : '#ffb04a', 30, 90, 700, 40); }
+    if (B.spark && kind === 'keg') { const p = B.tileCenter(x, y); B.spark(p.x, p.y - 4, '#7a5030', 22, 110, 900, 160); B.spark(p.x, p.y - 4, '#c89a5a', 12, 80, 800, 140); }
+    B.shakeAmp = B.calm && B.calm() ? 1.5 : 4.5; B.addVfx({ k: 'smoke', at: [x, y], dur: 2600, color: kind === 'gas' ? '120,170,210' : '60,54,52' });
     if (kind === 'gas') await B.msg((by && !shot ? by.name + ' flings a torch at the vent. ' : '') + 'The gas goes up in a sheet of blue flame.');
     else await B.msg((by && !shot ? by.name + ' sets off the powder keg. ' : 'The powder keg goes up. ') + 'BOOM.');
     B.setFire(x, y, 2);
@@ -374,7 +394,7 @@
     if (u !== B.bossUnit || u.down || B.CLASSIC) return false;
     if (u.windup) {
       const m = u.windup; u.windup = null; B.marks = B.marks.filter(x => x !== m); u.cool = 3;
-      u.fx = { k: 'lunge', t: G.time, dx: -1, dy: 0 }; B.shakeT = G.time; B.flashT = G.time; G.audio.sfx('crit');
+      u.fx = { k: 'lunge', t: G.time, dx: -1, dy: 0 }; B.shakeT = G.time; B.shakeAmp = B.calm && B.calm() ? 1.5 : 4.5; B.flashT = G.time; G.audio.sfx('crit'); B.punch = { t: G.time, o: u, z: 0.1, dur: 600 };
       B.addVfx({ k: 'blast', at: m.c, r: 1, color: '#ff5a3a' });
       await B.msg(u.name + ' brings the blow down!');
       const hit = B.c.filter(t => B.living(t) && t.side !== u.side && m.sq.has(key(t.gx, t.gy)));
@@ -393,7 +413,7 @@
     if (!best || best.n < 2) return false;
     const sq = new Set(); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (B.inside(best.c[0] + dx, best.c[1] + dy)) sq.add(key(best.c[0] + dx, best.c[1] + dy));
     const m = { c: best.c, sq }; B.marks.push(m); u.windup = m;
-    u.fx = { k: 'cast', t: G.time }; G.audio.sfx('debuff'); B.refresh();
+    u.fx = { k: 'cast', t: G.time }; G.audio.sfx('debuff'); B.refresh(); B.punch = { t: G.time, o: u, z: 0.08, dur: 650 };
     await B.msg(u.name + ' draws back for a terrible blow!', 'Get out of the red squares before its next turn.');
     return true;
   };

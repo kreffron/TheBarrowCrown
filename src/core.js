@@ -311,14 +311,14 @@ G.ACTIONS = [
   ['bt_attack', 'Attack', ['1']], ['bt_shot', 'Shoot / throw', ['2']], ['bt_skills', 'Skills', ['3']], ['bt_items', 'Battle items', ['4']],
   ['bt_move', 'Move', ['5']], ['bt_defend', 'Defend', ['6']], ['bt_end', 'End turn / flee', ['7', 'n']],
   ['bt_undo', 'Undo move', ['u', '8']],
-  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['bzoom', 'Zoom the board', ['=', 'y']], ['blog', 'Battle log', ['l']], ['threat', 'Show enemy reach', ['t']]
+  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['bzoom', 'Zoom the board', ['=', 'y']], ['blog', 'Battle log', ['l']], ['threat', 'Show enemy reach', ['t']], ['bauto', 'Auto-battle (easy fights)', ['r']]
 ];
 // Headings for the Controls screen: the first action of each group.
 G.ACTION_GROUPS = { up: 'Moving and choosing', menu: 'Menus (while exploring)', switch: 'Exploring', bt_attack: 'Battle commands', bview: 'Battle board' };
 G.REQUIRED = ['up', 'down', 'left', 'right', 'a', 'b'];         // these always keep at least one key
 // The battle board's keys only work in a fight, and there they come first, so they can share keys with exploring:
 // Z and C turn the board in battle, while Z is still OK and C still switches leader everywhere else.
-G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat', 'bzoom', 'blog'];
+G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat', 'bzoom', 'blog', 'bauto'];
 G.keyLayer = id => G.BOARD_KEYS.includes(id) ? 1 : 0;
 G.normKey = k => (k && k.length === 1 ? k.toLowerCase() : k);
 G.keyName = k => ({ Shift: 'Shift', ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Backspace: 'Bksp', Enter: 'Enter' }[k] || (k && k.length === 1 ? k.toUpperCase() : k) || '—');
@@ -371,6 +371,7 @@ G.skipPress = function () {
   }
 };
 G.down = function (b, repeat) {
+  if (b === 'bauto') { if (!repeat && G.scene === 'battle' && !G.keyCapture && B.toggleAuto) { G.audio.unlock(); B.toggleAuto(); } return; }
   if (b === 'bview' || b === 'rot_l' || b === 'rot_r' || b === 'threat' || b === 'bzoom' || b === 'blog') {   // the battle board's view: works even mid-choice
     if (!repeat && G.scene === 'battle' && !G.keyCapture) { G.audio.unlock(); if (b === 'bview') B.toggleView(); else if (b === 'threat') B.toggleThreat(); else if (b === 'bzoom') { if (B.toggleZoom) B.toggleZoom(); } else if (b === 'blog') { if (!B.logOpen) { B.logOpen = true; Menu.battleLog().then(() => { B.logOpen = false; }); } } else B.turnView(b === 'rot_l' ? -1 : 1); }
     return;

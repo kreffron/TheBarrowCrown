@@ -605,14 +605,14 @@ G.ACTIONS = [
   ['bt_attack', 'Attack', ['1']], ['bt_shot', 'Shoot / throw', ['2']], ['bt_skills', 'Skills', ['3']], ['bt_items', 'Battle items', ['4']],
   ['bt_move', 'Move', ['5']], ['bt_defend', 'Defend', ['6']], ['bt_end', 'End turn / flee', ['7', 'n']],
   ['bt_undo', 'Undo move', ['u', '8']],
-  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['bzoom', 'Zoom the board', ['=', 'y']], ['blog', 'Battle log', ['l']], ['threat', 'Show enemy reach', ['t']]
+  ['bview', 'Flat or diamond board', ['v']], ['rot_l', 'Turn board left', ['z', '[', ',']], ['rot_r', 'Turn board right', ['c', ']', '.']], ['bzoom', 'Zoom the board', ['=', 'y']], ['blog', 'Battle log', ['l']], ['threat', 'Show enemy reach', ['t']], ['bauto', 'Auto-battle (easy fights)', ['r']]
 ];
 // Headings for the Controls screen: the first action of each group.
 G.ACTION_GROUPS = { up: 'Moving and choosing', menu: 'Menus (while exploring)', switch: 'Exploring', bt_attack: 'Battle commands', bview: 'Battle board' };
 G.REQUIRED = ['up', 'down', 'left', 'right', 'a', 'b'];         // these always keep at least one key
 // The battle board's keys only work in a fight, and there they come first, so they can share keys with exploring:
 // Z and C turn the board in battle, while Z is still OK and C still switches leader everywhere else.
-G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat', 'bzoom', 'blog'];
+G.BOARD_KEYS = ['bview', 'rot_l', 'rot_r', 'threat', 'bzoom', 'blog', 'bauto'];
 G.keyLayer = id => G.BOARD_KEYS.includes(id) ? 1 : 0;
 G.normKey = k => (k && k.length === 1 ? k.toLowerCase() : k);
 G.keyName = k => ({ Shift: 'Shift', ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Backspace: 'Bksp', Enter: 'Enter' }[k] || (k && k.length === 1 ? k.toUpperCase() : k) || '—');
@@ -665,6 +665,7 @@ G.skipPress = function () {
   }
 };
 G.down = function (b, repeat) {
+  if (b === 'bauto') { if (!repeat && G.scene === 'battle' && !G.keyCapture && B.toggleAuto) { G.audio.unlock(); B.toggleAuto(); } return; }
   if (b === 'bview' || b === 'rot_l' || b === 'rot_r' || b === 'threat' || b === 'bzoom' || b === 'blog') {   // the battle board's view: works even mid-choice
     if (!repeat && G.scene === 'battle' && !G.keyCapture) { G.audio.unlock(); if (b === 'bview') B.toggleView(); else if (b === 'threat') B.toggleThreat(); else if (b === 'bzoom') { if (B.toggleZoom) B.toggleZoom(); } else if (b === 'blog') { if (!B.logOpen) { B.logOpen = true; Menu.battleLog().then(() => { B.logOpen = false; }); } } else B.turnView(b === 'rot_l' ? -1 : 1); }
     return;
@@ -1570,7 +1571,7 @@ UI.menu = function (o) {
       set(j); G.audio.sfx('move');
     }
     const m = {
-      el: box,
+      el: box, cls: o.cls || '', done: v => done(v),   // done: lets the game close it from outside (auto-battle taking over a turn)
       press(b) {
         if (b === 'up') move(-cols); else if (b === 'down') move(cols);
         else if (b === 'left' || b === 'right') {
@@ -3326,7 +3327,7 @@ B.start = async function (groupId, o) {
   o = o || {};
   const grp = G.D.groups[groupId]; B.gid = groupId;
   if (!grp) { console.error('No enemy group: ' + groupId); return 'win'; }
-  B.gid = groupId;
+  B.gid = groupId; B.autoOn = false;
   B.opening = o.opening || B.nextOpening || null; B.nextOpening = null;
   // a few lines before some side-boss fights, the first time only
   const scene = (G.D.bossScenes || {})[groupId];
@@ -3350,7 +3351,7 @@ B.start = async function (groupId, o) {
 
 B.setup = function (grp, o) {
   B.zoomFlip = null; B.cam = { z: B.zoomOn() ? B.CAM_Z : 1, x: 160, y: 120 }; B.inspected = null; G.S.blog = []; B.round = 0;
-  B.c = []; B.floats = []; B.cursor = null; B.active = null; B.parts = []; B.bondNotes = []; B.bondSeen = {}; B.bubbles = []; B.lastQuip = -1e9;
+  B.c = []; B.floats = []; B.cursor = null; B.active = null; B.parts = []; B.bondNotes = []; B.bondSeen = {}; B.teamUsed = {}; B.bubbles = []; B.lastQuip = -1e9;
   B.boss = !!(grp.boss || o.boss);
   B.brawl = !!grp.brawl; B.rig = []; B.pendingAfter = null;
   B.guide = (grp.guide && !o.noGuide && !G.auto) ? grp.guide.slice() : null;
@@ -3442,6 +3443,7 @@ B.run = async function (grp, o) {
   G.audio.music(G.D.battleMusic ? G.D.battleMusic(B.boss, B.gid, grp) : grp.music || (B.boss ? 'boss' : 'battle'));
   await UI.fade(false, 170);
   await B.msg(grp.intro || B.introText());
+  { const wx = B.weather && B.weather(); if (wx && !G.flag('wx.' + wx)) { G.setFlag('wx.' + wx); await B.msg(B.WEATHER_TEXT[wx]); } }   // the first fight in each weather says what it does
   if (B.auraText) { B.refresh(); await B.msg(B.auraText); }
   if (B.c.some(c => c.side === 0 && !c.down && B.perk(c, 'lantern'))) {
     B.c.forEach(c => { if (c.side === 0 && !c.down) B.addStatus(c, 'blessed', 3); }); B.refresh();
@@ -3471,7 +3473,7 @@ B.run = async function (grp, o) {
   while (!result) {
     round++; B.round = round;
     if (!G.fast && !G.auto) {                                          // a name plate for a boss, then "Round 2", "Round 3"...
-      if (round === 1 && B.boss) { const bo = B.c.filter(x => x.side === 1).sort((p, q) => q.maxHp - p.maxHp)[0]; if (bo) { B.banner = { text: bo.name, sub: 'Boss', boss: true, t0: G.time, dur: 1700 }; await G.sleep(1650); } }
+      if (round === 1 && B.boss) { const bo = B.c.filter(x => x.side === 1).sort((p, q) => q.maxHp - p.maxHp)[0]; if (bo) { B.banner = { text: bo.name, sub: 'Boss', boss: true, t0: G.time, dur: 2300 }; B.punch = { t: G.time, o: bo, z: 0.1, dur: 2300, hold: 1 }; await G.sleep(2250); } }
       else if (round > 1) { B.banner = { text: 'Round ' + round, sub: B.objNote || null, t0: G.time, dur: 760 }; await G.sleep(700); }
     }
     if (round === 1) B.quipAny(B.boss ? 'boss' : 'start');
@@ -3497,20 +3499,21 @@ B.run = async function (grp, o) {
       const skip = await B.turnStart(c);
       result = await B.check(); if (result) break;
       if (c.down || skip) continue;
-      const r = c.side === 0 && !c.guest && !G.auto ? await B.playerTurn(c) : await B.aiTurn(c);
+      const r = c.side === 0 && !c.guest && !G.auto && !B.autoOn ? await B.playerTurn(c) : await B.aiTurn(c);
       if (B.pendingAfter) { const a = B.pendingAfter; B.pendingAfter = null; B.refresh(); await B.msg(a[0], a[1], true); }
       while (B.extra && B.extra.length && !B.over()) {                // Encore turns
         const x = B.extra.shift(); if (x.down) continue;
         B.active = x; B.refresh();
-        if (x.side === 0 && !x.guest && !G.auto) await B.playerTurn(x); else await B.aiTurn(x);
+        if (x.side === 0 && !x.guest && !G.auto && !B.autoOn) await B.playerTurn(x); else await B.aiTurn(x);
       }
       if (r === 'flee') { B.quipAny('flee'); result = 'flee'; break; }
       B.refresh();
     }
-    B.roundEnd();
+    await B.roundEnd();
     if (!result) result = await B.check();
     if (!result && round > 150) result = 'lose';
   }
+  B.autoOn = false;
   B.active = null; B.cursor = null;
   B.c.forEach(c => { if (c.side === 0 && c.m) { c.m.hp = c.down ? 1 : Math.max(1, c.hp); c.m.sp = c.sp; } });
   B.rounds = round;
@@ -3525,6 +3528,22 @@ B.run = async function (grp, o) {
   return result;
 };
 
+// Auto-battle: in a fight the party has clearly outgrown (no boss, not scripted, and the party above the fight's
+// level), the heroes can fight on their own using the autopilot, at speed. It can be switched off at any moment.
+B.autoOk = function () {
+  if (B.boss || B.brawl || B.guide || G.auto || !B.gid) return false;
+  return G.xpFor(G.groupLevel(B.gid) || G.mapLevel(G.S.map)) < 1;
+};
+B.toggleAuto = function () {
+  if (!B.autoOk()) { if (G.scene === 'battle') { G.audio.sfx('error'); B.setLog('Auto-battle is only for easy fights.', 'Fights the party has outgrown, with no boss. This one needs your hand.'); } return; }
+  B.autoOn = !B.autoOn; G.audio.sfx(B.autoOn ? 'select' : 'cancel');
+  if (B.autoBtn) B.autoBtn.classList.toggle('on', B.autoOn);
+  if (B.autoOn) { B.setLog('Auto-battle on.', 'The party fights on its own. Press ⏩ (or ' + (Menu.keyHint('bauto') || 'R') + ') to take back control.'); }
+  else B.setLog('Auto-battle off.', 'Your turn to command.');
+  // a hero waiting on orders right now: hand the turn over at once
+  const top = G.modals[G.modals.length - 1];
+  if (B.autoOn && top && top.done && /\b(bcmd|bsub)\b/.test(top.cls)) top.done('auto');
+};
 B.introText = function () {
   const foes = B.c.filter(c => c.side === 1);
   if (foes.length === 1) return foes[0].name + ' blocks the way!';
@@ -3538,6 +3557,7 @@ B.over = function () {
 };
 B.victory = async function (grp) {
   G.audio.music(null); G.audio.sfx('win'); B.quipAny('win');
+  B.c.filter(h => h.side === 0 && !h.down && !h.gone).forEach((h, i) => { h.cheerT = G.time + i * 120; h.cheers = 2; if (B.spark && h.px != null) setTimeout(() => B.spark(h.px, h.py - 20, '#ffe07a', 14, 50, 900, 30), i * 120); });
   let xp = 0, gold = grp.gold || 0; const loot = {};
   B.c.filter(c => c.side === 1).concat(B.gone || []).forEach(e => {
     if (e.noXp) return;
@@ -3568,7 +3588,14 @@ B.victory = async function (grp) {
   }
   if (B.bondNotes && B.bondNotes.length) await B.msg(B.bondNotes.join(' '), null, true);
   if (!B.brawl) { const pu = G.patchUp(); if (pu.length) { B.refreshFromState(); await B.msg(pu.join(', ') + ' patch each other up.', 'Friends heal a little after a fight.'); } }
-  for (const line of lines) { G.audio.sfx('level'); B.refreshFromState(); await B.msg(line, null, true); }
+  for (const line of lines) {
+    G.audio.sfx('level'); B.refreshFromState();
+    for (const h of B.c.filter(h => h.side === 0 && h.px != null && line.indexOf(h.name) >= 0)) {   // a column of golden light on whoever rose
+      B.addVfx({ k: 'beam', to: h, color: '#ffe07a' }); B.addVfx({ k: 'rise', to: h, shape: 'spark', color: '#ffe07a', dur: 1100 });
+      if (B.spark) B.spark(h.px, h.py - 14, '#fff2b0', 20, 45, 1000, -25); h.cheerT = G.time; h.cheers = 1;
+    }
+    await B.msg(line, null, true);
+  }
 };
 
 // Spoils (data/ch9_world/r_loot.js): supplies now and then, rarely a piece of found gear, more often at the level
@@ -3687,7 +3714,7 @@ B.attack = async function (user, target, o) {
     if (pal) B.pendingSiren = pal;
   }
   await B.hurt(target, dmg, {
-    crit, routine: !crit, text: (crit ? 'Critical hit! ' : '') + user.name + (sneak ? ' sneak attacks ' : ' hits ') + target.name + ' for ' + dmg + '.', sub: rollTxt
+    crit, routine: !crit, from: user, text: (crit ? 'Critical hit! ' : '') + user.name + (sneak ? ' sneak attacks ' : ' hits ') + target.name + ' for ' + dmg + '.', sub: rollTxt
   });
   if (user.side === 0 && !target.down) B.quip(user, crit ? 'crit' : 'hit', target);
   if (B.pendingSiren) { const pal = B.pendingSiren; B.pendingSiren = null; B.addStatus(pal, 'inspired', 9); B.refresh(); await B.msg('The siren-string hums. ' + pal.name + ' is Inspired.'); }
@@ -3709,11 +3736,26 @@ B.hurt = async function (t, dmg, o) {
   if (dmg > 0 && t.side === 0 && B.perk(t, 'thick') && !t.thickUsed) { t.thickUsed = true; dmg = Math.ceil(dmg / 2); B.float(t, 'Thick-skinned', '#ffd24a'); }
   if (t.hp - dmg <= 0 && B.has(t, 'unbroken')) { dmg = Math.max(0, t.hp - 1); held = true; t.statuses = t.statuses.filter(s => s.id !== 'unbroken'); }
   t.hp = Math.max(0, t.hp - dmg);
-  t.fx = { k: 'hit', t: G.time };
+  // the blow lands: the target jolts away from whoever struck it, the screen shakes as hard as the hit was heavy, and
+  // everything holds still for a heartbeat (a longer one for a critical)
+  const src = o.from || B.active, frac = Math.min(1, dmg / Math.max(1, t.maxHp));
+  t.fx = { k: 'hit', t: G.time, dx: src && src !== t ? Math.sign(t.gx - src.gx) : 0, dy: src && src !== t ? Math.sign(t.gy - src.gy) : 0 };
+  if (dmg > 0) {
+    const calm = B.calm();                                       // a device set to reduce motion gets a gentle nudge and no freeze
+    B.shakeT = G.time; B.shakeAmp = Math.min(4.5, 1 + frac * 9 + (o.crit ? 1.5 : 0)) * (calm ? 0.3 : 1);
+    B.stopT = G.time; B.stopDur = calm ? 0 : o.crit ? 120 : frac >= 0.25 ? 80 : 45;
+  }
   if (t.px != null && B.spark) { const cc = B.center(t); B.spark(cc.x, cc.y, o.crit ? '#ffe07a' : t.tags && t.tags.indexOf('undead') >= 0 ? '#c8d8ff' : '#ffb08a', o.crit ? 16 : 9, o.crit ? 70 : 45, 420, 60); if (o.crit) B.flashT = G.time; }
   G.audio.sfx(o.crit ? 'crit' : 'hit');
-  B.float(t, '-' + dmg, null, o.crit ? 'crit' : o.kind || 'hit');
+  B.float(t, '-' + dmg, null, o.crit ? 'crit' : o.kind || 'hit', frac >= 0.25);
+  if (dmg > 0 && !G.fast && B.stopDur) await G.sleep(B.stopDur);
   if (B.has(t, 'asleep')) t.statuses = t.statuses.filter(s => s.id !== 'asleep');
+  if (t.hp <= 0) {
+    if (t.side === 1 && B.deathFx) B.deathFx(t);                 // each kind falls its own way: bones crumble, spirits fade, beasts bolt
+    if (t.side === 1 && src && src.side === 0 && !src.down) src.cheerT = G.time + 220;   // and whoever felled it lets out a whoop
+    const last = t.side === 1 && B.c.filter(x => x.side === 1 && x !== t).every(x => x.down);
+    if (last) B.punch = { t: G.time, o: t, z: 0.12, dur: 700 };   // the finishing blow: a slower, closer push in
+  }
   if (t.hp <= 0) { t.down = true; t.statuses = []; t.downT = G.time; if (!B.punch) B.punch = { t: G.time, o: t }; if (t.side === 1) { t.gone = true; if (G.S.foes && t.id in G.S.foes) G.S.foes[t.id]++; } if (t.px != null && B.spark) B.spark(t.px, t.py - 2, '#8a7a6a', 14, 30, 650, -10); }
   B.refresh();
   if (o.text) await B.msg(o.text, o.sub, false, 0, o.routine);
@@ -3992,10 +4034,11 @@ B.refreshFromState = function () {
   B.c.forEach(c => { if (c.side === 0 && c.m) { const st = G.stats(c.m); c.maxHp = st.maxHp; c.maxSp = st.maxSp; c.hp = c.m.hp; c.sp = c.m.sp; c.down = false; } });
   B.refresh();
 };
-B.float = function (c, text, color, kind) {
+B.calm = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } };
+B.float = function (c, text, color, kind, big) {
   if (G.fast) return;
   const k = kind && B.DMG_KIND[kind];
-  B.floats.push({ x: c.px, y: c.py - 30 * B.pieceSize(c), text, color: color || (k && k[0]) || '#ff8a7a', glyph: k && k[1], crit: kind === 'crit', t: 0 });
+  B.floats.push({ x: c.px, y: c.py - 30 * B.pieceSize(c), text, color: color || (k && k[0]) || '#ff8a7a', glyph: k && k[1], crit: kind === 'crit', big: !!big, t: 0, wob: Math.random() * 6 });
 };
 
 
@@ -4033,6 +4076,8 @@ B.castColor = function (u, ab) {
 // The picture for a damaging spell or song; waits for a missile to land.
 B.spellVfx = async function (u, t, e) {
   if (G.fast) return;
+  const land = () => { if (B.impactParts) B.impactParts(t, e.sfx === 'fire' ? 'fire' : u.id === 'maren' || e.vs === 'undead' ? 'holy' : u.id === 'finch' ? 'song' : (u.tags || []).indexOf('undead') >= 0 ? 'frost' : u.side === 1 ? 'shadow' : 'magic'); };
+  setTimeout(land, u.id === 'maren' ? 220 : u.id === 'runa' ? 120 : 300);
   const ab = (B.casting && B.casting.ab) || {}, fire = e.sfx === 'fire';
   if (B.casting && B.casting.item) { B.addVfx({ k: 'burst', to: t, color: '#ff9a2e', n: 16 }); return; }
   if (u.id === 'maren' || (fire && u.side === 0)) { B.addVfx({ k: 'beam', to: t, color: '#ffe07a' }); await G.sleep(200); B.addVfx({ k: 'burst', to: t, color: '#fff2b0', n: 12 }); return; }
@@ -4067,9 +4112,16 @@ B.drawVfx = function (c) {
     const a = (now - v.t0) / v.dur, to = v.to && B.center(v.to), dir = v.flip ? -1 : 1, k = v.to ? (B.pieceSize(v.to) > 1 ? 1.4 : 1) : 1;
     c.save();
     if (v.k === 'proj') {
-      const fr = B.center(v.from), x = fr.x + (to.x - fr.x) * a, arc = v.shape === 'bottle' ? -Math.sin(a * Math.PI) * 26 : v.shape === 'stone' ? -Math.sin(a * Math.PI) * 12 : v.shape === 'notes' ? Math.sin(a * Math.PI * 3) * 5 : 0, y = fr.y + (to.y - fr.y) * a + arc;
+      const fr = B.center(v.from), dist = Math.hypot(to.x - fr.x, to.y - fr.y), lob = { bottle: 26, stone: 12, arrow: Math.min(14, dist * 0.12), hatchet: Math.min(10, dist * 0.1), knife: Math.min(6, dist * 0.06) }[v.shape] || 0;
+      const x = fr.x + (to.x - fr.x) * a, arc = lob ? -Math.sin(a * Math.PI) * lob : v.shape === 'notes' ? Math.sin(a * Math.PI * 3) * 5 : 0, y = fr.y + (to.y - fr.y) * a + arc;
       const sx = Math.sign(to.x - fr.x) || 1;
-      if (v.shape === 'arrow') { R(Math.min(x, x - 12 * sx), y, 13, 1, '#d8c8a0'); R(x + (sx > 0 ? 1 : -4), y - 1, 4, 3, '#e8ecf4'); R(x - 13 * sx - 1, y - 2, 3, 5, '#f4f1e6'); }
+      if (v.shape === 'arrow') {                                 // an arrow climbs and drops along its arc, nose first, with a faint trail
+        const vy = (to.y - fr.y) - Math.cos(a * Math.PI) * Math.PI * lob, ang = Math.atan2(vy, to.x - fr.x);
+        c.globalAlpha = 0.25; c.strokeStyle = '#f4f1e6'; c.lineWidth = 0.6; c.beginPath();
+        for (let i = 0; i <= 6; i++) { const b = Math.max(0, a - i * 0.03), tx = fr.x + (to.x - fr.x) * b, ty = fr.y + (to.y - fr.y) * b - Math.sin(b * Math.PI) * lob; i ? c.lineTo(tx, ty) : c.moveTo(tx, ty); }
+        c.stroke(); c.globalAlpha = 1;
+        c.translate(x, y); c.rotate(ang); R(-12, -0.5, 13, 1, '#d8c8a0'); R(1, -1.5, 4, 3, '#e8ecf4'); R(-13, -2.5, 3, 5, '#f4f1e6');
+      }
       else if (v.shape === 'hatchet') { c.translate(x, y); c.rotate(a * 16 * sx); R(-1, -5, 2, 10, '#6b4a2b'); R(1, -5, 4, 4, '#c8ccd8'); R(4, -5, 1, 4, '#f4f4fa'); }
       else if (v.shape === 'stone') { for (let i = 3; i > 0; i--) { c.globalAlpha = 0.18 * (4 - i) / 3; c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(x - sx * i * 3, y + i * 0.6, 2 - i * 0.3, 0, 7); c.fill(); }
         c.globalAlpha = 1; c.fillStyle = '#8a8478'; c.beginPath(); c.arc(x, y, 2.4, 0, 7); c.fill(); c.fillStyle = '#d8d2c4'; c.beginPath(); c.arc(x - 0.7, y - 0.8, 1, 0, 7); c.fill(); }
@@ -4107,6 +4159,16 @@ B.drawVfx = function (c) {
       for (let dy = -v.r; dy <= v.r; dy++) for (let dx = -v.r; dx <= v.r; dx++) { const x = v.at[0] + dx, y = v.at[1] + dy; if (!B.inside(x, y)) continue; if (iso) { B.isoPath(c, x, y, 0.06); c.fill(); } else c.fillRect(B.BX + x * B.TW + 1, B.BY + y * B.TH + 1, B.TW - 2, B.TH - 2); }
       const rw = iso ? 12 * 1.41 : B.TW, rh = iso ? 6 * 1.41 : B.TH;
       c.globalAlpha = 1 - a; c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.ellipse(ctr.x, ctr.y, (v.r + 0.5) * rw * a + 4, (v.r + 0.5) * rh * a + 2, 0, 0, 7); c.stroke(); }
+    else if (v.k === 'smoke') {                                 // smoke after a blast: puffs that swell, drift and thin out
+      const ctr = B.tileCenter(v.at[0], v.at[1]);
+      for (let i = 0; i < 9; i++) {
+        const ph = Math.min(1, a * 1.3 + (i % 3) * 0.05), an = i * 0.7 + v.seed, r = 5 + ph * 16 + (i % 4) * 2;
+        const x = ctr.x + Math.cos(an) * (6 + ph * 14) + Math.sin(now / 900 + i) * 2, y = ctr.y - 4 - ph * 18 + Math.sin(an) * 5;
+        const al = 0.55 * (1 - a * a) * (1 - Math.abs(Math.sin(an * 3)) * 0.3);
+        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(' + v.color + ',' + al + ')'); g.addColorStop(1, 'rgba(' + v.color + ',0)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      }
+    }
     else if (v.k === 'quake') { c.globalAlpha = 1 - a; for (let i = 0; i < 9; i++) { const x = to.x - 26 + i * 6, h = (6 + ((i * 13 + v.seed) % 9)) * Math.sin(a * 3.14); R(x, v.to.py - h, 5, h, '#8a6a42'); R(x, v.to.py - h, 5, 2, '#c8a56a'); } }
     c.restore();
   }
@@ -4516,6 +4578,43 @@ B.drawVfx = function (c) {
     return moved > 0;
   };
 
+  /* ---------- enemy roles: usual habits (data/ch9_world/y_roles.js) ---------- */
+  const CAST = /^(spark|hex|bonestorm|frostbreath|gravechill|tolling|lampfire|steamburst|ashstorm|kingsvoice)$/, VENOM = /^(venombite|poisonblade)$/;
+  B.roleFor = function (id, d) {
+    d = d || G.D.enemies[id] || {};
+    const R = G.D.enemyRoles || {}; if (R[id]) return R[id];
+    const moves = (d.moves || []).map(m => m[1]), tags = d.tags || [], A = G.D.abilities;
+    if (Object.values(G.D.groups).some(g => g.boss && (g.enemies || []).indexOf(id) >= 0 && Math.max(...g.enemies.map(e => (G.D.enemies[e] || {}).hp || 0)) === d.hp)) return 'boss';
+    if (/archer|bow|slinger|crossbow/i.test(id + ' ' + (d.name || '')) || d.shot) return 'archer';
+    if (moves.some(m => A[m] && (A[m].fx || []).some(e => e.t === 'heal'))) return 'healer';
+    if (moves.some(m => CAST.test(m)) && !moves.some(m => /^(crush|maul|headbutt|stomp)$/.test(m))) return 'caster';
+    if (moves.some(m => VENOM.test(m))) return 'venom';
+    if (moves.some(m => /^(shieldwall|shellguard|crownguard)$/.test(m))) return 'guardian';
+    if (moves.indexOf('chant') >= 0) return 'zealot';
+    if (tags.indexOf('beast') >= 0) return (d.scale || 3) >= 4 ? 'brute' : 'pack';
+    if (tags.indexOf('undead') >= 0) return 'undead';
+    if (tags.indexOf('construct') >= 0 || tags.indexOf('giant') >= 0) return 'brute';
+    if (moves.some(m => /^(crush|maul|headbutt|stomp)$/.test(m))) return 'brute';
+    return 'skirmisher';
+  };
+  B.roleOf = u => u.role !== undefined ? u.role : (u.role = u.side === 1 && !u.guest ? B.roleFor(u.id, u.def) : null);
+  // How much a foe's habit makes it want to strike t (standing at sx, sy to do it, after a walk of len squares).
+  B.roleBias = function (u, t, sx, sy, len) {
+    const role = B.roleOf(u); if (!role || B.CLASSIC) return 0;
+    const near = (a, b) => Math.max(Math.abs(a.gx - b.gx), Math.abs(a.gy - b.gy)) <= 1, hurt = 1 - t.hp / t.maxHp;
+    const mates = B.c.filter(o => o !== u && o.side === u.side && B.living(o)), heroes = B.c.filter(o => o !== t && o.side === t.side && B.living(o));
+    let s = 0;
+    if (role === 'pack' || role === 'zealot') { if (mates.some(m => near(m, t))) s += 8; if (!heroes.some(h => near(h, t))) s += 5; }
+    else if (role === 'brute') s -= len * 1.2 + hurt * 6;
+    else if (role === 'skirmisher') { s += hurt * 8; if (mates.some(m => near(m, t))) s += 4; }
+    else if (role === 'archer') s += Math.max(0, 18 - (t.ac + B.mod(t, 'ac'))) * 1.1;
+    else if (role === 'caster') s += t.id === 'maren' || t.id === 'finch' ? 9 : 0;
+    else if (role === 'venom') s += B.has(t, 'poison') ? -10 : 4;
+    else if (role === 'guardian') { if (mates.some(m => near(m, t))) s += 8; s -= len * 0.6; }
+    else if (role === 'undead') s += t.id === 'maren' ? 8 : 0;
+    return s;
+  };
+
   /* ---------- deciding (enemies, allies and the autopilot) ---------- */
   // Score one way of using an action. Higher is better; null = not worth doing.
   function score(u, ab, spec, o, pref) {
@@ -4529,6 +4628,7 @@ B.drawVfx = function (c) {
         s += 10 + (1 - t.hp / t.maxHp) * 6 + (B.has(t, 'taunt') ? 30 : 0) + (pref && pref.indexOf(t) >= 0 ? 12 : 0);
         if (spec.melee && B.flanked(u, t, o.sx, o.sy)) s += 4;
         if (u.sneak && B.flanked(u, t, o.sx, o.sy)) s += 6;
+        if (u.side === 1 && !u.guest) s += B.roleBias(u, t, o.sx, o.sy, o.path ? Math.max(0, o.path.length - 1) : 0) + (G.rand() - 0.5) * 5;
       }
     } else if (spec.unit === 'down' || spec.side === 'party') s = tg.filter(t => t.down).length * 20 + tg.length;
     else s = tg.reduce((a, t) => a + (1 - t.hp / t.maxHp) * 10 + 2, 0) + (pref && tg.some(t => pref.indexOf(t) >= 0) ? 8 : 0);
@@ -4579,7 +4679,9 @@ B.drawVfx = function (c) {
       const opts = B.options(u, { unit: 'ally', range: 1 }, false).filter(o => o.targets[0] !== u && mates.indexOf(o.targets[0]) >= 0);
       if (opts.length) { const o = opts[0]; return toAct(u, o, 'attack'); }
     }
-    const tries = [G.wpick(u.moves.map(m => [m[1], m[0]]))].concat(u.moves.map(m => m[1]), ['attack']);
+    let tries = [G.wpick(u.moves.map(m => [m[1], m[0]]))].concat(u.moves.map(m => m[1]), ['attack']);
+    if (B.roleOf(u) === 'healer' && B.allies(u).some(x => x.hp < x.maxHp * 0.6) && G.rand() < 0.8)   // a healer mends first, usually
+      tries = u.moves.map(m => m[1]).filter(m => A[m] && (A[m].fx || []).some(e => e.t === 'heal')).concat(tries);
     for (const id of tries) {
       const ab = id === 'attack' ? null : A[id];
       if (ab && ab.target === 'ally' && !B.allies(u).some(x => x.hp < x.maxHp * 0.7)) continue;
@@ -4758,6 +4860,7 @@ B.drawVfx = function (c) {
         Object.assign({ label: 'Skills', value: 'ab', disabled: acted || !c.abilities.length }, hk('bt_skills')),
         Object.assign({ label: 'Items', value: 'item', disabled: acted }, hk('bt_items')),
         ...(B.usable(c).length ? [{ label: 'Use', value: 'use', disabled: acted }] : []),
+        ...(!acted && B.teamUps && B.teamUps(c).length ? [{ label: 'Team-up', value: 'team' }] : []),
         undo ? Object.assign({ label: 'Undo move', value: 'undo' }, hk('bt_undo')) : Object.assign({ label: 'Move', value: 'move', disabled: moved }, hk('bt_move')),
         Object.assign({ label: 'Defend', value: 'defend', disabled: acted }, hk('bt_defend')),
         Object.assign({ label: acted || moved || B.boss ? 'End turn' : 'Flee', value: acted || moved || B.boss ? 'end' : 'flee' }, hk('bt_end'))
@@ -4767,6 +4870,7 @@ B.drawVfx = function (c) {
       B.setLog(c.name + "'s turn." + (moved ? '' : ' Move ' + c.mov + '.'), B.statusLine(c) || 'Move and act once each, in either order.');
       B.ui = { show: !moved ? B.reach(c, Math.max(1, c.mov - (B.has(c, 'weak') ? 1 : 0))) : null, unit: c };
       const cmd = await UI.menu({ cls: 'bcmd', title: c.name, cancel: false, start, items });
+      if (cmd === 'auto' || B.autoOn) return await B.aiTurn(c);   // auto-battle took over
       B.ui = null;
       if (cmd === 'move') {
         const map = B.reach(c, Math.max(1, c.mov - (B.has(c, 'weak') ? 1 : 0)));
@@ -4800,6 +4904,12 @@ B.drawVfx = function (c) {
         const act = cmd === 'attack' || cmd === 'shot' ? { type: cmd, targets: op.targets } : cmd === 'ab' ? { type: 'ability', ab, targets: op.targets, center: [op.tx, op.ty] } : { type: 'item', id, targets: op.targets, center: [op.tx, op.ty] };
         await B.exec(c, act); acted = true;
         if (B.over()) return null;
+      } else if (cmd === 'team') {
+        const ups = B.teamUps(c);
+        const pick = ups.length === 1 ? 1 : await UI.menu({ cls: 'bsub', title: 'Team-up', items: ups.map((x, i) => ({ label: x.t.name, right: x.partner.name, value: i + 1 })),
+          onMove: it => { const x = ups[it.value - 1]; B.setLog(x.t.name + ' (with ' + x.partner.name + ')', x.t.say); } });
+        if (!pick) continue;
+        if (await B.teamUp(c, ups[pick - 1])) { acted = true; if (B.over()) return null; }
       } else if (cmd === 'use') {
         const list = B.usable(c);
         const pick = await UI.menu({ cls: 'bsub', title: 'Use', items: list.map((p, i) => ({ label: p.label, value: i + 1 })), onMove: it => { const p = list[it.value - 1], d = (p.hang ? B.HANG : B.PROP)[p.kind], hits = B.propHits(c, p); B.ui = { cur: { x: p.x, y: p.y }, area: { cells: B.blastSquares(c, p) } }; B.setLog(...B.blastLog(d.name, d.desc, hits)); } });
@@ -5065,7 +5175,7 @@ B.drawVfx = function (c) {
   const key = B.key;
   /* ---------- pace ---------- */
   B.SPEEDS = { normal: { name: 'Normal', f: 1 }, fast: { name: 'Fast', f: 0.62 }, swift: { name: 'Swift', f: 0.38 } };
-  B.speed = () => (B.SPEEDS[(G.opts && G.opts.bspeed) || 'fast'] || B.SPEEDS.fast).f;
+  B.speed = () => (B.SPEEDS[B.autoOn ? 'swift' : (G.opts && G.opts.bspeed) || 'fast'] || B.SPEEDS.fast).f;   // auto-battle runs at the swiftest pace
   B.pace = ms => Math.round(ms * Math.max(0.5, B.speed()));            // animations: never so quick you can't follow them
 
   /* ---------- holding ground ---------- */
@@ -5255,6 +5365,79 @@ B.drawVfx = function (c) {
     if (B.bondSeen[k + n]) return; B.bondSeen[k + n] = 1;
     G.bondAdd(k, n, true);
     (B.bondNotes = B.bondNotes || []).push((k.indexOf('_') < 0 ? NAME[k] + (n > 0 ? ' trusts Runa more' : ' trusts Runa less') : NAME[a.id] + ' and ' + NAME[b.id] + (n > 0 ? ' are closer' : ' are cooler')) + ' (' + why + ').');
+  };
+
+  /* ---------- team-ups ----------
+     Two heroes who are close (a companion Trusting Runa, or two companions who are Friends) standing side by side
+     can pull off a joint move, once per pair each fight. It takes the turn's action of the one who calls it.
+       Runa + Dask   Over the Line: Runa hurls Dask; he lands beside a foe up to 4 squares away and strikes (+2, +2d6).
+       Runa + Maren  Hammer and Lamp: Maren's lamp flares as Runa swings (+2, +1d8; +2d8 against the dead).
+       Runa + Finch  Battle Hymn: Runa strikes to Finch's beat (+2, +1d6) and knocks the foe back.
+       Dask + Maren  Blind and Bleed: the lamp dazzles, Dask's knife finds the gap (+3, +2d6).
+       Dask + Finch  Look Over There: Finch distracts, Dask strikes (+2, +3d6).
+       Maren + Finch Two-Part Hymn: everyone within 2 squares of either is healed (2d6 + level/2). */
+  B.TEAM = {
+    runa_dask: { name: 'Over the Line', striker: 'dask', reach: 4, leap: true, atkMod: 2, bonusDice: '2d6', say: 'Runa grabs Dask by the belt and hurls him over the line!' },
+    runa_maren: { name: 'Hammer and Lamp', striker: 'runa', reach: 1, atkMod: 2, bonusDice: '1d8', dead: '2d8', say: 'Maren lifts the lamp high, and Runa swings into the light!' },
+    runa_finch: { name: 'Battle Hymn', striker: 'runa', reach: 1, atkMod: 2, bonusDice: '1d6', push: 1, say: 'Finch hammers out a beat, and Runa swings on it!' },
+    dask_maren: { name: 'Blind and Bleed', striker: 'dask', reach: 1, atkMod: 3, bonusDice: '2d6', say: 'Maren flashes the lamp in its eyes; Dask finds the gap.' },
+    dask_finch: { name: 'Look Over There', striker: 'dask', reach: 1, atkMod: 2, bonusDice: '3d6', say: 'Finch points and shouts. It looks. Dask does not.' },
+    maren_finch: { name: 'Two-Part Hymn', heal: true, say: 'Maren and Finch sing it together, one line each, and the hurt goes out of everyone near them.' }
+  };
+  const pairKey = (a, b) => { const o = ['runa', 'dask', 'maren', 'finch']; return [a, b].sort((x, y) => o.indexOf(x) - o.indexOf(y)).join('_'); };
+  const close = (a, b) => (a === 'runa' || b === 'runa') ? G.bond(a, b) >= 4 : G.bond(a, b) >= 3;
+  // the team-ups c can call this turn: a partner beside it, close enough, and the pair not yet used this fight
+  B.teamUps = function (c) {
+    if (!isHero(c) || B.CLASSIC || B.brawl) return [];
+    B.teamUsed = B.teamUsed || {};
+    return B.c.filter(o => isHero(o) && adj(c, o) && B.living(o) && close(c.id, o.id) && !B.teamUsed[pairKey(c.id, o.id)])
+      .map(o => ({ partner: o, key: pairKey(c.id, o.id), t: B.TEAM[pairKey(c.id, o.id)] })).filter(x => x.t)
+      .filter(x => x.t.heal || B.teamTargets(c, x).length);
+  };
+  B.teamTargets = function (c, x) {
+    const s = x.t.striker === c.id ? c : x.partner;
+    return B.c.filter(f => B.living(f) && f.side === 1 && Math.max(Math.abs(f.gx - s.gx), Math.abs(f.gy - s.gy)) <= x.t.reach && (x.t.reach <= 1 || B.los(s, f)) &&
+      (!x.t.leap || B.teamLanding(s, f)));
+  };
+  // where Dask lands: a free square beside the foe, nearest to where he was thrown from
+  B.teamLanding = function (s, f) {
+    let best = null;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = f.gx + dx, y = f.gy + dy; if ((!dx && !dy) || !B.inside(x, y) || B.wall(x, y) || B.occupant(x, y) || B.ter(x, y) === 'fire') continue;
+      const d = Math.abs(x - s.gx) + Math.abs(y - s.gy); if (!best || d < best.d) best = { x, y, d };
+    }
+    return best;
+  };
+  // pull it off: returns false if called off at the target pick
+  B.teamUp = async function (c, x) {
+    const T = x.t, partner = x.partner;
+    if (T.heal) {
+      const near = B.c.filter(h => isHero(h) && !h.down && [c, partner].some(p => Math.max(Math.abs(h.gx - p.gx), Math.abs(h.gy - p.gy)) <= 2));
+      B.teamUsed[x.key] = 1; G.audio.sfx('heal'); B.float(c, T.name + '!', '#ffd24a');
+      B.addVfx({ k: 'aura', to: c, color: '#7ee08a' }); B.addVfx({ k: 'aura', to: partner, color: '#7ee08a' });
+      await B.msg(T.say);
+      for (const h of near) { const n = G.roll('2d6') + Math.floor((G.S.level || 1) / 2); h.hp = Math.min(h.maxHp, h.hp + n); B.addVfx({ k: 'rise', to: h, shape: 'plus', color: '#7ee08a' }); B.float(h, '+' + n, '#7ee08a'); }
+      B.refresh(); await B.msg(near.map(h => h.name).join(', ') + ' feel' + (near.length === 1 ? 's' : '') + ' the hurt ease.');
+      return true;
+    }
+    const striker = T.striker === c.id ? c : partner, helper = striker === c ? partner : c, opts = B.teamTargets(c, x);
+    const pick = await B.pickSquare({ unit: striker, spec: B.spec(striker, null), tint: 'foe',
+      options: opts.map(f => ({ tx: f.gx, ty: f.gy, sx: striker.gx, sy: striker.gy, targets: [f] })),
+      onHover: op => B.setLog(T.name + (op ? ': ' + op.targets[0].name : ''), op ? T.say : 'Pick a foe in reach.') });
+    B.ui = null;
+    if (!pick) return false;
+    const f = pick.targets[0];
+    B.teamUsed[x.key] = 1; G.audio.sfx('buff'); B.float(c, T.name + '!', '#ffd24a');
+    helper.fx = { k: 'cast', t: G.time };
+    await B.msg(T.say);
+    if (T.leap) {                                                // the throw: Dask sails over and lands beside the foe
+      const l = B.teamLanding(striker, f);
+      striker.anim = { t0: G.time, per: B.pace(380), path: [[striker.gx, striker.gy], [l.x, l.y]], leap: true }; G.audio.sfx('move');
+      await G.sleep(B.pace(380)); striker.gx = l.x; striker.gy = l.y; striker.anim = null; B.refresh();
+    }
+    const dead = T.dead && (f.tags || []).indexOf('undead') >= 0;
+    await B.attack(striker, f, { atkMod: T.atkMod, bonusDice: dead ? T.dead : T.bonusDice, push: T.push });
+    return true;
   };
 })();
 
@@ -5467,6 +5650,7 @@ B.drawVfx = function (c) {
     if (up > 0) { bonus += 1; notes.push('high ground +1'); } else if (up < 0) { bonus -= 1; notes.push('uphill -1'); }
     if (ranged && B.coverFor(sx, sy, t)) { bonus -= 2; notes.push('cover -2'); }
     if (!ranged && B.ter(sx, sy) === 'ice') { bonus -= 1; notes.push('on ice -1'); }
+    if (ranged && B.weather() === 'snow' && Math.max(Math.abs(t.gx - sx), Math.abs(t.gy - sy)) > 4) { bonus -= 2; notes.push('snowfall -2'); }
     return { bonus, notes };
   };
   B.rangeFrom = (spec, sx, sy) => spec.range + (spec.range > 1 && B.high(sx, sy) ? 1 : 0);
@@ -5479,15 +5663,32 @@ B.drawVfx = function (c) {
     B.addVfx({ k: 'burst', to: u, color: '#ff8a3a', n: 12 });
     await B.hurt(u, dmg, { kind: 'fire', text: u.name + (why || ' is caught in the flames') + ' for ' + dmg + '.' });
   };
+  // Weather by place: rain on the coast and in the fen, snow in the frost, embers on the wind in the Ashlands.
+  B.weather = () => B.CLASSIC ? null : ({ beach: 'rain', fen: 'rain', snow: 'snow', ash: 'embers' })[B.bg] || null;
+  B.WEATHER_TEXT = {
+    rain: 'Rain. Fires burn out fast, and a powder keg is too damp to light by hand (a shot or a spell still sets one off).',
+    snow: 'Snow is falling. Long shots, more than 4 squares, are at -2, and the ground is icy in places.',
+    embers: 'Embers on the wind. Now and then one catches the dry scrub and sets it burning.'
+  };
   B.setFire = function (x, y, rounds) {
     if (!B.inside(x, y) || B.wall(x, y)) return false;
     const was = B.ter(x, y);
     if (was === 'shallows' || was === 'bridge') return false;
     if (was === 'ice') { B.terrain.set(key(x, y), 'shallows'); B.boardRev++; return false; }
+    if (rounds && B.weather() === 'rain') rounds = Math.max(1, Math.ceil(rounds / 2));   // the rain puts it out sooner
     B.terrain.set(key(x, y), 'fire'); if (rounds) B.fireT.set(key(x, y), rounds); return true;
   };
-  B.roundEnd = function () {           // temporary fires burn down
+  B.roundEnd = async function () {     // temporary fires burn down; in the Ashlands an ember may catch the scrub
     for (const [k, n] of [...B.fireT]) { if (n <= 1) { B.fireT.delete(k); if (B.terrain.get(k) === 'fire') B.terrain.delete(k); } else B.fireT.set(k, n - 1); }
+    if (B.weather() === 'embers' && G.rand() < 0.35) {
+      const scrub = [...B.terrain].filter(([k, t]) => t === 'rough').map(([k]) => k.split(',').map(Number)).filter(([x, y]) => !B.occupant(x, y));
+      if (scrub.length) {
+        const [x, y] = scrub[Math.floor(G.rand() * scrub.length)];
+        B.terrain.set(key(x, y), 'fire'); B.fireT.set(key(x, y), 2); B.boardRev++;
+        if (B.spark && !G.fast) { const p = B.tileCenter(x, y); B.spark(p.x, p.y - 2, '#ffb04a', 14, 40, 700, -30); }
+        B.refresh(); await B.msg('An ember lands in the dry scrub, and it catches.', null, false, 0, true);
+      }
+    }
   };
 
   /* ---------- props ---------- */
@@ -5495,7 +5696,7 @@ B.drawVfx = function (c) {
     const out = [];
     for (const [k, kind] of B.props || []) {
       const [x, y] = k.split(',').map(Number), d = Math.max(Math.abs(x - c.gx), Math.abs(y - c.gy));
-      if (kind === 'keg' && d <= 5 && B.los(c, { gx: x, gy: y })) out.push({ k, x, y, kind, label: d <= 1 ? 'Light the powder keg' : 'Fling a torch at the powder keg' });
+      if (kind === 'keg' && d <= 5 && B.weather() !== 'rain' && B.los(c, { gx: x, gy: y })) out.push({ k, x, y, kind, label: d <= 1 ? 'Light the powder keg' : 'Fling a torch at the powder keg' });
       if (kind === 'brazier' && d === 1) out.push({ k, x, y, kind, label: 'Topple the brazier' });
       if ((kind === 'boulder' || kind === 'log') && d === 1) {
         const dx = Math.sign(x - c.gx), dy = Math.sign(y - c.gy), nx = x + dx, ny = y + dy, o = B.occupant(nx, ny);
@@ -5604,6 +5805,8 @@ B.drawVfx = function (c) {
     G.audio.sfx('crit'); B.shakeT = G.time; B.flashT = G.time;
     B.addVfx({ k: 'blast', at: [x, y], r: 1, color: kind === 'gas' ? '#7ac8ff' : '#ff8a3a' });
     if (B.spark) { const p = B.tileCenter(x, y); B.spark(p.x, p.y - 4, kind === 'gas' ? '#9ad8ff' : '#ffb04a', 30, 90, 700, 40); }
+    if (B.spark && kind === 'keg') { const p = B.tileCenter(x, y); B.spark(p.x, p.y - 4, '#7a5030', 22, 110, 900, 160); B.spark(p.x, p.y - 4, '#c89a5a', 12, 80, 800, 140); }
+    B.shakeAmp = B.calm && B.calm() ? 1.5 : 4.5; B.addVfx({ k: 'smoke', at: [x, y], dur: 2600, color: kind === 'gas' ? '120,170,210' : '60,54,52' });
     if (kind === 'gas') await B.msg((by && !shot ? by.name + ' flings a torch at the vent. ' : '') + 'The gas goes up in a sheet of blue flame.');
     else await B.msg((by && !shot ? by.name + ' sets off the powder keg. ' : 'The powder keg goes up. ') + 'BOOM.');
     B.setFire(x, y, 2);
@@ -5710,7 +5913,7 @@ B.drawVfx = function (c) {
     if (u !== B.bossUnit || u.down || B.CLASSIC) return false;
     if (u.windup) {
       const m = u.windup; u.windup = null; B.marks = B.marks.filter(x => x !== m); u.cool = 3;
-      u.fx = { k: 'lunge', t: G.time, dx: -1, dy: 0 }; B.shakeT = G.time; B.flashT = G.time; G.audio.sfx('crit');
+      u.fx = { k: 'lunge', t: G.time, dx: -1, dy: 0 }; B.shakeT = G.time; B.shakeAmp = B.calm && B.calm() ? 1.5 : 4.5; B.flashT = G.time; G.audio.sfx('crit'); B.punch = { t: G.time, o: u, z: 0.1, dur: 600 };
       B.addVfx({ k: 'blast', at: m.c, r: 1, color: '#ff5a3a' });
       await B.msg(u.name + ' brings the blow down!');
       const hit = B.c.filter(t => B.living(t) && t.side !== u.side && m.sq.has(key(t.gx, t.gy)));
@@ -5729,7 +5932,7 @@ B.drawVfx = function (c) {
     if (!best || best.n < 2) return false;
     const sq = new Set(); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (B.inside(best.c[0] + dx, best.c[1] + dy)) sq.add(key(best.c[0] + dx, best.c[1] + dy));
     const m = { c: best.c, sq }; B.marks.push(m); u.windup = m;
-    u.fx = { k: 'cast', t: G.time }; G.audio.sfx('debuff'); B.refresh();
+    u.fx = { k: 'cast', t: G.time }; G.audio.sfx('debuff'); B.refresh(); B.punch = { t: G.time, o: u, z: 0.08, dur: 650 };
     await B.msg(u.name + ' draws back for a terrible blow!', 'Get out of the red squares before its next turn.');
     return true;
   };
@@ -6322,12 +6525,85 @@ B.drawVfx = function (c) {
   B.parts = [];
   B.spark = function (x, y, color, n, speed, life, grav) {
     if (G.fast || B.parts.length > 800) return;                  // nothing is drawn while skipping; and never let them pile up
-    for (let i = 0; i < (n || 8); i++) { const an = Math.random() * 6.283, sp = (speed || 40) * (0.4 + Math.random() * 0.8); B.parts.push({ x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - (grav ? 20 : 0), t: 0, life: (life || 450) * (0.6 + Math.random() * 0.6), color, g: grav || 0 }); }
+    for (let i = 0; i < (n || 8); i++) { const an = Math.random() * 6.283, sp = (speed || 40) * (0.4 + Math.random() * 0.8); B.parts.push({ x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - (grav ? 20 : 0), t: 0, life: (life || 450) * (0.6 + Math.random() * 0.6), color, g: grav || 0, s: 1.2 + Math.random() * (grav > 60 ? 1.4 : 0.8) }); }
   };
   function drawParts(c, dt) {
     const s = dt / 1000; B.parts = B.parts.filter(p => (p.t += dt) < p.life);
-    c.save(); c.globalCompositeOperation = 'lighter';
-    for (const p of B.parts) { p.x += p.vx * s; p.y += p.vy * s; p.vy += p.g * s; p.vx *= 0.96; const a = 1 - p.t / p.life; c.globalAlpha = a; c.fillStyle = p.color; c.fillRect(p.x - 0.75, p.y - 0.75, 1.5, 1.5); }
+    // sparks glow on a dark board; on a bright one (snow, sand, daylight) adding light would wash them out, so they
+    // are painted solid there, with a dark edge on the heavier bits (debris, bone, stone) so they read against snow
+    const glow = !!(B.ambient && B.ambient()) || /^(cave|crypt|throne|sewer|ash|tavern)$/.test(B.bg);
+    c.save(); c.globalCompositeOperation = glow ? 'lighter' : 'source-over';
+    for (const p of B.parts) {
+      p.x += p.vx * s; p.y += p.vy * s; p.vy += p.g * s; p.vx *= 0.96; const a = 1 - p.t / p.life, z = p.s || 1.5;
+      if (!glow && p.g > 60) { c.globalAlpha = a * 0.55; c.fillStyle = '#2a2430'; c.fillRect(p.x - z / 2 + 0.4, p.y - z / 2 + 0.4, z, z); }
+      c.globalAlpha = glow ? a : Math.min(1, a * 1.2); c.fillStyle = p.color; c.fillRect(p.x - z / 2, p.y - z / 2, z, z);
+    }
+    c.restore();
+  }
+
+  // How a foe falls, and the particles that go with it.
+  B.deathFx = function (t) {
+    const wk = B.woundKind(t), beast = (t.tags || []).indexOf('beast') >= 0 && (t.def && (t.def.scale || 3) < 4);
+    t.death = wk === 'bone' ? 'bone' : wk === 'spirit' || wk === 'slime' ? 'spirit' : wk === 'stone' ? 'stone' : beast ? 'flee' : 'fall';
+    const src = B.active; t.fleeDir = src && src.gx > t.gx ? -1 : 1;
+    if (!B.spark || t.px == null) return;
+    const x = t.px, y = t.py - 12 * B.pieceSize(t);
+    if (t.death === 'bone') { B.spark(x, y, '#e8e0cc', 16, 50, 800, 140); B.spark(x, t.py - 2, '#a8a090', 10, 30, 900, 60); }
+    else if (t.death === 'spirit') B.spark(x, y, wk === 'slime' ? '#9ad08a' : '#c8d8ff', 22, 30, 1100, -40);
+    else if (t.death === 'stone') { B.spark(x, y, '#9a9488', 20, 80, 900, 170); B.spark(x, y, '#d8d0c0', 8, 60, 700, 150); }
+    else if (t.death === 'flee') B.spark(x, t.py - 1, '#a89878', 10, 25, 600, 10);
+  };
+  // What a spell leaves where it lands: embers rise from fire, frost shards fall, holy light drifts up.
+  B.impactParts = function (t, kind) {
+    if (!B.spark || !t || t.px == null) return;
+    const x = t.px, y = t.py - 13 * B.pieceSize(t);
+    const K = { fire: [['#ff9a2e', 18, 45, 900, -50], ['#ffe07a', 8, 30, 700, -40]], frost: [['#bfe4ff', 16, 60, 700, 110], ['#ffffff', 8, 40, 600, 90]],
+      holy: [['#fff2b0', 18, 25, 1100, -30], ['#ffe07a', 8, 40, 800, -20]], song: [['#f08aa6', 12, 30, 900, -25]], shadow: [['#8a6ac8', 16, 35, 900, -15], ['#2a1a3a', 8, 25, 800, 10]],
+      magic: [['#b48cf0', 14, 40, 800, -20], ['#ffffff', 6, 30, 600, 0]] }[kind] || [];
+    for (const [col, n, sp, life, g] of K) B.spark(x, y, col, n, sp, life, g);
+  };
+  // Weather over the board, by where the fight is: snow in the frost, ash and embers in the Ashlands, rain on the
+  // coast, a drizzle in the fen, leaves in the woods. Worked out from the time alone, so it costs nothing to keep.
+  function weather(c) {
+    const t = G.time / 1000, bg = B.bg;
+    const wrap = (v, m) => ((v % m) + m) % m;
+    c.save();
+    if (bg === 'snow') {
+      const wind = 10 + Math.sin(t * 0.5) * 14;
+      c.fillStyle = '#ffffff';
+      for (let i = 0; i < 90; i++) {                            // far flakes small and slow, a few near ones big, soft and quick
+        const near = i % 9 === 0, sp = near ? 34 + (i % 5) * 4 : 12 + (i * 13) % 18, r = near ? 1.6 : i % 3 === 0 ? 0.9 : 0.65;
+        const y = wrap((i * 37) % 260 + t * sp, 260) - 10, x = wrap((i * 71) % 340 + t * wind * (near ? 1.5 : 0.6 + (i % 5) * 0.12) + Math.sin(t * 1.4 + i) * (near ? 7 : 4), 340) - 10;
+        c.globalAlpha = near ? 0.55 : 0.75; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      }
+    } else if (bg === 'ash') {
+      for (let i = 0; i < 46; i++) {                            // grey ash drifting down
+        const sp = 6 + (i * 7) % 10, y = wrap((i * 41) % 250 + t * sp, 250) - 5, x = wrap((i * 89) % 330 + Math.sin(t * 0.8 + i) * 8 + t * 4, 330) - 5;
+        c.globalAlpha = 0.6; c.fillStyle = i % 3 ? '#9a9088' : '#c8beb4'; c.fillRect(x, y, 1.7, 1.7);
+      }
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 22; i++) {                            // embers lifting off the board
+        const sp = 10 + (i * 11) % 18, y = 250 - wrap((i * 53) % 260 + t * sp, 260), x = wrap((i * 97) % 330 + Math.sin(t * 2 + i * 1.3) * 6, 330) - 5;
+        c.globalAlpha = 0.5 + 0.4 * Math.sin(t * 7 + i); c.fillStyle = i % 2 ? '#ff8a3a' : '#ffc060'; c.fillRect(x, y, 1.3, 1.3);
+      }
+    } else if (bg === 'beach' || bg === 'fen') {
+      c.globalAlpha = bg === 'beach' ? 0.08 : 0.05; c.fillStyle = '#3a4a68'; c.fillRect(0, 0, 320, 240);   // the light goes grey and cool under the rain
+      const n = bg === 'beach' ? 70 : 34; c.strokeStyle = bg === 'beach' ? '#cfe4ff' : '#c8dcd0'; c.lineWidth = 0.7;
+      for (let i = 0; i < n; i++) {
+        const sp = 150 + (i * 17) % 80, y = wrap((i * 43) % 260 + t * sp, 260) - 10, x = wrap((i * 61) % 360 + t * sp * 0.25, 360) - 20;
+        c.globalAlpha = bg === 'beach' ? 0.32 : 0.22; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 2.5, y - 9); c.stroke();
+      }
+      if (bg === 'beach') for (let i = 0; i < 10; i++) {       // splashes on the board
+        const ph = wrap(t * 1.7 + i * 0.37, 1), x = B.BX + ((i * 83) % (B.N * B.TW)), y = B.BY + ((i * 47) % (B.N * B.TH));
+        c.globalAlpha = 0.4 * (1 - ph); c.beginPath(); c.ellipse(x, y, 1 + ph * 4, 0.5 + ph * 1.5, 0, 0, 7); c.stroke();
+      }
+    } else if (bg === 'forest') {
+      for (let i = 0; i < 9; i++) {                             // a few leaves turning on the way down
+        const sp = 9 + (i * 5) % 8, y = wrap((i * 59) % 250 + t * sp, 250) - 5, x = wrap((i * 113) % 330 + Math.sin(t * 0.9 + i) * 14 + t * 5, 330) - 5;
+        c.globalAlpha = 0.8; c.fillStyle = ['#c87a2a', '#d8a83a', '#8a9a3a'][i % 3];
+        c.save(); c.translate(x, y); c.rotate(Math.sin(t * 2 + i) * 1.2); c.fillRect(-1.5, -0.7, 3, 1.4); c.restore();
+      }
+    }
     c.restore();
   }
 
@@ -6352,11 +6628,21 @@ B.drawVfx = function (c) {
     const pos = posAt(gx, gy);
     if (o.fx) {
       const a = G.time - o.fx.t;
-      if (o.fx.k === 'lunge' && a < 220) { const k = Math.sin(a / 220 * Math.PI) * 6; if (B.isIso()) { const v = B.isoVec(o.fx.dx || 0, o.fx.dy || 0); pos.x += v[0] / 14 * k; pos.y += v[1] / 14 * k; } else { pos.x += (o.fx.dx || 0) * k; pos.y += (o.fx.dy || 0) * k * 0.6; } }
+      const push = (dx, dy, k) => { if (B.isIso()) { const v = B.isoVec(dx || 0, dy || 0); pos.x += v[0] / 14 * k; pos.y += v[1] / 14 * k; } else { pos.x += (dx || 0) * k; pos.y += (dy || 0) * k * 0.6; } };
+      // a lunge: a little draw back first, then the drive forward
+      if (o.fx.k === 'lunge' && a < 240) push(o.fx.dx, o.fx.dy, a < 70 ? -Math.sin(a / 70 * Math.PI / 2) * 2 : Math.sin((a - 70) / 170 * Math.PI) * 8);
       else if (o.fx.k === 'cast' && a < 300) pos.y -= Math.sin(a / 300 * Math.PI) * 3;
-      else if (o.fx.k === 'hit' && a < 260) pos.x += (Math.floor(a / 40) % 2 ? 1 : -1);
+      else if (o.fx.k === 'hit' && a < 300) {                  // knocked back a step's worth, held through the hit-stop, then eased home
+        const hold = B.stopDur || 45, k = a < hold ? 1 : 1 - (a - hold) / (300 - hold);
+        if (o.fx.dx || o.fx.dy) push(o.fx.dx, o.fx.dy, 3.5 * k * k / B.pieceSize(o) / (o.def && (o.def.scale || 3) >= 4 ? 1.6 : 1)); else pos.x += (Math.floor(a / 40) % 2 ? 1 : -1);
+      }
       else if (o.fx.k === 'enter' && a < 520) pos.x += (1 - a / 520) * 60;
     }
+    if (o.cheerT && !o.down) {                                  // a hop or two of joy
+      const a = G.time - o.cheerT, n = o.cheers || 1;
+      if (a > 0 && a < 260 * n) pos.y -= Math.abs(Math.sin(a / 260 * Math.PI)) * 5; else if (a >= 260 * n) o.cheerT = 0;
+    }
+    if (o.gone && o.death === 'flee' && o.downT) { const a = Math.min(1, (G.time - o.downT) / 700); pos.x += (o.fleeDir || 1) * a * a * 46; pos.y -= Math.abs(Math.sin(a * 9)) * 2; }
     return pos;
   }
   B.draw = function (c) {
@@ -6364,16 +6650,21 @@ B.drawVfx = function (c) {
     c.setTransform(B.RES, 0, 0, B.RES, 0, 0); c.imageSmoothingEnabled = false;
     const th = B.THEME[B.bg] || B.THEME.forest;
     c.imageSmoothingEnabled = true; c.drawImage(backdrop(B.BG[B.bg] ? B.bg : 'forest'), 0, 0, 320, 240); c.imageSmoothingEnabled = false;
-    const shake = B.shakeT && G.time - B.shakeT < 220 ? Math.round(Math.sin(G.time / 18) * 2) : 0;
+    const sa = B.shakeT ? G.time - B.shakeT : 1e9, amp = sa < 260 ? (B.shakeAmp || 2) * (1 - sa / 260) : 0;
+    const shake = amp ? Math.sin(G.time / 16) * amp : 0, shakeY = amp ? Math.cos(G.time / 23) * amp * 0.55 : 0;
+    const held = B.stopT && G.time - B.stopT < (B.stopDur || 0), fdt = held ? 0 : dt;   // the hit-stop: sparks and numbers hang in the air
     B.camUpdate(dt);
-    c.save(); c.translate(shake, 0); B.camApply(c);
+    c.save(); c.translate(shake, shakeY); B.camApply(c);
     if (B.punch) {                                              // a short push in on a critical hit or a knockout
-      const pa = (G.time - B.punch.t) / 300;
+      const pa = (G.time - B.punch.t) / (B.punch.dur || 300), Z = B.punch.z || 0.05;
       if (pa >= 1 || !B.punch.o || B.punch.o.px == null) B.punch = null;
-      else { const z = 1 + 0.05 * Math.sin(pa * Math.PI) * (1 - pa * 0.4), p = B.center(B.punch.o); c.translate(p.x, p.y); c.scale(z, z); c.translate(-p.x, -p.y); }
+      else {                                                    // in and out; a held push (a boss's arrival) eases in, stays, eases out
+        const e = B.punch.hold ? Math.min(1, pa / 0.15, (1 - pa) / 0.2) : Math.sin(pa * Math.PI) * (1 - pa * 0.4);
+        const z = 1 + Z * Math.max(0, e), p = B.center(B.punch.o); c.translate(p.x, p.y); c.scale(z, z); c.translate(-p.x, -p.y);
+      }
     }
     const W = B.N * B.TW, H = B.N * B.TH;
-    const units = B.c.filter(o => !o.gone || (o.downT && G.time - o.downT < 450));
+    const units = B.c.filter(o => !o.gone || (o.downT && G.time - o.downT < 760));
     units.forEach(o => { const p = unitPos(o); o.px = p.x; o.py = p.y; });
     if (B.isIso()) B.isoBoard(c, dt, units); else flatBoard(c, units);
     fog(c); drawLight(c, dt); beams(c);
@@ -6403,23 +6694,28 @@ B.drawVfx = function (c) {
     }
     B.drawPreview(c);
     B.drawVfx(c);
-    drawParts(c, Math.min(dt, 60));
-    motes(c);
+    drawParts(c, Math.min(fdt, 60));
+    motes(c); weather(c);
     c.restore();
     c.save(); B.camApply(c);
+    B.drawBubbles(c);                                           // party chatter first, so a number is never hidden under a bubble
     c.textAlign = 'center';
     B.floats = B.floats.filter(f => f.t < 1000);
     for (const f of B.floats) {
-      f.t += dt;
-      const k = Math.min(1, f.t / 600), y = f.y - 4 - 18 * (1 - (1 - k) * (1 - k)), pop = f.t < 140 ? 1.6 - f.t / 140 * 0.6 : 1, big = f.crit || f.color === '#ffd24a' ? 1.35 : 1;
-      c.save(); c.translate(f.x, y); c.scale(pop * big, pop * big); c.globalAlpha = f.t > 750 ? Math.max(0, 1 - (f.t - 750) / 250) : 1;
+      f.t += fdt;
+      // numbers pop out, a critical bigger and with a bounce, a heavy blow a little bigger than a light one
+      const k = Math.min(1, f.t / 600), y = f.y - 4 - 18 * (1 - (1 - k) * (1 - k)) - (f.crit && f.t < 360 ? Math.abs(Math.sin(f.t / 360 * Math.PI * 2)) * 4 * (1 - f.t / 360) : 0);
+      const pop = f.t < 160 ? (f.crit ? 1.8 : 1.6) - f.t / 160 * (f.crit ? 0.8 : 0.6) : 1, big = f.crit ? 1.35 : f.big || f.color === '#ffd24a' ? 1.25 : 1;
+      // never under the bars along the top of the screen: work out where the number lands on screen, and nudge it down
+      const m = c.getTransform(), top = 68 * B.RES + 9 * pop * big * m.d + (f.crit ? 7 * pop * big * m.d : 0); let yy = y; if (m.d * yy + m.f < top) yy = (top - m.f) / m.d;   // the top of the text, label included, clears the bars
+      c.save(); c.translate(f.x + (f.crit && f.t < 200 ? Math.sin(f.t / 18 + f.wob) * 1.2 : 0), yy); c.scale(pop * big, pop * big); c.globalAlpha = f.t > 750 ? Math.max(0, 1 - (f.t - 750) / 250) : 1;
+      if (f.crit) { c.font = 'bold 5px ui-monospace, Menlo, Consolas, monospace'; c.lineJoin = 'round'; c.strokeStyle = '#1a1420'; c.lineWidth = 1.8; c.strokeText('CRITICAL', 0, -8.5); c.fillStyle = '#ffe07a'; c.fillText('CRITICAL', 0, -8.5); }
       c.font = 'bold 9px ui-monospace, Menlo, Consolas, monospace'; c.lineJoin = 'round';
       c.strokeStyle = '#1a1420'; c.lineWidth = 2.5; c.strokeText(f.text, 0, 0);
       c.fillStyle = f.color; c.fillText(f.text, 0, 0);
       if (f.glyph) { const w = c.measureText(f.text).width / 2 + 4; c.beginPath(); c.arc(-w, -3, 3.4, 0, 7); c.fillStyle = 'rgba(26,20,32,.9)'; c.fill(); B.glyph(c, f.glyph, -w, -3, 2.5, f.color); }
       c.restore();
     }
-    B.drawBubbles(c);
     c.restore();
     banner(c);
     if (B.flashT && G.time - B.flashT < 110) { c.fillStyle = 'rgba(255,240,200,' + (0.22 * (1 - (G.time - B.flashT) / 110)) + ')'; c.fillRect(0, 0, 320, 240); }
@@ -6526,18 +6822,28 @@ B.drawVfx = function (c) {
     const sz = B.pieceSize(o), side = o.side === 1 ? 1 : o.guest ? 2 : 0, pc = B.piece(o.sprite, side);
     const w = 20 * sz, h = 32 * sz;
     let alpha = 1;
-    if (o.gone) alpha = Math.max(0, 1 - (G.time - o.downT) / 450);
+    const da = o.gone && o.downT ? G.time - o.downT : 0, dk = o.death || 'fall';
+    if (o.gone) alpha = Math.max(0, 1 - Math.max(0, da - (dk === 'fall' ? 250 : dk === 'stone' ? 120 : 0)) / (dk === 'spirit' ? 700 : dk === 'flee' ? 700 : 480));
     if (B.has(o, 'hidden')) alpha *= 0.45;
     if (o.fx && o.fx.k === 'enter' && G.time - o.fx.t < 520) alpha *= (G.time - o.fx.t) / 520;
     // a soft shadow under the base
     if (!o.down) { const sg = c.createRadialGradient(o.px, o.py + 1, 1, o.px, o.py + 1, 10 * sz); sg.addColorStop(0, 'rgba(0,0,0,' + (0.42 * alpha) + ')'); sg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sg; c.beginPath(); c.ellipse(o.px + 1, o.py + 1, 10 * sz, 4 * sz, 0, 0, 7); c.fill(); }
     if (o.bob == null) o.bob = Math.random() * 6.283;
-    const breathe = o.down || o.anim ? 0 : Math.sin(G.time / 520 + o.bob) * 0.5;
+    const breathe = o.down || o.anim || o.gone ? 0 : Math.sin(G.time / 520 + o.bob) * 0.75;
     c.globalAlpha = alpha;
     c.save(); c.translate(o.px, Math.round(o.py * 2) / 2);
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const face = B.isIso() ? B.isoFace(o) : o.face;
     if (o.down && !o.gone) { c.globalAlpha = 0.55 * alpha; c.rotate(face > 0 ? -1.45 : 1.45); c.translate(0, 3); }
+    if (o.gone && da) {                                          // how each kind falls
+      const t = Math.min(1, da / 700);
+      if (dk === 'fall') { const r = Math.min(1, da / 250); c.rotate((face > 0 ? -1 : 1) * 1.45 * r * r); c.translate(0, 3 * r); }
+      else if (dk === 'bone') { c.translate(0, 0); c.scale(1 + t * 0.25, Math.max(0.15, 1 - t * 0.9)); }                 // the bones fold down into a heap
+      else if (dk === 'spirit') { c.translate(Math.sin(da / 60) * 1.5, -t * 14); c.scale(1 - t * 0.4, 1 + t * 0.5); }      // a spirit thins and rises away
+      else if (dk === 'stone') { if (da < 120) c.translate(Math.sin(da / 12) * 1.5, 0); else c.scale(1, Math.max(0.2, 1 - (da - 120) / 500)); }
+      else if (dk === 'flee') c.scale(-1, 1);                    // a beast turns tail
+    }
+    if (!o.down && !o.gone && o.side === 0 && B.woundStage(o) >= 2) { c.rotate((face > 0 ? 1 : -1) * 0.06); c.scale(1, 0.97); }   // badly hurt: a hero sags and leans
     if (face < 0) c.scale(-1, 1);
     const ring = !o.down && !o.gone ? (o === B.active ? '#ffd24a' : B.ui && B.ui.cur && B.ui.tint === 'foe' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy && o.side === 1 ? '#ff5a4a' : B.ui && B.ui.cur && B.ui.tint === 'ally' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy ? '#8af0a0' : null) : null;
     if (ring) {                                                 // a glowing outline on the piece whose turn it is, or the one being aimed at
@@ -6699,6 +7005,14 @@ B.drawVfx = function (c) {
       hole(o.px, o.py - 10 * sz, (o.side === 1 ? 17 : 25) * sz * (act ? 1.35 : 1), o.down ? 0.25 : o.side === 1 ? 0.5 : 0.8);
     }
     for (const tc of torches) { const f = 1 + Math.sin(t * 9 + tc.x) * 0.05 + Math.sin(t * 23 + tc.x * 3) * 0.03; hole(tc.x, tc.y + 8, 62 * f, 0.95); glows.push([tc.x, tc.y + 4, 40 * f, '255,160,70', 0.22]); }
+    // braziers and burning ground light the squares round them, flickering
+    const fires = [];
+    if (B.props) for (const [k, kind] of B.props) if (kind === 'brazier') { const [x, y] = k.split(',').map(Number); fires.push([x, y, 1]); }
+    if (B.terrain) for (const [k, ter] of B.terrain) if (ter === 'fire') { const [x, y] = k.split(',').map(Number); fires.push([x, y, 0.7]); }
+    for (const [x, y, s] of fires.slice(0, 24)) {
+      const p = B.tileCenter(x, y), f = 1 + Math.sin(t * 11 + x * 2.3 + y) * 0.07 + Math.sin(t * 27 + x * 5) * 0.04;
+      hole(p.x, p.y, 40 * s * f, 0.9 * s); glows.push([p.x, p.y - 3, 26 * s * f, '255,150,60', 0.2 * s]);
+    }
     for (const v of (B.vfx || [])) {
       if (v.k === 'whiff') continue;
       const a = Math.min(1, (G.time - v.t0) / v.dur); let p = null;
@@ -6744,7 +7058,8 @@ B.drawVfx = function (c) {
   function banner(c) {
     const bn = B.banner; if (!bn) return;
     const a = (G.time - bn.t0) / bn.dur; if (a >= 1 || G.fast) { B.banner = null; return; }
-    const cy = B.BY + B.N * B.TH / 2, inA = Math.min(1, a / 0.15), outA = a > 0.8 ? 1 - (a - 0.8) / 0.2 : 1, al = inA * outA, h = bn.boss ? 34 : 20;
+    const cy = B.BY + B.N * B.TH / 2, inA = Math.min(1, a / 0.15), outA = a > 0.8 ? 1 - (a - 0.8) / 0.2 : 1, al = inA * outA, h = bn.boss ? 40 : 20;
+    if (bn.boss) { const bar = 22 * al; c.fillStyle = '#000'; c.fillRect(0, 0, 320, bar); c.fillRect(0, 240 - bar, 320, bar); }   // the screen narrows for a boss
     const slide = (1 - inA) * -40 + (a > 0.8 ? (a - 0.8) / 0.2 * 40 : 0);
     c.save(); c.globalAlpha = al * 0.88;
     const g = c.createLinearGradient(0, 0, 320, 0); g.addColorStop(0, 'rgba(10,8,20,0)'); g.addColorStop(0.22, 'rgba(10,8,20,.92)'); g.addColorStop(0.78, 'rgba(10,8,20,.92)'); g.addColorStop(1, 'rgba(10,8,20,0)');
@@ -6753,7 +7068,7 @@ B.drawVfx = function (c) {
     c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
     const F = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
     if (bn.sub) { c.font = 'bold 6px ' + F; c.fillStyle = '#ff8a6a'; c.fillText(bn.sub.split('').join(' '), 160 + slide, cy - 9); }
-    c.font = 'bold ' + (bn.boss ? 12 : 10) + 'px ' + F; c.strokeStyle = '#120c18'; c.lineWidth = 3;
+    c.font = 'bold ' + (bn.boss ? 15 : 10) + 'px ' + F; c.strokeStyle = '#120c18'; c.lineWidth = 3;
     const ty = cy + (bn.sub ? 4 : 0.5); c.strokeText(bn.text, 160 + slide, ty); c.fillStyle = bn.boss ? '#ffe2c8' : '#f4e6b8'; c.fillText(bn.text, 160 + slide, ty);
     c.restore(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
@@ -8739,7 +9054,14 @@ B.drawVfx = function (c) {
   B.statusRow = function (c, o, cx, y) {
     const list = o.statuses.filter(s => G.D.statuses[s.id]).slice(0, 4), r = 2.7, gap = 6.2;
     const x0 = cx - (list.length - 1) * gap / 2;
-    list.forEach((st, i) => B.statusBadge(c, st.id, x0 + i * gap, y, r));
+    list.forEach((st, i) => {
+      B.statusBadge(c, st.id, x0 + i * gap, y, r);
+      // how many turns it has left, small at the badge's corner (nothing for the ones that last the fight)
+      const n = st.turns; if (n == null || n <= 0 || n >= 9) return;
+      const x = x0 + i * gap + r * 0.95, yy = y + r * 0.95;
+      c.save(); c.font = 'bold 3.6px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+      c.strokeStyle = '#120c18'; c.lineWidth = 1.3; c.strokeText(String(n), x, yy); c.fillStyle = '#ffffff'; c.fillText(String(n), x, yy); c.restore();
+    });
   };
 })();
 
@@ -9044,6 +9366,9 @@ const Scenes = G.scenes = {};
     B.toggleZoom = () => { B.zoomFlip = !B.zoomOn(); if (B.zoomBtn) B.zoomBtn.classList.toggle('on', B.zoomOn()); };
     B.zoomBtn = btn('🔍', 'Zoom in on the action, or see the whole board', () => B.toggleZoom(), 'bzoom');
     B.zoomBtn.classList.toggle('on', B.zoomOn());
+    // auto-battle: only offered in a fight the party has clearly outgrown
+    B.autoBtn = B.autoOk && B.autoOk() ? btn('⏩', 'Auto-battle: the party fights this easy fight on its own, quickly. Press again to take back control.', () => B.toggleAuto(), 'bauto') : null;
+    if (B.autoBtn) B.autoBtn.classList.toggle('on', !!B.autoOn);
     UI.root.appendChild(el); B.viewEl = el; B.refreshView();
   };
   B.refreshView = function () {
@@ -9912,6 +10237,8 @@ Menu.bestiary = async function () {
       (kinds ? '<div class="dim">Kind: ' + UI.esc(kinds) + '</div>' : '') +
       (w.length ? '<div class="dim gold">Weak to: ' + UI.esc(w.join(', ')) + (learned(id) ? '' : ' (none of these learned yet)') + '</div>' : '') +
       (imm.length ? '<div class="dim">Shrugs off: ' + UI.esc(imm.join(', ')) + '</div>' : '') +
+      // its usual habit, once you have beaten one and seen how it fights
+      (n ? '<div class="dim">Habit: ' + UI.esc((G.D.roleText || {})[B.roleFor(id, d)] || '') + '</div>' : '<div class="dim">Beat one to learn its habits.</div>') +
       '<div class="dim">' + (n ? 'Defeated ' + n + (n === 1 ? ' time.' : ' times.') : 'Met, not yet beaten.') + '</div>';
   };
   await UI.menu({
@@ -10161,7 +10488,11 @@ Menu.shop = async function (shopId) {
       h('A turn') + p('Move and act once each, in either order. You can undo a move before acting. Rough ground and shallows cost 2 squares to enter.') +
       h('Free strikes') + p('Stepping away from an enemy beside you gives it one free attack at −2. Dask and anyone hidden never provoke.') +
       h('Defend') + p('+4 AC until your next turn, and 1 SP back.') +
-      h('Fleeing') + p('d20 + the party\'s best Speed against 8 + the enemies\' best Speed. You cannot flee from bosses. Losing a fight lets you try again, or retreat for a tenth of your gold.')],
+      h('Fleeing') + p('d20 + the party\'s best Speed against 8 + the enemies\' best Speed. You cannot flee from bosses. Losing a fight lets you try again, or retreat for a tenth of your gold.') +
+      h('Team-ups') + p('Two heroes who are close (a companion Trusting Runa, or two companions who are Friends) and standing side by side can pull off a joint move, once per pair each fight, for the action of whoever calls it. Runa and Dask: Over the Line. Runa and Maren: Hammer and Lamp. Runa and Finch: Battle Hymn. Dask and Maren: Blind and Bleed. Dask and Finch: Look Over There. Maren and Finch: Two-Part Hymn, a heal for everyone near them.') +
+      h('Auto-battle') + p('In a fight the party has outgrown (no boss, and the party above the fight\'s level), the ⏩ button (' + (Menu.keyHint ? Menu.keyHint('bauto') || 'R' : 'R') + ') lets the heroes fight on their own, quickly. Press it again to take back control.') +
+      h('Weather') + p('Rain (the coast, the fen): fires burn out fast, and a powder keg is too damp to light by hand. Snow: shots at more than 4 squares are at −2. The Ashlands: embers on the wind can set the dry scrub burning.') +
+      h('Enemy habits') + p('Each kind of foe has a usual habit: pack hunters pile onto one hero, archers pick on the least armoured, the dead are drawn to Maren\'s lamp, and so on. Beat one to see its habit in the bestiary. A habit is a good guess, never a promise.')],
     ['Levels and experience', () => {
       const T = G.D.xpTable; let rows = '';
       for (let L = 1; L <= 30; L++) rows += '<tr><td>' + L + '</td><td>' + (L === 1 ? '0' : T[L - 1].toLocaleString()) + '</td><td>' + (L === 1 ? '' : (T[L - 1] - T[L - 2]).toLocaleString()) + '</td><td>' + (G.AC_LEVELS.includes(L) ? '+1 AC for everyone' : '') + '</td></tr>';
@@ -21875,6 +22206,39 @@ window.addEventListener('load', function () {
     }
     d.rows = rows.map(r => r.join(''));
   }
+})();
+
+/* ===== data/ch9_world/y_roles.js ===== */
+/* Enemy roles: each kind of foe has its usual habits, learned in the bestiary (once one has been beaten) and by
+   fighting them. A habit tips how an enemy picks its target (src/board.js, B.roleBias), it does not decide it: there
+   is always a little chance in it, so a habit is a good guess, never a certainty.
+   Most roles follow from what a foe is (its kind, its moves, a bow); the list below sets the ones that need it. */
+(function () {
+  const D = G.D;
+  D.roleText = {
+    pack: 'Hunts in packs: piles onto whoever its packmates are already biting, and picks off anyone standing alone.',
+    brute: 'Charges the nearest hero and slugs it out. Rarely bothers with anyone further off.',
+    skirmisher: 'Looks for an opening: goes after the wounded, and loves to catch someone between two blades.',
+    archer: 'Hangs back and shoots whoever wears the least armour. Close in and it is in trouble.',
+    caster: 'Keeps its distance and goes for your spellcasters first: Maren and Finch.',
+    venom: 'Poisons someone, then moves on to a fresh victim rather than finish the job.',
+    guardian: 'Holds the line: stays close to its own side and strikes whoever comes for them.',
+    undead: 'Drawn to the living light: goes for Maren and her lamp before anyone else.',
+    zealot: 'Fights shoulder to shoulder with the faithful: piles onto whoever its fellows are fighting.',
+    healer: 'Keeps its allies on their feet: mends the wounded before it fights.',
+    boss: 'Waits for heroes to bunch up, then winds up a great blow on them. Spread out.'
+  };
+  D.enemyRoles = {
+    // beasts that hunt alone or charge
+    rat: 'pack', bear: 'brute', snowbear: 'brute', crab: 'guardian', brood: 'venom', ratking: 'pack',
+    // the dead that guard rather than hunt
+    warden: 'guardian', bonewarden: 'guardian', skeleton: 'guardian', frostbound: 'guardian',
+    boneknight: 'brute', deathknight: 'brute', drowned: 'undead', ghoul: 'undead', ashghoul: 'undead',
+    // people
+    bruiser: 'brute', bruiser2: 'brute', brannoc2: 'brute', brannoc4: 'brute', bryn: 'brute', nagra: 'brute',
+    shieldmaiden: 'guardian', chguard: 'guardian', collector: 'skirmisher', smuggler: 'skirmisher',
+    digger: 'brute', stoneguard: 'guardian', automaton: 'guardian', rimegolem: 'brute'
+  };
 })();
 
 </script>

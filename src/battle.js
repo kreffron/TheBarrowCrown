@@ -7,7 +7,7 @@ B.start = async function (groupId, o) {
   o = o || {};
   const grp = G.D.groups[groupId]; B.gid = groupId;
   if (!grp) { console.error('No enemy group: ' + groupId); return 'win'; }
-  B.gid = groupId;
+  B.gid = groupId; B.autoOn = false;
   B.opening = o.opening || B.nextOpening || null; B.nextOpening = null;
   // a few lines before some side-boss fights, the first time only
   const scene = (G.D.bossScenes || {})[groupId];
@@ -31,7 +31,7 @@ B.start = async function (groupId, o) {
 
 B.setup = function (grp, o) {
   B.zoomFlip = null; B.cam = { z: B.zoomOn() ? B.CAM_Z : 1, x: 160, y: 120 }; B.inspected = null; G.S.blog = []; B.round = 0;
-  B.c = []; B.floats = []; B.cursor = null; B.active = null; B.parts = []; B.bondNotes = []; B.bondSeen = {}; B.bubbles = []; B.lastQuip = -1e9;
+  B.c = []; B.floats = []; B.cursor = null; B.active = null; B.parts = []; B.bondNotes = []; B.bondSeen = {}; B.teamUsed = {}; B.bubbles = []; B.lastQuip = -1e9;
   B.boss = !!(grp.boss || o.boss);
   B.brawl = !!grp.brawl; B.rig = []; B.pendingAfter = null;
   B.guide = (grp.guide && !o.noGuide && !G.auto) ? grp.guide.slice() : null;
@@ -123,6 +123,7 @@ B.run = async function (grp, o) {
   G.audio.music(G.D.battleMusic ? G.D.battleMusic(B.boss, B.gid, grp) : grp.music || (B.boss ? 'boss' : 'battle'));
   await UI.fade(false, 170);
   await B.msg(grp.intro || B.introText());
+  { const wx = B.weather && B.weather(); if (wx && !G.flag('wx.' + wx)) { G.setFlag('wx.' + wx); await B.msg(B.WEATHER_TEXT[wx]); } }   // the first fight in each weather says what it does
   if (B.auraText) { B.refresh(); await B.msg(B.auraText); }
   if (B.c.some(c => c.side === 0 && !c.down && B.perk(c, 'lantern'))) {
     B.c.forEach(c => { if (c.side === 0 && !c.down) B.addStatus(c, 'blessed', 3); }); B.refresh();
@@ -152,7 +153,7 @@ B.run = async function (grp, o) {
   while (!result) {
     round++; B.round = round;
     if (!G.fast && !G.auto) {                                          // a name plate for a boss, then "Round 2", "Round 3"...
-      if (round === 1 && B.boss) { const bo = B.c.filter(x => x.side === 1).sort((p, q) => q.maxHp - p.maxHp)[0]; if (bo) { B.banner = { text: bo.name, sub: 'Boss', boss: true, t0: G.time, dur: 1700 }; await G.sleep(1650); } }
+      if (round === 1 && B.boss) { const bo = B.c.filter(x => x.side === 1).sort((p, q) => q.maxHp - p.maxHp)[0]; if (bo) { B.banner = { text: bo.name, sub: 'Boss', boss: true, t0: G.time, dur: 2300 }; B.punch = { t: G.time, o: bo, z: 0.1, dur: 2300, hold: 1 }; await G.sleep(2250); } }
       else if (round > 1) { B.banner = { text: 'Round ' + round, sub: B.objNote || null, t0: G.time, dur: 760 }; await G.sleep(700); }
     }
     if (round === 1) B.quipAny(B.boss ? 'boss' : 'start');
@@ -178,20 +179,21 @@ B.run = async function (grp, o) {
       const skip = await B.turnStart(c);
       result = await B.check(); if (result) break;
       if (c.down || skip) continue;
-      const r = c.side === 0 && !c.guest && !G.auto ? await B.playerTurn(c) : await B.aiTurn(c);
+      const r = c.side === 0 && !c.guest && !G.auto && !B.autoOn ? await B.playerTurn(c) : await B.aiTurn(c);
       if (B.pendingAfter) { const a = B.pendingAfter; B.pendingAfter = null; B.refresh(); await B.msg(a[0], a[1], true); }
       while (B.extra && B.extra.length && !B.over()) {                // Encore turns
         const x = B.extra.shift(); if (x.down) continue;
         B.active = x; B.refresh();
-        if (x.side === 0 && !x.guest && !G.auto) await B.playerTurn(x); else await B.aiTurn(x);
+        if (x.side === 0 && !x.guest && !G.auto && !B.autoOn) await B.playerTurn(x); else await B.aiTurn(x);
       }
       if (r === 'flee') { B.quipAny('flee'); result = 'flee'; break; }
       B.refresh();
     }
-    B.roundEnd();
+    await B.roundEnd();
     if (!result) result = await B.check();
     if (!result && round > 150) result = 'lose';
   }
+  B.autoOn = false;
   B.active = null; B.cursor = null;
   B.c.forEach(c => { if (c.side === 0 && c.m) { c.m.hp = c.down ? 1 : Math.max(1, c.hp); c.m.sp = c.sp; } });
   B.rounds = round;
@@ -206,6 +208,22 @@ B.run = async function (grp, o) {
   return result;
 };
 
+// Auto-battle: in a fight the party has clearly outgrown (no boss, not scripted, and the party above the fight's
+// level), the heroes can fight on their own using the autopilot, at speed. It can be switched off at any moment.
+B.autoOk = function () {
+  if (B.boss || B.brawl || B.guide || G.auto || !B.gid) return false;
+  return G.xpFor(G.groupLevel(B.gid) || G.mapLevel(G.S.map)) < 1;
+};
+B.toggleAuto = function () {
+  if (!B.autoOk()) { if (G.scene === 'battle') { G.audio.sfx('error'); B.setLog('Auto-battle is only for easy fights.', 'Fights the party has outgrown, with no boss. This one needs your hand.'); } return; }
+  B.autoOn = !B.autoOn; G.audio.sfx(B.autoOn ? 'select' : 'cancel');
+  if (B.autoBtn) B.autoBtn.classList.toggle('on', B.autoOn);
+  if (B.autoOn) { B.setLog('Auto-battle on.', 'The party fights on its own. Press ⏩ (or ' + (Menu.keyHint('bauto') || 'R') + ') to take back control.'); }
+  else B.setLog('Auto-battle off.', 'Your turn to command.');
+  // a hero waiting on orders right now: hand the turn over at once
+  const top = G.modals[G.modals.length - 1];
+  if (B.autoOn && top && top.done && /\b(bcmd|bsub)\b/.test(top.cls)) top.done('auto');
+};
 B.introText = function () {
   const foes = B.c.filter(c => c.side === 1);
   if (foes.length === 1) return foes[0].name + ' blocks the way!';
@@ -219,6 +237,7 @@ B.over = function () {
 };
 B.victory = async function (grp) {
   G.audio.music(null); G.audio.sfx('win'); B.quipAny('win');
+  B.c.filter(h => h.side === 0 && !h.down && !h.gone).forEach((h, i) => { h.cheerT = G.time + i * 120; h.cheers = 2; if (B.spark && h.px != null) setTimeout(() => B.spark(h.px, h.py - 20, '#ffe07a', 14, 50, 900, 30), i * 120); });
   let xp = 0, gold = grp.gold || 0; const loot = {};
   B.c.filter(c => c.side === 1).concat(B.gone || []).forEach(e => {
     if (e.noXp) return;
@@ -249,7 +268,14 @@ B.victory = async function (grp) {
   }
   if (B.bondNotes && B.bondNotes.length) await B.msg(B.bondNotes.join(' '), null, true);
   if (!B.brawl) { const pu = G.patchUp(); if (pu.length) { B.refreshFromState(); await B.msg(pu.join(', ') + ' patch each other up.', 'Friends heal a little after a fight.'); } }
-  for (const line of lines) { G.audio.sfx('level'); B.refreshFromState(); await B.msg(line, null, true); }
+  for (const line of lines) {
+    G.audio.sfx('level'); B.refreshFromState();
+    for (const h of B.c.filter(h => h.side === 0 && h.px != null && line.indexOf(h.name) >= 0)) {   // a column of golden light on whoever rose
+      B.addVfx({ k: 'beam', to: h, color: '#ffe07a' }); B.addVfx({ k: 'rise', to: h, shape: 'spark', color: '#ffe07a', dur: 1100 });
+      if (B.spark) B.spark(h.px, h.py - 14, '#fff2b0', 20, 45, 1000, -25); h.cheerT = G.time; h.cheers = 1;
+    }
+    await B.msg(line, null, true);
+  }
 };
 
 // Spoils (data/ch9_world/r_loot.js): supplies now and then, rarely a piece of found gear, more often at the level
@@ -368,7 +394,7 @@ B.attack = async function (user, target, o) {
     if (pal) B.pendingSiren = pal;
   }
   await B.hurt(target, dmg, {
-    crit, routine: !crit, text: (crit ? 'Critical hit! ' : '') + user.name + (sneak ? ' sneak attacks ' : ' hits ') + target.name + ' for ' + dmg + '.', sub: rollTxt
+    crit, routine: !crit, from: user, text: (crit ? 'Critical hit! ' : '') + user.name + (sneak ? ' sneak attacks ' : ' hits ') + target.name + ' for ' + dmg + '.', sub: rollTxt
   });
   if (user.side === 0 && !target.down) B.quip(user, crit ? 'crit' : 'hit', target);
   if (B.pendingSiren) { const pal = B.pendingSiren; B.pendingSiren = null; B.addStatus(pal, 'inspired', 9); B.refresh(); await B.msg('The siren-string hums. ' + pal.name + ' is Inspired.'); }
@@ -390,11 +416,26 @@ B.hurt = async function (t, dmg, o) {
   if (dmg > 0 && t.side === 0 && B.perk(t, 'thick') && !t.thickUsed) { t.thickUsed = true; dmg = Math.ceil(dmg / 2); B.float(t, 'Thick-skinned', '#ffd24a'); }
   if (t.hp - dmg <= 0 && B.has(t, 'unbroken')) { dmg = Math.max(0, t.hp - 1); held = true; t.statuses = t.statuses.filter(s => s.id !== 'unbroken'); }
   t.hp = Math.max(0, t.hp - dmg);
-  t.fx = { k: 'hit', t: G.time };
+  // the blow lands: the target jolts away from whoever struck it, the screen shakes as hard as the hit was heavy, and
+  // everything holds still for a heartbeat (a longer one for a critical)
+  const src = o.from || B.active, frac = Math.min(1, dmg / Math.max(1, t.maxHp));
+  t.fx = { k: 'hit', t: G.time, dx: src && src !== t ? Math.sign(t.gx - src.gx) : 0, dy: src && src !== t ? Math.sign(t.gy - src.gy) : 0 };
+  if (dmg > 0) {
+    const calm = B.calm();                                       // a device set to reduce motion gets a gentle nudge and no freeze
+    B.shakeT = G.time; B.shakeAmp = Math.min(4.5, 1 + frac * 9 + (o.crit ? 1.5 : 0)) * (calm ? 0.3 : 1);
+    B.stopT = G.time; B.stopDur = calm ? 0 : o.crit ? 120 : frac >= 0.25 ? 80 : 45;
+  }
   if (t.px != null && B.spark) { const cc = B.center(t); B.spark(cc.x, cc.y, o.crit ? '#ffe07a' : t.tags && t.tags.indexOf('undead') >= 0 ? '#c8d8ff' : '#ffb08a', o.crit ? 16 : 9, o.crit ? 70 : 45, 420, 60); if (o.crit) B.flashT = G.time; }
   G.audio.sfx(o.crit ? 'crit' : 'hit');
-  B.float(t, '-' + dmg, null, o.crit ? 'crit' : o.kind || 'hit');
+  B.float(t, '-' + dmg, null, o.crit ? 'crit' : o.kind || 'hit', frac >= 0.25);
+  if (dmg > 0 && !G.fast && B.stopDur) await G.sleep(B.stopDur);
   if (B.has(t, 'asleep')) t.statuses = t.statuses.filter(s => s.id !== 'asleep');
+  if (t.hp <= 0) {
+    if (t.side === 1 && B.deathFx) B.deathFx(t);                 // each kind falls its own way: bones crumble, spirits fade, beasts bolt
+    if (t.side === 1 && src && src.side === 0 && !src.down) src.cheerT = G.time + 220;   // and whoever felled it lets out a whoop
+    const last = t.side === 1 && B.c.filter(x => x.side === 1 && x !== t).every(x => x.down);
+    if (last) B.punch = { t: G.time, o: t, z: 0.12, dur: 700 };   // the finishing blow: a slower, closer push in
+  }
   if (t.hp <= 0) { t.down = true; t.statuses = []; t.downT = G.time; if (!B.punch) B.punch = { t: G.time, o: t }; if (t.side === 1) { t.gone = true; if (G.S.foes && t.id in G.S.foes) G.S.foes[t.id]++; } if (t.px != null && B.spark) B.spark(t.px, t.py - 2, '#8a7a6a', 14, 30, 650, -10); }
   B.refresh();
   if (o.text) await B.msg(o.text, o.sub, false, 0, o.routine);
@@ -673,10 +714,11 @@ B.refreshFromState = function () {
   B.c.forEach(c => { if (c.side === 0 && c.m) { const st = G.stats(c.m); c.maxHp = st.maxHp; c.maxSp = st.maxSp; c.hp = c.m.hp; c.sp = c.m.sp; c.down = false; } });
   B.refresh();
 };
-B.float = function (c, text, color, kind) {
+B.calm = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } };
+B.float = function (c, text, color, kind, big) {
   if (G.fast) return;
   const k = kind && B.DMG_KIND[kind];
-  B.floats.push({ x: c.px, y: c.py - 30 * B.pieceSize(c), text, color: color || (k && k[0]) || '#ff8a7a', glyph: k && k[1], crit: kind === 'crit', t: 0 });
+  B.floats.push({ x: c.px, y: c.py - 30 * B.pieceSize(c), text, color: color || (k && k[0]) || '#ff8a7a', glyph: k && k[1], crit: kind === 'crit', big: !!big, t: 0, wob: Math.random() * 6 });
 };
 
 
@@ -714,6 +756,8 @@ B.castColor = function (u, ab) {
 // The picture for a damaging spell or song; waits for a missile to land.
 B.spellVfx = async function (u, t, e) {
   if (G.fast) return;
+  const land = () => { if (B.impactParts) B.impactParts(t, e.sfx === 'fire' ? 'fire' : u.id === 'maren' || e.vs === 'undead' ? 'holy' : u.id === 'finch' ? 'song' : (u.tags || []).indexOf('undead') >= 0 ? 'frost' : u.side === 1 ? 'shadow' : 'magic'); };
+  setTimeout(land, u.id === 'maren' ? 220 : u.id === 'runa' ? 120 : 300);
   const ab = (B.casting && B.casting.ab) || {}, fire = e.sfx === 'fire';
   if (B.casting && B.casting.item) { B.addVfx({ k: 'burst', to: t, color: '#ff9a2e', n: 16 }); return; }
   if (u.id === 'maren' || (fire && u.side === 0)) { B.addVfx({ k: 'beam', to: t, color: '#ffe07a' }); await G.sleep(200); B.addVfx({ k: 'burst', to: t, color: '#fff2b0', n: 12 }); return; }
@@ -748,9 +792,16 @@ B.drawVfx = function (c) {
     const a = (now - v.t0) / v.dur, to = v.to && B.center(v.to), dir = v.flip ? -1 : 1, k = v.to ? (B.pieceSize(v.to) > 1 ? 1.4 : 1) : 1;
     c.save();
     if (v.k === 'proj') {
-      const fr = B.center(v.from), x = fr.x + (to.x - fr.x) * a, arc = v.shape === 'bottle' ? -Math.sin(a * Math.PI) * 26 : v.shape === 'stone' ? -Math.sin(a * Math.PI) * 12 : v.shape === 'notes' ? Math.sin(a * Math.PI * 3) * 5 : 0, y = fr.y + (to.y - fr.y) * a + arc;
+      const fr = B.center(v.from), dist = Math.hypot(to.x - fr.x, to.y - fr.y), lob = { bottle: 26, stone: 12, arrow: Math.min(14, dist * 0.12), hatchet: Math.min(10, dist * 0.1), knife: Math.min(6, dist * 0.06) }[v.shape] || 0;
+      const x = fr.x + (to.x - fr.x) * a, arc = lob ? -Math.sin(a * Math.PI) * lob : v.shape === 'notes' ? Math.sin(a * Math.PI * 3) * 5 : 0, y = fr.y + (to.y - fr.y) * a + arc;
       const sx = Math.sign(to.x - fr.x) || 1;
-      if (v.shape === 'arrow') { R(Math.min(x, x - 12 * sx), y, 13, 1, '#d8c8a0'); R(x + (sx > 0 ? 1 : -4), y - 1, 4, 3, '#e8ecf4'); R(x - 13 * sx - 1, y - 2, 3, 5, '#f4f1e6'); }
+      if (v.shape === 'arrow') {                                 // an arrow climbs and drops along its arc, nose first, with a faint trail
+        const vy = (to.y - fr.y) - Math.cos(a * Math.PI) * Math.PI * lob, ang = Math.atan2(vy, to.x - fr.x);
+        c.globalAlpha = 0.25; c.strokeStyle = '#f4f1e6'; c.lineWidth = 0.6; c.beginPath();
+        for (let i = 0; i <= 6; i++) { const b = Math.max(0, a - i * 0.03), tx = fr.x + (to.x - fr.x) * b, ty = fr.y + (to.y - fr.y) * b - Math.sin(b * Math.PI) * lob; i ? c.lineTo(tx, ty) : c.moveTo(tx, ty); }
+        c.stroke(); c.globalAlpha = 1;
+        c.translate(x, y); c.rotate(ang); R(-12, -0.5, 13, 1, '#d8c8a0'); R(1, -1.5, 4, 3, '#e8ecf4'); R(-13, -2.5, 3, 5, '#f4f1e6');
+      }
       else if (v.shape === 'hatchet') { c.translate(x, y); c.rotate(a * 16 * sx); R(-1, -5, 2, 10, '#6b4a2b'); R(1, -5, 4, 4, '#c8ccd8'); R(4, -5, 1, 4, '#f4f4fa'); }
       else if (v.shape === 'stone') { for (let i = 3; i > 0; i--) { c.globalAlpha = 0.18 * (4 - i) / 3; c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(x - sx * i * 3, y + i * 0.6, 2 - i * 0.3, 0, 7); c.fill(); }
         c.globalAlpha = 1; c.fillStyle = '#8a8478'; c.beginPath(); c.arc(x, y, 2.4, 0, 7); c.fill(); c.fillStyle = '#d8d2c4'; c.beginPath(); c.arc(x - 0.7, y - 0.8, 1, 0, 7); c.fill(); }
@@ -788,6 +839,16 @@ B.drawVfx = function (c) {
       for (let dy = -v.r; dy <= v.r; dy++) for (let dx = -v.r; dx <= v.r; dx++) { const x = v.at[0] + dx, y = v.at[1] + dy; if (!B.inside(x, y)) continue; if (iso) { B.isoPath(c, x, y, 0.06); c.fill(); } else c.fillRect(B.BX + x * B.TW + 1, B.BY + y * B.TH + 1, B.TW - 2, B.TH - 2); }
       const rw = iso ? 12 * 1.41 : B.TW, rh = iso ? 6 * 1.41 : B.TH;
       c.globalAlpha = 1 - a; c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.ellipse(ctr.x, ctr.y, (v.r + 0.5) * rw * a + 4, (v.r + 0.5) * rh * a + 2, 0, 0, 7); c.stroke(); }
+    else if (v.k === 'smoke') {                                 // smoke after a blast: puffs that swell, drift and thin out
+      const ctr = B.tileCenter(v.at[0], v.at[1]);
+      for (let i = 0; i < 9; i++) {
+        const ph = Math.min(1, a * 1.3 + (i % 3) * 0.05), an = i * 0.7 + v.seed, r = 5 + ph * 16 + (i % 4) * 2;
+        const x = ctr.x + Math.cos(an) * (6 + ph * 14) + Math.sin(now / 900 + i) * 2, y = ctr.y - 4 - ph * 18 + Math.sin(an) * 5;
+        const al = 0.55 * (1 - a * a) * (1 - Math.abs(Math.sin(an * 3)) * 0.3);
+        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(' + v.color + ',' + al + ')'); g.addColorStop(1, 'rgba(' + v.color + ',0)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      }
+    }
     else if (v.k === 'quake') { c.globalAlpha = 1 - a; for (let i = 0; i < 9; i++) { const x = to.x - 26 + i * 6, h = (6 + ((i * 13 + v.seed) % 9)) * Math.sin(a * 3.14); R(x, v.to.py - h, 5, h, '#8a6a42'); R(x, v.to.py - h, 5, 2, '#c8a56a'); } }
     c.restore();
   }
