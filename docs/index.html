@@ -124,6 +124,12 @@ body.touch #pad { display: flex; width: 100%; max-width: 560px; justify-content:
 .pb.on { background: #3a4380; }
 .abtn { display: flex; gap: 14px; }
 .abtn .pb { width: 60px; height: 60px; border-radius: 50%; }
+/* sideways phone: the pad lies over the whole screen, d-pad at the left edge and the buttons at the right */
+body.touch.side #pad { position: fixed; inset: 0; height: auto; max-width: none; padding: 0 14px 22px; align-items: flex-end; pointer-events: none; }
+body.touch.side #pad > * { pointer-events: auto; }
+body.touch.side .dpad { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); }
+body.touch.side .abtn { flex-direction: column-reverse; align-items: flex-end; gap: 12px; }
+body.touch.side .abtn .pb[data-btn=b] { margin-right: 52px; }
 
 /* cutscenes and tutorial */
 .lbox { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
@@ -178,6 +184,7 @@ body.touch #pad { display: flex; width: 100%; max-width: 560px; justify-content:
 .qdone s { text-decoration-color: rgba(170, 176, 204, .35); text-decoration-thickness: .6rem; }
 .bcmd .mr { color: #7f86a8; font-size: 7rem; padding-left: 6rem; }
 .bcmd .mi.dis .mr { opacity: .5; }
+.touch .bcmd { width: 66rem; } .touch .bcmd .mr { display: none; }   /* no keyboard numbers on a phone: a narrower list covers less of the board */
 
 .bturn { position: absolute; left: 4rem; right: 4rem; top: 37rem; height: 11rem; display: flex; align-items: center; gap: 1.5rem; pointer-events: none; z-index: 2; }
 .bturn .trnd { font-size: 6rem; color: #e8c14a; background: rgba(16,20,46,.85); border: 1rem solid #3a3f6c; border-radius: 2rem; padding: 0 2rem; height: 9rem; line-height: 8rem; }
@@ -702,9 +709,14 @@ G.initInput = function () {
 
 /* ---------- layout: 1rem = one logical pixel ---------- */
 G.layout = function () {
-  const touch = document.body.classList.contains('touch');
-  const vw = window.innerWidth, vh = window.innerHeight - (touch ? 150 : 0);
-  let s = Math.min(vw / G.W, vh / G.H);
+  const touch = document.body.classList.contains('touch'), vw = window.innerWidth, VH = window.innerHeight;
+  // a phone on its side: the d-pad and the buttons go in the room either side of the screen, so the game can use the
+  // full height; otherwise (upright, or too narrow for that) they sit underneath it
+  const SIDE = 150, under = Math.min(vw / G.W, (VH - 150) / G.H), beside = Math.min((vw - 2 * SIDE) / G.W, VH / G.H);
+  const side = touch && beside > under;
+  document.body.classList.toggle('side', side);
+  const vh = VH - (touch && !side ? 150 : 0);
+  let s = side ? beside : Math.min(vw / G.W, vh / G.H);
   if (s >= 2) s = Math.floor(s);            // crisp integer scale on desktop
   s = Math.max(0.75, s);
   document.documentElement.style.fontSize = s + 'px';
@@ -4716,9 +4728,9 @@ B.drawVfx = function (c) {
     const name = ab === 'shot' ? u.shot.name : ab ? ab.name : 'Attack';
     return B.pickSquare({
       unit: u, spec, options: opts, start, tint: harmful ? 'foe' : 'ally',
-      areaOf: op => spec.burst != null ? { c: [op.tx, op.ty], r: spec.burst } : spec.around != null ? { c: [op.sx, op.sy], r: spec.around } : null,
+      areaOf: op => op.prop && B.blastSquares ? { cells: B.blastSquares(u, op.prop) } : spec.burst != null ? { c: [op.tx, op.ty], r: spec.burst } : spec.around != null ? { c: [op.sx, op.sy], r: spec.around } : null,
       onHover: (op, cur) => {
-        if (op && op.prop) { const d = B.PROP[op.prop.kind]; B.setLog(d.name + ': shoot it.', B.SHOT_TEXT[op.prop.kind] + (B.propHits(u, op.prop).allies.length ? ' (Careful: one of yours is next to it.)' : '')); if (B.ui) { B.ui.preview = null; B.ui.provokers = null; } return; }
+        if (op && op.prop) { const d = B.PROP[op.prop.kind]; B.setLog(...B.blastLog(d.name + ': shoot it.', B.SHOT_TEXT[op.prop.kind], B.propHits(u, op.prop))); if (B.ui) { B.ui.preview = null; B.ui.provokers = null; } return; }
         if (!op) { const t = B.occupant(cur.x, cur.y); B.setLog(t ? B.describe(t) : name + ': pick a highlighted square.', t ? 'Out of reach.' : (ab ? ab.desc : 'Strike an enemy in reach.')); return; }
         if (B.ui) { B.ui.preview = harmful && op.targets.length === 1 ? B.preview(u, ab, op.targets[0], op.sx, op.sy) : null; B.ui.provokers = op.path && op.path.length > 1 && !op.leap ? B.provokes(u, op.path).map(p => p.e) : null; }
         if (spec.unit) {
@@ -4790,7 +4802,7 @@ B.drawVfx = function (c) {
         if (B.over()) return null;
       } else if (cmd === 'use') {
         const list = B.usable(c);
-        const pick = await UI.menu({ cls: 'bsub', title: 'Use', items: list.map((p, i) => ({ label: p.label, value: i + 1 })), onMove: it => { const p = list[it.value - 1], d = (p.hang ? B.HANG : B.PROP)[p.kind]; B.ui = { cur: { x: p.x, y: p.y } }; B.setLog(d.name, d.desc); } });
+        const pick = await UI.menu({ cls: 'bsub', title: 'Use', items: list.map((p, i) => ({ label: p.label, value: i + 1 })), onMove: it => { const p = list[it.value - 1], d = (p.hang ? B.HANG : B.PROP)[p.kind], hits = B.propHits(c, p); B.ui = { cur: { x: p.x, y: p.y }, area: { cells: B.blastSquares(c, p) } }; B.setLog(...B.blastLog(d.name, d.desc, hits)); } });
         B.ui = null;
         if (!pick) continue;
         await B.useProp(c, list[pick - 1]); acted = true;
@@ -5507,6 +5519,22 @@ B.drawVfx = function (c) {
     else if (p.kind === 'brazier') { const dx = Math.sign(p.x - c.gx), dy = Math.sign(p.y - c.gy); let x = p.x, y = p.y; for (let i = 0; i < 3; i++) { x += dx; y += dy; if (!B.inside(x, y) || B.wall(x, y)) break; const o = B.occupant(x, y); if (o && B.living(o)) sq.push(o); } }
     else if (p.kind === 'boulder' || p.kind === 'log') { const r = B.rollPath(c, p); if (r.hit) sq = [r.hit]; }
     return { foes: sq.filter(u => u.side !== c.side), allies: sq.filter(u => u.side === c.side) };
+  };
+  // The squares a prop's use would hit, for the preview while you aim at it or pick it from Use: round a keg, a gas
+  // vent, a hive or a falling thing; along the spill of a brazier; down the line a boulder or a log rolls.
+  B.blastSquares = function (c, p) {
+    const out = [];
+    if (p.hang || p.kind === 'keg' || p.kind === 'gas' || p.kind === 'hive') { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (B.inside(p.x + dx, p.y + dy)) out.push([p.x + dx, p.y + dy]); }
+    else if (p.kind === 'brazier') { const dx = Math.sign(p.x - c.gx), dy = Math.sign(p.y - c.gy); let x = p.x, y = p.y; for (let i = 0; i < 3; i++) { x += dx; y += dy; if (!B.inside(x, y) || B.wall(x, y)) break; out.push([x, y]); } }
+    else if (p.kind === 'boulder' || p.kind === 'log') { const r = B.rollPath(c, p); out.push(...r.path); if (r.hit) out.push([r.hit.gx, r.hit.gy]); }
+    return out;
+  };
+  // What the log says while you aim at one: who it catches, and a warning in place of the description when it would
+  // catch one of yours (the log has room for two lines).
+  B.blastLog = function (head, desc, h) {
+    const n = h.foes.length, names = h.allies.map(a => a.name);
+    if (n) head += ' Catches ' + n + (n > 1 ? ' foes.' : ' foe.');
+    return [head, names.length ? 'Careful: the blast would catch ' + names.join(' and ') + ' too.' : desc];
   };
   // The use of a prop worth making this turn, or null: from any square c could move to first, by hand (Use) or,
   // for anyone with a bow or a throw, by shooting a keg, a gas vent or a hive from further off. Enemies weigh it the
@@ -6430,7 +6458,8 @@ B.drawVfx = function (c) {
       const col = { foe: 'rgba(255,90,70,.38)', ally: 'rgba(110,230,140,.38)', move: 'rgba(110,170,255,.40)' }[ui.tint] || 'rgba(255,255,255,.3)';
       for (const k of ui.valid) { const [x, y] = k.split(',').map(Number); sq(x, y, col); }
     }
-    if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) if (B.inside(ax + dx, ay + dy)) sq(ax + dx, ay + dy, 'rgba(255,220,90,.45)'); }
+    if (ui && ui.area && ui.area.cells) for (const [x, y] of ui.area.cells) sq(x, y, 'rgba(255,220,90,.45)');
+    else if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) if (B.inside(ax + dx, ay + dy)) sq(ax + dx, ay + dy, 'rgba(255,220,90,.45)'); }
     if (ui && ui.stand) { const [x, y] = ui.stand; c.strokeStyle = '#8ab4ff'; c.lineWidth = 1; c.setLineDash([2, 2]); c.strokeRect(B.BX + x * B.TW + 2.5, B.BY + y * B.TH + 2.5, B.TW - 5, B.TH - 5); c.setLineDash([]); }
     if (ui && ui.cur) {
       const x = B.BX + ui.cur.x * B.TW, y = B.BY + ui.cur.y * B.TH, p = Math.floor(G.time / 200) % 2;
@@ -9219,7 +9248,8 @@ const Scenes = G.scenes = {};
     // what lies on a square: water ripples, fire's glow, a boss's marks, the highlights and the cursor
     const ui = B.ui, marks = new Set(), area = new Set();
     for (const m of B.marks || []) for (const k of m.sq) marks.add(k);
-    if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) area.add((ax + dx) + ',' + (ay + dy)); }
+    if (ui && ui.area && ui.area.cells) for (const [x, y] of ui.area.cells) area.add(x + ',' + y);
+    else if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) area.add((ax + dx) + ',' + (ay + dy)); }
     const show = new Set(); if (ui && ui.show) for (const v of ui.show.values()) if (!v.pass) show.add(v.x + ',' + v.y);
     const tint = ui && ui.valid ? ({ foe: 'rgba(255,90,70,.40)', ally: 'rgba(110,230,140,.40)', move: 'rgba(110,170,255,.42)' }[ui.tint] || 'rgba(255,255,255,.3)') : null;
     const pulse = 0.28 + 0.18 * Math.sin(t / 110), threat = B.showThreat() ? B.threat() : null;

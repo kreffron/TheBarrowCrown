@@ -611,9 +611,9 @@
     const name = ab === 'shot' ? u.shot.name : ab ? ab.name : 'Attack';
     return B.pickSquare({
       unit: u, spec, options: opts, start, tint: harmful ? 'foe' : 'ally',
-      areaOf: op => spec.burst != null ? { c: [op.tx, op.ty], r: spec.burst } : spec.around != null ? { c: [op.sx, op.sy], r: spec.around } : null,
+      areaOf: op => op.prop && B.blastSquares ? { cells: B.blastSquares(u, op.prop) } : spec.burst != null ? { c: [op.tx, op.ty], r: spec.burst } : spec.around != null ? { c: [op.sx, op.sy], r: spec.around } : null,
       onHover: (op, cur) => {
-        if (op && op.prop) { const d = B.PROP[op.prop.kind]; B.setLog(d.name + ': shoot it.', B.SHOT_TEXT[op.prop.kind] + (B.propHits(u, op.prop).allies.length ? ' (Careful: one of yours is next to it.)' : '')); if (B.ui) { B.ui.preview = null; B.ui.provokers = null; } return; }
+        if (op && op.prop) { const d = B.PROP[op.prop.kind]; B.setLog(...B.blastLog(d.name + ': shoot it.', B.SHOT_TEXT[op.prop.kind], B.propHits(u, op.prop))); if (B.ui) { B.ui.preview = null; B.ui.provokers = null; } return; }
         if (!op) { const t = B.occupant(cur.x, cur.y); B.setLog(t ? B.describe(t) : name + ': pick a highlighted square.', t ? 'Out of reach.' : (ab ? ab.desc : 'Strike an enemy in reach.')); return; }
         if (B.ui) { B.ui.preview = harmful && op.targets.length === 1 ? B.preview(u, ab, op.targets[0], op.sx, op.sy) : null; B.ui.provokers = op.path && op.path.length > 1 && !op.leap ? B.provokes(u, op.path).map(p => p.e) : null; }
         if (spec.unit) {
@@ -685,7 +685,7 @@
         if (B.over()) return null;
       } else if (cmd === 'use') {
         const list = B.usable(c);
-        const pick = await UI.menu({ cls: 'bsub', title: 'Use', items: list.map((p, i) => ({ label: p.label, value: i + 1 })), onMove: it => { const p = list[it.value - 1], d = (p.hang ? B.HANG : B.PROP)[p.kind]; B.ui = { cur: { x: p.x, y: p.y } }; B.setLog(d.name, d.desc); } });
+        const pick = await UI.menu({ cls: 'bsub', title: 'Use', items: list.map((p, i) => ({ label: p.label, value: i + 1 })), onMove: it => { const p = list[it.value - 1], d = (p.hang ? B.HANG : B.PROP)[p.kind], hits = B.propHits(c, p); B.ui = { cur: { x: p.x, y: p.y }, area: { cells: B.blastSquares(c, p) } }; B.setLog(...B.blastLog(d.name, d.desc, hits)); } });
         B.ui = null;
         if (!pick) continue;
         await B.useProp(c, list[pick - 1]); acted = true;

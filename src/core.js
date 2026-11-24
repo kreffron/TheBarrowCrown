@@ -415,9 +415,14 @@ G.initInput = function () {
 
 /* ---------- layout: 1rem = one logical pixel ---------- */
 G.layout = function () {
-  const touch = document.body.classList.contains('touch');
-  const vw = window.innerWidth, vh = window.innerHeight - (touch ? 150 : 0);
-  let s = Math.min(vw / G.W, vh / G.H);
+  const touch = document.body.classList.contains('touch'), vw = window.innerWidth, VH = window.innerHeight;
+  // a phone on its side: the d-pad and the buttons go in the room either side of the screen, so the game can use the
+  // full height; otherwise (upright, or too narrow for that) they sit underneath it
+  const SIDE = 150, under = Math.min(vw / G.W, (VH - 150) / G.H), beside = Math.min((vw - 2 * SIDE) / G.W, VH / G.H);
+  const side = touch && beside > under;
+  document.body.classList.toggle('side', side);
+  const vh = VH - (touch && !side ? 150 : 0);
+  let s = side ? beside : Math.min(vw / G.W, vh / G.H);
   if (s >= 2) s = Math.floor(s);            // crisp integer scale on desktop
   s = Math.max(0.75, s);
   document.documentElement.style.fontSize = s + 'px';

@@ -292,7 +292,8 @@
     // what lies on a square: water ripples, fire's glow, a boss's marks, the highlights and the cursor
     const ui = B.ui, marks = new Set(), area = new Set();
     for (const m of B.marks || []) for (const k of m.sq) marks.add(k);
-    if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) area.add((ax + dx) + ',' + (ay + dy)); }
+    if (ui && ui.area && ui.area.cells) for (const [x, y] of ui.area.cells) area.add(x + ',' + y);
+    else if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) area.add((ax + dx) + ',' + (ay + dy)); }
     const show = new Set(); if (ui && ui.show) for (const v of ui.show.values()) if (!v.pass) show.add(v.x + ',' + v.y);
     const tint = ui && ui.valid ? ({ foe: 'rgba(255,90,70,.40)', ally: 'rgba(110,230,140,.40)', move: 'rgba(110,170,255,.42)' }[ui.tint] || 'rgba(255,255,255,.3)') : null;
     const pulse = 0.28 + 0.18 * Math.sin(t / 110), threat = B.showThreat() ? B.threat() : null;

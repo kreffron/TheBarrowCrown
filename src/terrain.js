@@ -184,6 +184,22 @@
     else if (p.kind === 'boulder' || p.kind === 'log') { const r = B.rollPath(c, p); if (r.hit) sq = [r.hit]; }
     return { foes: sq.filter(u => u.side !== c.side), allies: sq.filter(u => u.side === c.side) };
   };
+  // The squares a prop's use would hit, for the preview while you aim at it or pick it from Use: round a keg, a gas
+  // vent, a hive or a falling thing; along the spill of a brazier; down the line a boulder or a log rolls.
+  B.blastSquares = function (c, p) {
+    const out = [];
+    if (p.hang || p.kind === 'keg' || p.kind === 'gas' || p.kind === 'hive') { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (B.inside(p.x + dx, p.y + dy)) out.push([p.x + dx, p.y + dy]); }
+    else if (p.kind === 'brazier') { const dx = Math.sign(p.x - c.gx), dy = Math.sign(p.y - c.gy); let x = p.x, y = p.y; for (let i = 0; i < 3; i++) { x += dx; y += dy; if (!B.inside(x, y) || B.wall(x, y)) break; out.push([x, y]); } }
+    else if (p.kind === 'boulder' || p.kind === 'log') { const r = B.rollPath(c, p); out.push(...r.path); if (r.hit) out.push([r.hit.gx, r.hit.gy]); }
+    return out;
+  };
+  // What the log says while you aim at one: who it catches, and a warning in place of the description when it would
+  // catch one of yours (the log has room for two lines).
+  B.blastLog = function (head, desc, h) {
+    const n = h.foes.length, names = h.allies.map(a => a.name);
+    if (n) head += ' Catches ' + n + (n > 1 ? ' foes.' : ' foe.');
+    return [head, names.length ? 'Careful: the blast would catch ' + names.join(' and ') + ' too.' : desc];
+  };
   // The use of a prop worth making this turn, or null: from any square c could move to first, by hand (Use) or,
   // for anyone with a bow or a throw, by shooting a keg, a gas vent or a hive from further off. Enemies weigh it the
   // same way heroes on autopilot do: worth it when it catches more of the other side than a plain attack would, and

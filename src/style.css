@@ -116,6 +116,12 @@ body.touch #pad { display: flex; width: 100%; max-width: 560px; justify-content:
 .pb.on { background: #3a4380; }
 .abtn { display: flex; gap: 14px; }
 .abtn .pb { width: 60px; height: 60px; border-radius: 50%; }
+/* sideways phone: the pad lies over the whole screen, d-pad at the left edge and the buttons at the right */
+body.touch.side #pad { position: fixed; inset: 0; height: auto; max-width: none; padding: 0 14px 22px; align-items: flex-end; pointer-events: none; }
+body.touch.side #pad > * { pointer-events: auto; }
+body.touch.side .dpad { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); }
+body.touch.side .abtn { flex-direction: column-reverse; align-items: flex-end; gap: 12px; }
+body.touch.side .abtn .pb[data-btn=b] { margin-right: 52px; }
 
 /* cutscenes and tutorial */
 .lbox { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
@@ -170,6 +176,7 @@ body.touch #pad { display: flex; width: 100%; max-width: 560px; justify-content:
 .qdone s { text-decoration-color: rgba(170, 176, 204, .35); text-decoration-thickness: .6rem; }
 .bcmd .mr { color: #7f86a8; font-size: 7rem; padding-left: 6rem; }
 .bcmd .mi.dis .mr { opacity: .5; }
+.touch .bcmd { width: 66rem; } .touch .bcmd .mr { display: none; }   /* no keyboard numbers on a phone: a narrower list covers less of the board */
 
 .bturn { position: absolute; left: 4rem; right: 4rem; top: 37rem; height: 11rem; display: flex; align-items: center; gap: 1.5rem; pointer-events: none; z-index: 2; }
 .bturn .trnd { font-size: 6rem; color: #e8c14a; background: rgba(16,20,46,.85); border: 1rem solid #3a3f6c; border-radius: 2rem; padding: 0 2rem; height: 9rem; line-height: 8rem; }

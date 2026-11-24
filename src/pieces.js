@@ -526,7 +526,8 @@
       const col = { foe: 'rgba(255,90,70,.38)', ally: 'rgba(110,230,140,.38)', move: 'rgba(110,170,255,.40)' }[ui.tint] || 'rgba(255,255,255,.3)';
       for (const k of ui.valid) { const [x, y] = k.split(',').map(Number); sq(x, y, col); }
     }
-    if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) if (B.inside(ax + dx, ay + dy)) sq(ax + dx, ay + dy, 'rgba(255,220,90,.45)'); }
+    if (ui && ui.area && ui.area.cells) for (const [x, y] of ui.area.cells) sq(x, y, 'rgba(255,220,90,.45)');
+    else if (ui && ui.area) { const [ax, ay] = ui.area.c; for (let dy = -ui.area.r; dy <= ui.area.r; dy++) for (let dx = -ui.area.r; dx <= ui.area.r; dx++) if (B.inside(ax + dx, ay + dy)) sq(ax + dx, ay + dy, 'rgba(255,220,90,.45)'); }
     if (ui && ui.stand) { const [x, y] = ui.stand; c.strokeStyle = '#8ab4ff'; c.lineWidth = 1; c.setLineDash([2, 2]); c.strokeRect(B.BX + x * B.TW + 2.5, B.BY + y * B.TH + 2.5, B.TW - 5, B.TH - 5); c.setLineDash([]); }
     if (ui && ui.cur) {
       const x = B.BX + ui.cur.x * B.TW, y = B.BY + ui.cur.y * B.TH, p = Math.floor(G.time / 200) % 2;
