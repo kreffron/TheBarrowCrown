@@ -28,7 +28,7 @@
     lever: {}, leverOn: {}, gate: {}, lockedDoor: {}, sarcophagus: {}, mushroom: {}, boulder: {},
     shrine: { anim: 2 }, lampDead: {}, crack: {}, caveMouth: {}, sack: {}, throne: { base: 'ground' }, throneBack: { solid: true, base: 'ground' }, coatstand: {}, coatEmpty: {}, web: { base: 'ground' }, ladder: {}, wheel: {}, bramble: {},
     // puzzle pieces (things, and the pit floor)
-    plateUp: {}, plateDown: {}, pit: { solid: true }, filledPit: {}, trap: {}, trapOff: {}, secretDoor: {}, wardLamp: { anim: 2 }, chime: {},
+    plateUp: {}, plateDown: {}, pit: { solid: true }, filledPit: {}, crackFloor: {}, shelfCart: {}, rottenPlanks: {}, thinIce: {}, trap: {}, trapOff: {}, secretDoor: {}, wardLamp: { anim: 2 }, chime: {},
     resetLever: {}, millstone: {}, iceblock: {}, ghostBridge: { anim: 2 }, muralSong: {}, sluice: {}, tideFloor: { v: 2 },
     mirrorA: {}, mirrorB: {}, crystal: {}, crystalLit: { anim: 2 }, sunshaft: { anim: 2 }, sentryPost: {},
     // chapter 2

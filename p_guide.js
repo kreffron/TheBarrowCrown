@@ -17,7 +17,7 @@
       ['Talking and checks',
         'Face something and press {a}. A small {a} appears over anything that will answer.\n\nSome things call for a skill check: a d20 plus the hero\'s skill bonus, against a difficulty (DC). Meet or beat it to succeed. A natural 20 always succeeds; a natural 1 always fails. Some checks can be tried again.'],
       ['Enemies on the map',
-        'Enemies you can see have a red ring at their feet.\n\n· Story foes face one way. Step into the three squares in front of one and it comes for you.\n· Roaming bands wander and give chase. Beaten, they stay gone until you rest.\n· Reach an enemy from behind: an ambush, and your side moves first. Caught from behind: you are surprised.\n\nRandom fights happen off the road; roads, paths and bridges are safe.'],
+        'Enemies you can see have a red ring at their feet.\n\n· Story foes face one way: step in front of one and it comes for you.\n· Roaming bands wander and give chase. Beaten, they stay gone until you rest.\n· Reach one from behind: you move first. Caught from behind: they do.\n\nOutdoors, random fights start only in cover (tall grass, reeds, drifts, cinders).'],
       ['Running and travel',
         'Hold {run} to run, about twice as fast. Options > Always run makes running the default (then holding {run} walks).\n\nMap > Travel takes you to any town you have already found, from a town or the open road (not from underground).']
     ]],
@@ -29,7 +29,7 @@
       ['Holding ground',
         'Stepping away from an enemy beside you gives it a free strike at -2 to hit: one a round per enemy, at most one per move.\n\nDask and anyone hidden never provoke. Enemies asleep, stunned or turned do not strike. Shoves, leaps and falls never provoke. Enemies follow the same rule.\n\nPress {threat} to shade every square the enemy can reach next turn.'],
       ['Ground and objects',
-        '· High ground: +1 to hit anyone lower, -1 hitting up; bows and spells reach one square further.\n· Rough ground and shallows: 2 squares to enter.\n· Fire burns anyone ending a move or starting a turn in it. Ice: -1 to hit from it.\n· Cover: a low obstacle beside a target gives -2 to shots from further than one square.\n· Kegs, braziers, boulders, logs, hives, gas vents and things overhead: Use them.'],
+        '· High ground: +1 to hit anyone lower, -1 hitting up; bows and spells reach one square further.\n· Rough ground and shallows: 2 squares to enter.\n· Fire burns anyone ending a move or starting a turn in it. Ice: -1 to hit from it.\n· Cover: a low obstacle beside a target gives -2 to shots from further than one square.\n· Kegs, gas vents, hives: shoot them, or catch them in a spell. The rest: Use.'],
       ['Defend and flee',
         'Defend: +4 AC until your next turn, and 1 skill point back.\n\nOnce a fight, free: Runa\'s Shove, Dask\'s Smoke Pellet, Maren\'s Lamp Flare, Finch\'s Hush.\n\nFlee: a d20 plus your party\'s best speed, against 8 plus the enemies\' best speed.\n\nBosses wind up big blows, marked in red: step out of them. At half health a boss is enraged and calls for help.'],
       ['Status effects',
@@ -51,15 +51,15 @@
     ]],
     ['Puzzles', [
       ['Puzzle dungeons',
-        'Nine dungeons built around the heroes\' gifts: switch leaders to solve them. Tips explain each new kind of piece.\n\n· Walk into a block to shove it (Runa). On ice it slides until stopped.\n· Plates, lamps, bell-stones, mirrors and beasts each have a hero for them.\n· Every room has a red reset lever: nothing can get stuck.\n· The Smith\'s Deep has hint stones: a nudge or a plain answer.']
+        'Nine dungeons built around the heroes\' gifts: switch leaders to solve them.\n\n· Runa shoves blocks, never pulls: one in a corner stays there. On ice they slide.\n· Cracked floor holds you once.\n· Plates, lamps, bell-stones and mirrors each want a hero.\n· Stuck? The red lever, or Menu > Start this room over.\n· The Smith\'s Deep has hint stones.']
     ]],
     ['Saving and settings', [
       ['Saving',
         'The game saves itself to your slot whenever you enter a new place and when you rest. Menu > Save picks a slot; {save} quick-saves. The opening brawl cannot be saved.\n\nSaves live in this browser. Options > Export save gives a code you can keep or carry to another browser, and the title screen loads it.\n\nMenu > Quit to title can save first.'],
       ['Journal and map',
-        'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, Biographies (who you have met, growing as the story does), the bestiary, Recent conversations and The last fight are there too.\n\nThe map shows where you have been. + marks a place Maren can pray, ♪ a place Finch can play.'],
+        'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, Biographies (who you have met, growing as the story does), the bestiary, Recent conversations and The last fight are there too.\n\nMap: Area is this place (+ Maren can pray, ♪ Finch can play); Region is the whole land, clouded where you have not been.'],
       ['Options',
-        '· Difficulty. Easy: foes have a quarter less health and hit softer. Hard: more health, harder hits.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
+        '· Difficulty: Easy foes are weaker, Hard ones stronger.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· Music and sound volume: left and right.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
     ]]
   ];
 })();
