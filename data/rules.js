@@ -142,12 +142,12 @@
     sirenshot: { name: 'Siren-string', desc: "+1 bow range, and Finch's first bow hit in each fight Inspires the nearest ally." },
     secondverse: { name: 'Second Verse', desc: "Finch's first song in each fight costs no Verve." }
   };
-  D.speakers = { Runa: '#f08a5a', Dask: '#7ad08a', Maren: '#f2e3a0', Finch: '#d890e8' };
+  D.speakers = { Runa: '#f08a5a', Dask: '#7ad08a', Maren: '#f2e3a0', Finch: '#f0a0b4' };
   D.sprites = {
-    runa: { skin: '#e0a67c', hair: '#c8572e', long: 1, top: '#7a5a3a', legs: '#4a3b2e', trim: '#b89a6a' },
-    dask: { skin: '#e8c09a', hair: '#3a2a1e', top: '#3d5a4a', legs: '#2e2a33', hood: '#2f4a3c' },
-    maren: { skin: '#c98e62', hair: '#9a9fac', long: 1, top: '#e9e2c8', robe: 1, trim: '#e8c14a' },
-    finch: { skin: '#f0c8a0', hair: '#e8c14a', top: '#b23a6a', legs: '#3a2f55', hat: '#7a2f8a', feather: '#f2d14a' }
+    runa: { skin: '#eebf9c', hair: '#d2582a', long: 1, top: '#7a4e30', legs: '#8a7058', trim: '#c8a050' },
+    dask: { skin: '#d6a07c', hair: '#2a1e18', top: '#5a4434', legs: '#4e4844', hood: '#3a7050' },
+    maren: { skin: '#e6b498', hair: '#f0eee8', long: 1, top: '#ece2c8', robe: 1, trim: '#a83444' },
+    finch: { skin: '#e8b896', hair: '#f0c868', top: '#9a3046', legs: '#4c4a66', hat: '#5c3456', feather: '#f4ead4' }
   };
 
   /* ---------- abilities ----------

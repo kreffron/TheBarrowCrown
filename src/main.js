@@ -3,9 +3,37 @@ const Title = G.title = { el: null };
 Title.draw = function (c) {
   const R = B.RES || 1; c.setTransform(R, 0, 0, R, 0, 0); c.imageSmoothingEnabled = true;
   Scenes.paint(c, 'title', G.time);
-  c.imageSmoothingEnabled = false;                     // the four of them, small, looking up at it
-  ['runa', 'dask', 'maren', 'finch'].forEach((s, i) => G.gfx.drawSprite(c, s, 'up', 0, 122 + i * 20, 206, 1));
+  const lineup = Title.lineup();
+  if (lineup) {                                          // the four of them, painted, two either side of the barrow, facing it
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+    const calm = B.calm && B.calm();
+    [['runa', 46, 1], ['dask', 92, 1], ['maren', 230, -1], ['finch', 276, -1]].forEach(([id, x, f], i) => {
+      const cv = lineup[id], w = 46, h = 73.6, sway = calm ? 0 : Math.sin(G.time / 1900 + i * 1.9) * 0.02;
+      c.save(); c.translate(x, 233); if (f < 0) c.scale(-1, 1); if (sway) c.transform(1, 0, sway, 1, 0, 0);
+      c.drawImage(cv, -w / 2, -h, w, h); c.restore();
+    });
+  } else {
+    c.imageSmoothingEnabled = false;                     // (classic figures: the four of them, small, looking up at it)
+    ['runa', 'dask', 'maren', 'finch'].forEach((s, i) => G.gfx.drawSprite(c, s, 'up', 0, 122 + i * 20, 206, 1));
+  }
   c.setTransform(1, 0, 0, 1, 0, 0);
+};
+// the heroes for the title, painted once: moonlight from above, the barrow's lamplight on the side facing it
+Title.lineup = function () {
+  if (!(B.heroicOn && B.heroicOn('runa') && B.heroPainter)) return null;
+  if (Title._lineup) return Title._lineup;
+  const out = {}, ks = 6;
+  for (const id of ['runa', 'dask', 'maren', 'finch']) {
+    const cv = document.createElement('canvas'); cv.width = 40 * ks; cv.height = 64 * ks;
+    const c = cv.getContext('2d'); c.scale(ks, ks); c.lineJoin = 'round'; c.lineCap = 'round';
+    const after = B.heroPainter(id)(c); if (after) after(c);
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop';
+    let g = c.createLinearGradient(0, 0, 0, cv.height); g.addColorStop(0, 'rgba(70,90,170,.30)'); g.addColorStop(1, 'rgba(20,24,60,.42)'); c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    g = c.createLinearGradient(cv.width * 0.45, 0, cv.width, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(255,190,110,.30)'); c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    g = c.createLinearGradient(0, 0, cv.width * 0.4, 0); g.addColorStop(0, 'rgba(170,200,255,.22)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    out[id] = cv;
+  }
+  return (Title._lineup = out);
 };
 // The title paints at screen resolution, like a battle; leaving it puts the canvas back for the field.
 Title.leave = () => { if (G.cv) { G.cv.width = 320; G.cv.height = 240; G.cv.classList.remove('smooth'); } };

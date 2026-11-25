@@ -730,6 +730,20 @@ every other person uses the same kit through `B.paintSpec`:
 - **Portraits**: people and beasts are painted again at 7x for turn chips and dialogue (`paintHi` in pieces.js), the
   heroes at 14x. Options -> Battle figures -> Classic is untouched.
 
+## Cosmetic pass: bosses, expressions, idle life, light, title (Nov 2026)
+
+- **Map sprites**: the heroes' `D.sprites` and `D.looks` use the new palettes; Finch's speaker colour is rose.
+- **Expressions** (`UI.mood` in portraits.js, `B.withExpr` in heroic2.js): a line's wording picks happy, angry, worried
+  or sad (cautious word lists, with a `NOT` list for wry or negated phrases; about 1 line in 27 changes face). The face
+  moves brows, lids, gaze and mouth. Portraits cache per mood (`B.faceURL(sprite, side, mood)`); people only, heroic only.
+- **Bosses** (`src/bosslooks.js`): the boss fight's lead foe is `boss: true` and painted as side 3: crimson-and-gold
+  plinth with a crown medallion, an aura in its own colour (`B.bossAura`), 10% larger. `B.bossSig[name]` adds a
+  signature detail for the chief villains (King, Corr, Veyra, Vosk, Ilsabet, ash knights, Abbot, Grukk, Vell, Ashby, Hesk).
+- **Idle life** (drawUnit): weight-shifting sway from the base, lantern and spirit light flicker; off under reduced motion.
+- **Battlefield light** (`B.envLit`, `ENV` in pieces.js): each setting's wash and side light on the figures, cached per
+  piece; a flickering warm glow near braziers and burning ground (`fireNear`).
+- **Title** (`Title.lineup` in main.js): the four painted heroes in moonlight, facing the barrow; classic keeps the sprites.
+
 ## Reachability pass
 
 `tools/reachtest.py` walks the whole game from the new-game start, through every door, stair and story move, and lists any map or thing the party can never reach. It found three sealed areas, fixed in `data/ch9_world/u_fixes.js`:

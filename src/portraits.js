@@ -28,10 +28,33 @@
     }
   }
   UI.portraitMap = () => { if (!map) build(); return map; };
-  UI.portraitOf = function (who) {
+  // The mood of a line, for the speaker's expression: happy, angry, worried, sad, or null (their usual face).
+  // Word lists and punctuation, weighed; a line has to lean clearly one way to change the face.
+  const MOODS = {
+    happy: /\b(i like (it|that)( very much)?|ha! ha|glad|good news|wonderful|splendid|marvellous|lovely|laugh\w*|cheers|hooray|huzzah|welcome back|delight\w*|excellent|perfect|at last|we did it|we won|victory|well done|beautiful|brilliant|proud of|best day|grin\w*)\b/i,
+    angry: /\b(curse\w*|you fools?|how dare|get out|liar|coward\w*|hate|filth|scum|wretch\w*|swine|vermin|you'll pay|pay for this|out of my way|back off|i'll break|never forgive|enough of|damn\w*)\b/i,
+    worried: /\b(careful|hush|afraid|fear\w*|danger\w*|trap\w*|i don'?t like|uneasy|worr\w*|watch out|look out|what was that|did you hear|too quiet|nervous|something is wrong|something's wrong|not right|stay close)\b/i,
+    sad: /\b(sorry|died|grief|griev\w*|miss (him|her|them|you)|mourn\w*|tears|all alone|left me alone|forgive me|too late|never came back|farewell|wept|weep\w*|lonely|regret\w*|i failed|my fault|lost (him|her|them|everything))\b/i
+  };
+  // phrases that look like a mood and are not one (wry, polite, or negated)
+  const NOT = /\b(not alone|never alone|not proud|forgive me if|sorry to say|old fool|can'?t miss|not sorry|is not sorry|not too late)\b/gi;
+  UI.mood = function (text) {
+    if (!text) return null; const t = String(text).replace(NOT, ' '), sc = {};
+    for (const m in MOODS) sc[m] = (t.match(new RegExp(MOODS[m].source, 'gi')) || []).length * 2;
+    const bang = (t.match(/!/g) || []).length;
+    if (bang) { if (sc.angry) sc.angry += bang; else if (sc.happy) sc.happy += bang; }
+    if (/\?/.test(t) && sc.worried) sc.worried += 1;
+    if (/\.\.\.|…/.test(t)) { if (sc.sad) sc.sad += 1; else if (sc.worried) sc.worried += 1; }
+    if (/\b(ha(ha)+|hah|heh)\b/i.test(t)) sc.happy += 3;
+    let best = null, bs = 1;
+    for (const m in sc) if (sc[m] > bs || (sc[m] === bs && best && false)) { best = m; bs = sc[m]; }
+    const second = Math.max(...Object.keys(sc).filter(m => m !== best).map(m => sc[m]));
+    return best && bs >= 2 && bs > second ? best : null;
+  };
+  UI.portraitOf = function (who, mood) {
     if (!who || G.opts.portraits === false || !B.faceURL) return null;
     if (!map) build();
     const s = map[who]; if (!s) return null;
-    try { return B.faceURL(s, HEROES[who] ? 0 : 2); } catch (e) { return null; }
+    try { return B.faceURL(s, HEROES[who] ? 0 : 2, G.opts.expressions === false ? null : mood); } catch (e) { return null; }
   };
 })();

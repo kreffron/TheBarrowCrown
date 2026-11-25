@@ -18,7 +18,7 @@
   const headT = cc => { cc.translate(HX, HY - 0.3); cc.scale(HK, HK); cc.translate(-20.3, -13.8); };
   B.paintSpec = function (c, K, s, side, H) {
     const F = B.fig, shade = F.shade, alpha = F.alpha;
-    const foe = side === 1, W = s.big ? 1.6 : 0, skel = !!s.skel;
+    const foe = side === 1 || side === 3, W = s.big ? 1.6 : 0, skel = !!s.skel;
     const skin = skel ? BONE : (s.skin || '#e8b890'), hair = s.hair || '#4a3020';
     const top = s.top || (skel ? '#3a3440' : '#3a6ea5'), legs = s.legs || (skel ? BONE_D : '#3b3340');
     const armor = s.armor || null, metal = s.metal || (armor === 'mail' ? '#9a9ea8' : '#b8bcc8');
@@ -329,6 +329,7 @@
 
     if (glow && skel) afters.push(inHead(K2 => { const rr = s.hood ? 4.2 : 4.8, sy = 13.8 + (s.hood ? 0.6 : 0); for (const ex of [20.3 - rr * 0.34, 20.3 + rr * 0.42]) K2.ell(ex, sy + 0.1, 1.1, 1.1, K2.rad(ex, sy + 0.1, 0, 1.1, [[0, alpha(glow, 0.6)], [1, alpha(glow, 0)]])); }));
     if (H) c.restore();
+    if (H && s.sigName && B.bossSig && B.bossSig[s.sigName]) { c.save(); B.bossSig[s.sigName](K, c, H, X, s); c.restore(); }   // a chief villain's signature detail (bosslooks.js)
     if (s.short) c.restore();
     if (!afters.length) return null;
     return (K2, c2) => { c2.save(); if (s.short) { c2.translate(20, 51.6); c2.scale(0.8, 0.8); c2.translate(-20, -51.6); } afters.forEach(f => { c2.save(); if (H && !f.head) bodyT(c2); f(K2, c2); c2.restore(); }); c2.restore(); };

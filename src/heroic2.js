@@ -63,6 +63,13 @@
     };
     // the head, three-quarters to the right, about real proportion: (hx, hy) is the middle of the eyes' line
     X.head = function (hx, hy, o) {
+      if (A.expr && !o.noExpr) {                                   // a passing expression, for a dialogue portrait (A.expr, set by B.withExpr)
+        o = Object.assign({}, o); const bt0 = o.browTilt || 0, m0 = o.mouth;
+        if (A.expr === 'happy') { o.mouth = m0 === 'grin' ? 'grin' : 'smile'; if (m0 === 'smile') o.mouth = 'grin'; o.browTilt = bt0 * 0.4 + 0.1; o.squint = 0.22; o.cheeks = 1; }
+        if (A.expr === 'angry') { o.mouth = 'frown'; o.browTilt = Math.min(bt0, 0) - 0.42; o.squint = 0.28; o.browDrop = 0.14; o.mouthW = (o.mouthW || 1) * 1.05; }
+        if (A.expr === 'worried') { o.mouth = 'frown'; o.mouthW = (o.mouthW || 1) * 0.85; o.browTilt = 0.42; o.eyeOpen = 0.12; o.browDrop = -0.08; }
+        if (A.expr === 'sad') { o.mouth = 'frown'; o.browTilt = 0.38; o.squint = 0.14; o.gaze = 0.07; o.glassy = 1; }
+      }
       const skin = o.skin, jaw = o.jaw || 3.1, wide = o.wide || 1, dark = shade(skin, -60), deep = shade(skin, -95);
       // the neck: a column under the back half of the skull, no wider than the jaw's turn, flaring a little into the shoulders
       if (o.neck !== false) {
@@ -120,17 +127,19 @@
       });
       // the eyes: the crease above, an almond of white, a ringed iris, the pupil, a catchlight, the lash line heavier at the outer corner
       const eye = (ex, s, near) => {
-        const w = 0.66 * s, h = 0.33 * s;
+        const w = 0.66 * s, h = 0.33 * s * (1 - (o.squint || 0) + (o.eyeOpen || 0)), gz = (o.gaze || 0) * s;
         H.soft(0.06, () => K.curve([ex - w * 0.8, hy - h * 0.9, ex, hy - h * 2.3, ex + w * 0.9, hy - h * 1.0], 0.07, alpha(dark, 0.55)));   // the lid crease
         const al = K.shape(q => { q.moveTo(ex - w, hy + 0.02); q.quadraticCurveTo(ex - w * 0.1, hy - h * 1.45, ex + w, hy - 0.04); q.quadraticCurveTo(ex + w * 0.1, hy + h * 1.1, ex - w, hy + 0.02); q.closePath(); }, '#efe8e0');
         K.clip(al, () => {
           const ix = ex + (near ? 0.12 : 0.1) * s, ir = 0.29 * s;
-          K.ell(ix, hy - 0.03, ir, ir, K.rad(ix, hy + 0.05, 0.02, ir, [[0, shade(o.eye, 60)], [0.45, shade(o.eye, 20)], [0.85, o.eye], [1, shade(o.eye, -70)]]));
-          K.ell(ix, hy - 0.03, 0.12 * s, 0.12 * s, '#0a080a');
+          K.ell(ix, hy - 0.03 + gz, ir, ir, K.rad(ix, hy + 0.05 + gz, 0.02, ir, [[0, shade(o.eye, 60)], [0.45, shade(o.eye, 20)], [0.85, o.eye], [1, shade(o.eye, -70)]]));
+          K.ell(ix, hy - 0.03 + gz, 0.12 * s, 0.12 * s, '#0a080a');
+          if (o.glassy) K.ell(ix + 0.08 * s, hy + 0.1 + gz, 0.06 * s, 0.04 * s, 'rgba(255,255,255,.75)');
           H.soft(0.1, () => K.R(ex - w, hy - h * 1.5, 2 * w, h * 0.85, 'rgba(40,18,18,.5)', 0));            // the lid's shadow on the eye
           H.soft(0.1, () => K.ell(ex - w * 0.9, hy, 0.18, 0.2, 'rgba(200,120,110,.4)'));                     // the inner corner
         });
-        K.ell(ex + 0.02 * s, hy - 0.12, 0.075 * s, 0.075 * s, 'rgba(255,255,255,.95)');
+        K.ell(ex + 0.02 * s, hy - 0.12 + gz * 0.6, 0.075 * s, 0.075 * s, 'rgba(255,255,255,.95)');
+        if (o.cheeks) H.soft(0.12, () => K.curve([ex - w * 0.7, hy + h * 1.5, ex, hy + h * 1.9, ex + w * 0.8, hy + h * 1.4], 0.08, alpha(dark, 0.35)));   // a smile pushes the cheeks up under the eyes
         const lash = o.lash || '#24140f';
         K.shape(q => { q.moveTo(ex - w - 0.02, hy + 0.04); q.quadraticCurveTo(ex - w * 0.1, hy - h * 1.55, ex + w + 0.06, hy - 0.06); q.quadraticCurveTo(ex + w * 0.2, hy - h * 1.15, ex - w - 0.02, hy + 0.04); q.closePath(); }, lash);
         if (o.flick) K.curve([ex + w - 0.05, hy - 0.06, ex + w + 0.15, hy - 0.1, ex + w + 0.22, hy - 0.2], 0.06, lash);   // a flick at the outer corner
@@ -138,9 +147,10 @@
       };
       eye(hx - 0.85, 1, true); eye(hx + 1.38, 0.88, false);
       // the brows: thick at the inner end, tapering out
-      const bc = o.brow || '#5a3a28', bt = o.browTilt || 0;
+      const bc = o.brow || '#5a3a28', bt = o.browTilt || 0; c.save(); c.translate(0, o.browDrop || 0);
       K.shape(q => { q.moveTo(hx - 0.1, hy - 0.62 - bt * 0.6); q.quadraticCurveTo(hx - 0.25, hy - 1.05 - bt * 0.6, hx - 0.8, hy - 1.1 - bt * 0.3); q.quadraticCurveTo(hx - 1.4, hy - 1.08, hx - 1.85, hy - 0.6 + bt); q.quadraticCurveTo(hx - 1.3, hy - 0.86, hx - 0.8, hy - 0.84 - bt * 0.3); q.quadraticCurveTo(hx - 0.35, hy - 0.8 - bt * 0.6, hx - 0.1, hy - 0.62 - bt * 0.6); q.closePath(); }, bc);
       K.shape(q => { q.moveTo(hx + 0.72, hy - 0.64 - bt * 0.6); q.quadraticCurveTo(hx + 0.85, hy - 1.02 - bt * 0.6, hx + 1.4, hy - 1.06 - bt * 0.3); q.quadraticCurveTo(hx + 1.95, hy - 1.0, hx + 2.25, hy - 0.58 + bt); q.quadraticCurveTo(hx + 1.85, hy - 0.84, hx + 1.4, hy - 0.84 - bt * 0.3); q.quadraticCurveTo(hx + 1.0, hy - 0.8 - bt * 0.6, hx + 0.72, hy - 0.64 - bt * 0.6); q.closePath(); }, bc);
+      c.restore();
       // the nose: the far side in shadow, a soft lit bridge and tip, the wing of the nostril, the shadow it casts
       const nl = o.nose || 1, ny = hy + 1.2 * nl;
       H.soft(0.25, () => K.shape(q => { q.moveTo(hx + 0.5, hy - 0.35); q.quadraticCurveTo(hx + 1.15, hy + 0.7 * nl, hx + 1.15, ny + 0.1); q.quadraticCurveTo(hx + 0.8, ny + 0.4, hx + 0.5, ny + 0.2); q.closePath(); }, alpha(dark, 0.35)));
@@ -509,6 +519,7 @@
   };
 
   B.heroicAnatomy = A.make;
+  B.withExpr = (e, fn) => { const was = A.expr; A.expr = e || null; try { return fn(); } finally { A.expr = was; } };
   B.HEROIC2 = P;
   B.heroic2Painter = name => P[name] ? (c => { P[name](c); return null; }) : null;
   // these four replace the first heroic set; the old painters are kept as B.HEROIC_OLD for comparison

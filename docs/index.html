@@ -1593,7 +1593,7 @@ UI.menu = function (o) {
 
 /* ---------- dialogue ---------- */
 UI.dlg = null;
-UI.showDlg = function (who) {
+UI.showDlg = function (who, text) {
   if (!UI.dlg) {
     const d = UI.el('div', 'win dlg');
     d.innerHTML = '<div class="dport"><img></div><div class="dname"></div><div class="dtext"></div><div class="dmore">▼</div>';
@@ -1604,7 +1604,7 @@ UI.showDlg = function (who) {
   if (who) { nm.textContent = who; nm.style.display = ''; nm.style.color = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   else nm.style.display = 'none';
   UI.dlg.classList.toggle('narr', !who);
-  const url = UI.portraitOf && UI.portraitOf(who), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
+  const url = UI.portraitOf && UI.portraitOf(who, UI.mood && UI.mood(text)), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
   UI.dlg.classList.toggle('port', !!url);
   if (url) { pt.querySelector('img').src = url; pt.style.borderColor = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   return UI.dlg;
@@ -1660,7 +1660,7 @@ UI.logLine = function (who, text, kind) {
 UI.say = async function (who, text, keep) {
   UI.logLine(who, text);
   if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;                    // for Journal -> Biographies
-  const d = UI.showDlg(who), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
+  const d = UI.showDlg(who, text), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
   const pages = UI.paginate(box, text);
   for (const p of pages) await UI.type(box, p, more);
   if (!keep) UI.hideDlg();
@@ -1668,7 +1668,7 @@ UI.say = async function (who, text, keep) {
 UI.choice = async function (who, text, labels) {
   UI.logLine(who, text);
   if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;
-  const d = UI.showDlg(who), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
+  const d = UI.showDlg(who, text), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
   if (G.fast) box.textContent = text; else { box.textContent = text; }
   more.style.visibility = 'hidden';
   const r = await UI.menu({ items: labels.map((l, i) => ({ label: l, value: i })), cls: 'choice', cancel: false });
@@ -3391,6 +3391,7 @@ B.setup = function (grp, o) {
   B.grp = grp; B.phase2 = false; B.lateSaid = false; B.objNote = null;
   B.objective = grp.objective || null;
   B.bossUnit = B.boss ? B.c.filter(x => x.side === 1).sort((p, q) => q.maxHp - p.maxHp)[0] : null;
+  if (B.bossUnit) B.bossUnit.boss = true;                       // painted as a boss: its own plinth, aura and size (bosslooks.js)
   // the heroes' exploring moves, once a fight each
   if (!B.brawl) B.c.forEach(c => { const mv = { runa: 'shove', dask: 'pellet', maren: 'flare', finch: 'hush' }[c.side === 0 && !c.guest && c.id]; if (mv && c.abilities.indexOf(mv) < 0) c.abilities = c.abilities.concat([mv]); c.usedOnce = {}; });
   B.clearUnderfoot();
@@ -4103,7 +4104,7 @@ B.addVfx = function (v) {
   v.t0 = G.time; v.dur = v.dur || { strike: 300, whiff: 240, burst: 420, beam: 520, rise: 760, ring: 600, shield: 560, aura: 420, quake: 480, blast: 650 }[v.k] || 400;
   v.seed = Math.random() * 1000; B.vfx.push(v);
 };
-B.pieceSize = o => ((o.def && (o.def.scale || 3) >= 4) ? 1.45 : 1) * (B.N > 12 ? 0.88 : 1);   // a little smaller on the 14-square boards
+B.pieceSize = o => ((o.def && (o.def.scale || 3) >= 4) ? 1.45 : 1) * (B.N > 12 ? 0.88 : 1) * (o.boss ? 1.1 : 1);   // a little smaller on the 14-square boards
 B.center = o => ({ x: o.px, y: o.py - 13 * B.pieceSize(o) });
 B.drawVfx = function (c) {
   const now = G.time, R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
@@ -6138,7 +6139,7 @@ B.drawVfx = function (c) {
    the field sprites (D.sprites plus D.looks). Beasts are painted in the same hand by beasts.js (any left without a painter stand as their pixel sprite, smoothed). */
 (function () {
   const cache = {};
-  const BASE = { 0: ['#34508f', '#1e3060', '#e8c14a'], 1: ['#8a3030', '#521a1a', '#d8dce8'], 2: ['#2f7a52', '#1a4a30', '#e8c14a'] };
+  const BASE = { 0: ['#34508f', '#1e3060', '#e8c14a'], 1: ['#8a3030', '#521a1a', '#d8dce8'], 2: ['#2f7a52', '#1a4a30', '#e8c14a'], 3: ['#5a1424', '#24080e', '#f0c860'] };   // 3: a boss
   function shade(hex, d) {
     if (!hex || hex[0] !== '#') return hex;
     const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, v + d));
@@ -6197,11 +6198,13 @@ B.drawVfx = function (c) {
     c.fillStyle = lin(9, 0, 31, 0, [[0, shade(bd, 20)], [1, shade(bd, -10)]]); c.beginPath(); c.ellipse(20, 53.5, 10.5, 3, 0, 0, 3.1416); c.lineTo(9.5, 52); c.ellipse(20, 52, 10.5, 3, 0, 3.1416, 0, true); c.fill();
     ell(20, 52, 10.5, 3, lin(10, 0, 30, 0, [[0, shade(b, 40)], [0.5, b], [1, shade(b, -24)]]));
     c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 0.6; c.beginPath(); c.ellipse(20, 52, 9, 2.2, 0, 3.5, 4.9); c.stroke();
-    const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
+    if (side === 3 && B.bossBase) B.bossBase(c);
+    const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], { sigName: name });
     const paint = (!G.D.sprites[name] && B.beastPainter && B.beastPainter(name)) || (B.heroPainter && B.heroPainter(name));
     if (paint) {                                                // a beast painted to match the heroes (beasts.js)
       const heroic = (B.heroicOn && B.heroicOn(name)) || (!G.D.sprites[name] && B.figHeroic && B.figHeroic()), after = paint(c), fin = softOutline(cv, heroic ? '#1e1610' : '#1a1420', (heroic ? 1.4 : 2.2) * HD / 3); if (!heroic) lightHD(fin);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(fc); fc.restore(); }
+      if (side === 3 && B.bossDress) B.bossDress(fin, name, HD);
       cache[k] = fin; return fin;
     }
     if (!G.D.sprites[name] && pixIm) {
@@ -6218,6 +6221,7 @@ B.drawVfx = function (c) {
       H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11, clean: [s.short ? [19.9, 19.8, 2.7, 3.6] : [19.9, 11.8, 3.3, 4.5]], grade: 0.14, pop: 'saturate(1.12) brightness(1.06)' });
       const fin = softOutline(cv, '#1e1610', 1.4 * HD / 3);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(B.paintKit(fc), fc); fc.restore(); }
+      if (side === 3 && B.bossDress) B.bossDress(fin, name, HD);
       cache[k] = fin; return fin;
     }
     const after = B.paintSpec(c, B.paintKit(c), s, side);
@@ -6818,8 +6822,58 @@ B.drawVfx = function (c) {
       c.beginPath(); c.ellipse(p.x, p.y, 10 * sz, 3.8 * sz, 0, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
     }
   }
+  /* ---------- figures lit by their battlefield ---------- */
+  // each setting's light laid over the figure itself: a wash from above and one from below, and a warm or cool side
+  const ENV = {
+    snow: [['rgba(210,232,255,.16)', 'rgba(150,190,255,.10)'], ['rgba(230,245,255,.14)', 0]],
+    ash: [['rgba(60,16,0,.10)', 'rgba(255,120,40,.24)'], [0, 'rgba(255,130,50,.10)']],
+    crypt: [['rgba(24,28,60,.22)', 'rgba(16,18,40,.18)'], [0, 'rgba(255,170,90,.16)']],
+    throne: [['rgba(40,18,60,.20)', 'rgba(20,10,30,.18)'], [0, 'rgba(255,170,90,.14)']],
+    cave: [['rgba(20,18,36,.22)', 'rgba(12,10,24,.18)'], [0, 'rgba(255,170,90,.14)']],
+    sewer: [['rgba(16,30,24,.22)', 'rgba(10,20,16,.18)'], [0, 'rgba(255,170,90,.12)']],
+    fen: [['rgba(60,100,80,.12)', 'rgba(30,60,40,.14)'], [0, 0]],
+    forest: [['rgba(255,240,170,.10)', 'rgba(40,80,30,.08)'], [0, 0]],
+    tavern: [['rgba(255,190,120,.10)', 'rgba(255,150,70,.12)'], [0, 'rgba(255,180,100,.10)']],
+    beach: [['rgba(255,250,230,.10)', 'rgba(120,180,220,.06)'], [0, 0]],
+    town: [['rgba(255,240,210,.06)', 'rgba(0,0,0,.04)'], [0, 0]], city: [['rgba(255,240,210,.06)', 'rgba(0,0,0,.05)'], [0, 0]],
+    night: [['rgba(40,60,130,.24)', 'rgba(20,30,70,.20)'], ['rgba(170,200,255,.12)', 0]]
+  };
+  const envOf = () => { const d = typeof Field !== 'undefined' && Field.map && Field.map.def && Field.map.def.night; return d ? 'night' : B.bg; };
+  const litCache = new WeakMap();
+  B.envLit = function (src) {
+    const env = envOf(), E = ENV[env]; if (!E || G.opts.figures === 'classic') return src;
+    let m = litCache.get(src); if (!m) litCache.set(src, m = {}); if (m[env]) return m[env];
+    const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height; const c = cv.getContext('2d');
+    c.drawImage(src, 0, 0); c.globalCompositeOperation = 'source-atop';
+    const H = cv.height * 0.8, W = cv.width;                        // above the plinth
+    let g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, E[0][0]); g.addColorStop(1, E[0][1]); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    if (E[1][0]) { g = c.createLinearGradient(0, 0, W * 0.5, 0); g.addColorStop(0, E[1][0]); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H); }
+    if (E[1][1]) { g = c.createLinearGradient(W * 0.45, 0, W, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, E[1][1]); c.fillStyle = g; c.fillRect(0, 0, W, H); }
+    return (m[env] = cv);
+  };
+  // how strongly the nearest fire lights a figure (0 to about .3), within two and a half squares
+  function fireNear(o) {
+    let best = 9;
+    if (B.props) for (const [k, kind] of B.props) if (kind === 'brazier') { const [x, y] = k.split(',').map(Number); best = Math.min(best, Math.hypot(x - o.gx, y - o.gy)); }
+    if (B.terrain) for (const [k, ter] of B.terrain) if (ter === 'fire') { const [x, y] = k.split(',').map(Number); best = Math.min(best, Math.hypot(x - o.gx, y - o.gy) + 0.5); }
+    return best < 2.5 ? 0.3 * (1 - best / 2.5) : 0;
+  }
+  let calmT = -1e9, calmV = false;
+  const calmNow = () => { if (G.time - calmT > 2000) { calmT = G.time; calmV = !!(B.calm && B.calm()); } return calmV; };
+  // where a figure carries a light, in its 40x64 layout: [x, y, radius on the board, colour]
+  const lights = {};
+  function lightOf(name) {
+    if (!(B.figHeroic && B.figHeroic())) return null;              // the positions below are the heroic layout's
+    if (name in lights) return lights[name];
+    let L = null;
+    if (name === 'maren' && B.heroicOn && B.heroicOn('maren')) L = [31.9, 23.2, 9, '255,200,110'];
+    else if ({ wisp: 1, marshlight: 1, frostspirit: 1, ashwraith: 1 }[name]) L = [20, 24, 12, name === 'marshlight' ? '160,255,140' : name === 'frostspirit' ? '170,220,255' : name === 'ashwraith' ? '255,150,60' : '140,180,255'];
+    else { const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
+      if (s.held === 'lantern') { let x = 20 + (29.4 + (s.big ? 1.6 : 0) - 20) * 1.04, y = 51.6 + (32.4 + 6.6 - 51.6) * 1.24; if (s.short) { x = 20 + (x - 20) * 0.8; y = 51.6 + (y - 51.6) * 0.8; } const g = (s.gem || '#ffe07a'); L = [x, y, 8, [1, 3, 5].map(i => parseInt(g.slice(i, i + 2), 16)).join(',')]; } }
+    return (lights[name] = L);
+  }
   function drawUnit(c, o) {
-    const sz = B.pieceSize(o), side = o.side === 1 ? 1 : o.guest ? 2 : 0, pc = B.piece(o.sprite, side);
+    const sz = B.pieceSize(o), side = o.side === 1 ? (o.boss ? 3 : 1) : o.guest ? 2 : 0, pc = B.piece(o.sprite, side);
     const w = 20 * sz, h = 32 * sz;
     let alpha = 1;
     const da = o.gone && o.downT ? G.time - o.downT : 0, dk = o.death || 'fall';
@@ -6829,7 +6883,9 @@ B.drawVfx = function (c) {
     // a soft shadow under the base
     if (!o.down) { const sg = c.createRadialGradient(o.px, o.py + 1, 1, o.px, o.py + 1, 10 * sz); sg.addColorStop(0, 'rgba(0,0,0,' + (0.42 * alpha) + ')'); sg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sg; c.beginPath(); c.ellipse(o.px + 1, o.py + 1, 10 * sz, 4 * sz, 0, 0, 7); c.fill(); }
     if (o.bob == null) o.bob = Math.random() * 6.283;
-    const breathe = o.down || o.anim || o.gone ? 0 : Math.sin(G.time / 520 + o.bob) * 0.75;
+    const idle = !o.down && !o.gone && !o.anim && !calmNow();
+    const breathe = o.down || o.anim || o.gone ? 0 : Math.sin(G.time / 520 + o.bob) * (idle ? 0.75 : 0.3);
+    const sway = idle ? Math.sin(G.time / 1900 + o.bob * 1.7) * 0.022 + Math.sin(G.time / 3100 + o.bob) * 0.01 : 0;   // shifting weight, slowly, each at its own pace
     c.globalAlpha = alpha;
     c.save(); c.translate(o.px, Math.round(o.py * 2) / 2);
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
@@ -6845,6 +6901,7 @@ B.drawVfx = function (c) {
     }
     if (!o.down && !o.gone && o.side === 0 && B.woundStage(o) >= 2) { c.rotate((face > 0 ? 1 : -1) * 0.06); c.scale(1, 0.97); }   // badly hurt: a hero sags and leans
     if (face < 0) c.scale(-1, 1);
+    if (sway) c.transform(1, 0, sway, 1, 0, 0);                  // leans from the base, so the plinth stays put
     const ring = !o.down && !o.gone ? (o === B.active ? '#ffd24a' : B.ui && B.ui.cur && B.ui.tint === 'foe' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy && o.side === 1 ? '#ff5a4a' : B.ui && B.ui.cur && B.ui.tint === 'ally' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy ? '#8af0a0' : null) : null;
     if (ring) {                                                 // a glowing outline on the piece whose turn it is, or the one being aimed at
       const tc = B.pieceTint(o.sprite, side, ring), ga = c.globalAlpha; c.globalAlpha = ga * (0.55 + 0.3 * Math.sin(G.time / 150));
@@ -6854,7 +6911,16 @@ B.drawVfx = function (c) {
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const ws = o.down || o.gone ? 0 : B.woundStage(o), wk = ws ? B.woundKind(o) : null;
     if (ws === 3) { c.translate(Math.sin(G.time / 45 + o.bob) * 0.35, 0); if (wk === 'spirit') c.globalAlpha *= 0.72 + 0.2 * Math.sin(G.time / 90 + o.bob); }
-    c.drawImage(ws ? B.woundedPiece(o.sprite, side, ws, wk) : pc, -w / 2, -h + 3 + breathe, w, h - breathe);
+    c.drawImage(B.envLit(ws ? B.woundedPiece(o.sprite, side, ws, wk) : pc), -w / 2, -h + 3 + breathe, w, h - breathe);
+    const fw = !o.gone && !o.down ? fireNear(o) : 0;               // a brazier or burning ground close by: warm, flickering light on the figure
+    if (fw > 0) { const ga = c.globalAlpha; c.globalAlpha = ga * fw * (0.85 + 0.15 * Math.sin(G.time / 70 + o.bob)); c.drawImage(B.pieceTint(o.sprite, side, '#ff9a48'), -w / 2, -h + 3 + breathe, w, h - breathe); c.globalAlpha = ga; }
+    if (idle) {                                                  // a lantern or a spirit's light, flickering
+      const L = lightOf(o.sprite);
+      if (L) { const f = 0.75 + Math.sin(G.time / 90 + o.bob) * 0.12 + Math.sin(G.time / 37 + o.bob * 3) * 0.08, x = -w / 2 + L[0] / 40 * w, y = -h + 3 + breathe + L[1] / 64 * (h - breathe), r = L[2] * sz;
+        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(' + L[3] + ',' + (0.5 * f * alpha) + ')'); g.addColorStop(1, 'rgba(' + L[3] + ',0)');
+        c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill(); c.restore(); }
+      if (SPIRITS[o.sprite]) c.globalAlpha *= 0.9 + 0.1 * Math.sin(G.time / 260 + o.bob);
+    }
     if (o.fx && o.fx.k === 'hit' && G.time - o.fx.t < 200) { c.globalAlpha = (1 - (G.time - o.fx.t) / 200) * 0.85 * alpha; c.drawImage(B.pieceFlash(o.sprite, side), -w / 2, -h + 3 + breathe, w, h - breathe); }
     c.restore(); c.globalAlpha = 1;
   }
@@ -7089,9 +7155,13 @@ B.drawVfx = function (c) {
   };
   /* ---------- the turn-order ribbon: who has gone, who is up, who comes next this round ---------- */
   const faces = {};
-  function face(sprite, side) {
-    const k = sprite + ':' + side; if (faces[k]) return faces[k];
-    let pc = B.piece(sprite, side), ks = HD;
+  function face(sprite, side, mood) {
+    if (mood && !(B.withExpr && B.figHeroic && B.figHeroic() && G.D.sprites[sprite])) mood = null;     // expressions are for people, in the heroic style
+    const k = sprite + ':' + side + (mood ? ':' + mood : ''); if (faces[k]) return faces[k];
+    return (faces[k] = mood ? B.withExpr(mood, () => drawFace(sprite, side)) : drawFace(sprite, side));
+  }
+  function drawFace(sprite, side) {                               // (the battle piece is only borrowed when no sharper repaint is made)
+    let pc = null, ks = HD;
     const cv = document.createElement('canvas'); cv.width = 96; cv.height = 96;
     if (B.heroicOn && B.heroicOn(sprite)) {                      // heroic heads are small: paint them again, larger, for a sharp face
       ks = 14; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
@@ -7099,12 +7169,13 @@ B.drawVfx = function (c) {
     } else if (B.figHeroic && B.figHeroic()) {                   // everyone else in the heroic style: the same, painted again at portrait size
       const hi = paintHi(sprite, side, 7); if (hi) { pc = hi; ks = 7; }
     }
+    if (!pc) pc = B.piece(sprite, side);
     const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
     const spec = Object.assign({}, G.D.sprites[sprite], (G.D.looks || {})[sprite], (G.D.battleLooks || {})[sprite]);
     const [sx, sy, sw] = box || (!isBeast && B.specFace ? B.specFace(spec) : [4, isBeast ? 16 : 3, 32]);   // the head and shoulders, in the piece's 40x64 layout
     c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, 96, 96);
-    return (faces[k] = cv.toDataURL());
+    return cv.toDataURL();
   }
   B.faceURL = face;
   B.paintHi = (n, sd, ks) => paintHi(n, sd, ks);
@@ -7113,7 +7184,7 @@ B.drawVfx = function (c) {
     const cv = document.createElement('canvas'); cv.width = 40 * ks; cv.height = 64 * ks;
     const c = cv.getContext('2d'); c.scale(ks, ks); c.lineJoin = 'round'; c.lineCap = 'round';
     if (!G.D.sprites[name]) { const paint = B.beastPainter && B.beastPainter(name); if (!paint) return null; const after = paint(c); if (after) { c.save(); after(c); c.restore(); } return cv; }
-    const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], (G.D.battleLooks || {})[name]);
+    const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], (G.D.battleLooks || {})[name], { sigName: name });
     let seed = 7; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
     const H = B.heroicKit(c, seed + 1), after = B.paintSpec(H.c, H.K, s, side, H);
     H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11, clean: [s.short ? [19.9, 19.8, 2.7, 3.6] : [19.9, 11.8, 3.3, 4.5]], grade: 0.14, pop: 'saturate(1.12) brightness(1.06)' });
@@ -8797,6 +8868,13 @@ B.drawVfx = function (c) {
     };
     // the head, three-quarters to the right, about real proportion: (hx, hy) is the middle of the eyes' line
     X.head = function (hx, hy, o) {
+      if (A.expr && !o.noExpr) {                                   // a passing expression, for a dialogue portrait (A.expr, set by B.withExpr)
+        o = Object.assign({}, o); const bt0 = o.browTilt || 0, m0 = o.mouth;
+        if (A.expr === 'happy') { o.mouth = m0 === 'grin' ? 'grin' : 'smile'; if (m0 === 'smile') o.mouth = 'grin'; o.browTilt = bt0 * 0.4 + 0.1; o.squint = 0.22; o.cheeks = 1; }
+        if (A.expr === 'angry') { o.mouth = 'frown'; o.browTilt = Math.min(bt0, 0) - 0.42; o.squint = 0.28; o.browDrop = 0.14; o.mouthW = (o.mouthW || 1) * 1.05; }
+        if (A.expr === 'worried') { o.mouth = 'frown'; o.mouthW = (o.mouthW || 1) * 0.85; o.browTilt = 0.42; o.eyeOpen = 0.12; o.browDrop = -0.08; }
+        if (A.expr === 'sad') { o.mouth = 'frown'; o.browTilt = 0.38; o.squint = 0.14; o.gaze = 0.07; o.glassy = 1; }
+      }
       const skin = o.skin, jaw = o.jaw || 3.1, wide = o.wide || 1, dark = shade(skin, -60), deep = shade(skin, -95);
       // the neck: a column under the back half of the skull, no wider than the jaw's turn, flaring a little into the shoulders
       if (o.neck !== false) {
@@ -8854,17 +8932,19 @@ B.drawVfx = function (c) {
       });
       // the eyes: the crease above, an almond of white, a ringed iris, the pupil, a catchlight, the lash line heavier at the outer corner
       const eye = (ex, s, near) => {
-        const w = 0.66 * s, h = 0.33 * s;
+        const w = 0.66 * s, h = 0.33 * s * (1 - (o.squint || 0) + (o.eyeOpen || 0)), gz = (o.gaze || 0) * s;
         H.soft(0.06, () => K.curve([ex - w * 0.8, hy - h * 0.9, ex, hy - h * 2.3, ex + w * 0.9, hy - h * 1.0], 0.07, alpha(dark, 0.55)));   // the lid crease
         const al = K.shape(q => { q.moveTo(ex - w, hy + 0.02); q.quadraticCurveTo(ex - w * 0.1, hy - h * 1.45, ex + w, hy - 0.04); q.quadraticCurveTo(ex + w * 0.1, hy + h * 1.1, ex - w, hy + 0.02); q.closePath(); }, '#efe8e0');
         K.clip(al, () => {
           const ix = ex + (near ? 0.12 : 0.1) * s, ir = 0.29 * s;
-          K.ell(ix, hy - 0.03, ir, ir, K.rad(ix, hy + 0.05, 0.02, ir, [[0, shade(o.eye, 60)], [0.45, shade(o.eye, 20)], [0.85, o.eye], [1, shade(o.eye, -70)]]));
-          K.ell(ix, hy - 0.03, 0.12 * s, 0.12 * s, '#0a080a');
+          K.ell(ix, hy - 0.03 + gz, ir, ir, K.rad(ix, hy + 0.05 + gz, 0.02, ir, [[0, shade(o.eye, 60)], [0.45, shade(o.eye, 20)], [0.85, o.eye], [1, shade(o.eye, -70)]]));
+          K.ell(ix, hy - 0.03 + gz, 0.12 * s, 0.12 * s, '#0a080a');
+          if (o.glassy) K.ell(ix + 0.08 * s, hy + 0.1 + gz, 0.06 * s, 0.04 * s, 'rgba(255,255,255,.75)');
           H.soft(0.1, () => K.R(ex - w, hy - h * 1.5, 2 * w, h * 0.85, 'rgba(40,18,18,.5)', 0));            // the lid's shadow on the eye
           H.soft(0.1, () => K.ell(ex - w * 0.9, hy, 0.18, 0.2, 'rgba(200,120,110,.4)'));                     // the inner corner
         });
-        K.ell(ex + 0.02 * s, hy - 0.12, 0.075 * s, 0.075 * s, 'rgba(255,255,255,.95)');
+        K.ell(ex + 0.02 * s, hy - 0.12 + gz * 0.6, 0.075 * s, 0.075 * s, 'rgba(255,255,255,.95)');
+        if (o.cheeks) H.soft(0.12, () => K.curve([ex - w * 0.7, hy + h * 1.5, ex, hy + h * 1.9, ex + w * 0.8, hy + h * 1.4], 0.08, alpha(dark, 0.35)));   // a smile pushes the cheeks up under the eyes
         const lash = o.lash || '#24140f';
         K.shape(q => { q.moveTo(ex - w - 0.02, hy + 0.04); q.quadraticCurveTo(ex - w * 0.1, hy - h * 1.55, ex + w + 0.06, hy - 0.06); q.quadraticCurveTo(ex + w * 0.2, hy - h * 1.15, ex - w - 0.02, hy + 0.04); q.closePath(); }, lash);
         if (o.flick) K.curve([ex + w - 0.05, hy - 0.06, ex + w + 0.15, hy - 0.1, ex + w + 0.22, hy - 0.2], 0.06, lash);   // a flick at the outer corner
@@ -8872,9 +8952,10 @@ B.drawVfx = function (c) {
       };
       eye(hx - 0.85, 1, true); eye(hx + 1.38, 0.88, false);
       // the brows: thick at the inner end, tapering out
-      const bc = o.brow || '#5a3a28', bt = o.browTilt || 0;
+      const bc = o.brow || '#5a3a28', bt = o.browTilt || 0; c.save(); c.translate(0, o.browDrop || 0);
       K.shape(q => { q.moveTo(hx - 0.1, hy - 0.62 - bt * 0.6); q.quadraticCurveTo(hx - 0.25, hy - 1.05 - bt * 0.6, hx - 0.8, hy - 1.1 - bt * 0.3); q.quadraticCurveTo(hx - 1.4, hy - 1.08, hx - 1.85, hy - 0.6 + bt); q.quadraticCurveTo(hx - 1.3, hy - 0.86, hx - 0.8, hy - 0.84 - bt * 0.3); q.quadraticCurveTo(hx - 0.35, hy - 0.8 - bt * 0.6, hx - 0.1, hy - 0.62 - bt * 0.6); q.closePath(); }, bc);
       K.shape(q => { q.moveTo(hx + 0.72, hy - 0.64 - bt * 0.6); q.quadraticCurveTo(hx + 0.85, hy - 1.02 - bt * 0.6, hx + 1.4, hy - 1.06 - bt * 0.3); q.quadraticCurveTo(hx + 1.95, hy - 1.0, hx + 2.25, hy - 0.58 + bt); q.quadraticCurveTo(hx + 1.85, hy - 0.84, hx + 1.4, hy - 0.84 - bt * 0.3); q.quadraticCurveTo(hx + 1.0, hy - 0.8 - bt * 0.6, hx + 0.72, hy - 0.64 - bt * 0.6); q.closePath(); }, bc);
+      c.restore();
       // the nose: the far side in shadow, a soft lit bridge and tip, the wing of the nostril, the shadow it casts
       const nl = o.nose || 1, ny = hy + 1.2 * nl;
       H.soft(0.25, () => K.shape(q => { q.moveTo(hx + 0.5, hy - 0.35); q.quadraticCurveTo(hx + 1.15, hy + 0.7 * nl, hx + 1.15, ny + 0.1); q.quadraticCurveTo(hx + 0.8, ny + 0.4, hx + 0.5, ny + 0.2); q.closePath(); }, alpha(dark, 0.35)));
@@ -9243,6 +9324,7 @@ B.drawVfx = function (c) {
   };
 
   B.heroicAnatomy = A.make;
+  B.withExpr = (e, fn) => { const was = A.expr; A.expr = e || null; try { return fn(); } finally { A.expr = was; } };
   B.HEROIC2 = P;
   B.heroic2Painter = name => P[name] ? (c => { P[name](c); return null; }) : null;
   // these four replace the first heroic set; the old painters are kept as B.HEROIC_OLD for comparison
@@ -9273,7 +9355,7 @@ B.drawVfx = function (c) {
   const headT = cc => { cc.translate(HX, HY - 0.3); cc.scale(HK, HK); cc.translate(-20.3, -13.8); };
   B.paintSpec = function (c, K, s, side, H) {
     const F = B.fig, shade = F.shade, alpha = F.alpha;
-    const foe = side === 1, W = s.big ? 1.6 : 0, skel = !!s.skel;
+    const foe = side === 1 || side === 3, W = s.big ? 1.6 : 0, skel = !!s.skel;
     const skin = skel ? BONE : (s.skin || '#e8b890'), hair = s.hair || '#4a3020';
     const top = s.top || (skel ? '#3a3440' : '#3a6ea5'), legs = s.legs || (skel ? BONE_D : '#3b3340');
     const armor = s.armor || null, metal = s.metal || (armor === 'mail' ? '#9a9ea8' : '#b8bcc8');
@@ -9584,6 +9666,7 @@ B.drawVfx = function (c) {
 
     if (glow && skel) afters.push(inHead(K2 => { const rr = s.hood ? 4.2 : 4.8, sy = 13.8 + (s.hood ? 0.6 : 0); for (const ex of [20.3 - rr * 0.34, 20.3 + rr * 0.42]) K2.ell(ex, sy + 0.1, 1.1, 1.1, K2.rad(ex, sy + 0.1, 0, 1.1, [[0, alpha(glow, 0.6)], [1, alpha(glow, 0)]])); }));
     if (H) c.restore();
+    if (H && s.sigName && B.bossSig && B.bossSig[s.sigName]) { c.save(); B.bossSig[s.sigName](K, c, H, X, s); c.restore(); }   // a chief villain's signature detail (bosslooks.js)
     if (s.short) c.restore();
     if (!afters.length) return null;
     return (K2, c2) => { c2.save(); if (s.short) { c2.translate(20, 51.6); c2.scale(0.8, 0.8); c2.translate(-20, -51.6); } afters.forEach(f => { c2.save(); if (H && !f.head) bodyT(c2); f(K2, c2); c2.restore(); }); c2.restore(); };
@@ -9618,6 +9701,90 @@ B.drawVfx = function (c) {
     else if (kind === 'tusk') { for (const s of [-1, 1]) K.shape(q => { q.moveTo(x + s * r * 0.2, y + r * 0.7); q.quadraticCurveTo(x + s * r * 0.9, y, x + s * r * 0.3, y - r * 0.9); q.quadraticCurveTo(x + s * r * 0.5, y, x - s * r * 0.1, y + r * 0.6); }, col); }
     c.restore();
   }
+})();
+
+/* ===== src/bosslooks.js ===== */
+/* Bosses: how a boss looks on the board. Every boss fight's lead foe is marked (B.bossUnit.boss) and painted as side 3:
+   a crimson-and-gold lacquered plinth with a medallion, an aura behind it in its own colour, a slightly larger
+   figure (B.pieceSize), and, for the story's chief villains, a signature detail painted on the figure itself
+   (B.bossSig, by figure; these show in their portraits too). */
+(function () {
+  const { shade, alpha } = B.fig;
+  // the aura's colour: spirits of ash burn, frost things glitter, the dead glow cold, the shard-bearers go violet
+  const ASH = /^ash|cinder/, FROST = /^(rime|frost)|^(giant|bear|grimtusk|wight)$/, VIOLET = { corrcrowned: 1, veyra: 1, mirrorshade: 1 };
+  B.bossAura = function (name) {
+    const sp = G.D.sprites[name] || {};
+    if (VIOLET[name]) return '176,128,255';
+    if (ASH.test(name)) return '255,140,60';
+    if (FROST.test(name)) return '168,224,255';
+    if (sp.skel || { wraith: 1, prior: 1, archivist: 1, keeper: 1, watcher: 1, hollowwarden: 1, boneknight: 1, king: 1, abbot: 1, colossus: 1, shade: 1 }[name]) return '127,224,208';
+    return '255,80,96';
+  };
+  // the aura and motes behind and round the finished piece (cv: the 40x64 layout at HD)
+  B.bossDress = function (cv, name, HD) {
+    const col = B.bossAura(name), c = cv.getContext('2d');
+    let seed = 3; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
+    const rr = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    c.save(); c.scale(HD, HD);
+    c.globalCompositeOperation = 'destination-over';                     // behind the figure and its base
+    const g = c.createRadialGradient(20, 30, 2, 20, 30, 22); g.addColorStop(0, 'rgba(' + col + ',.42)'); g.addColorStop(0.55, 'rgba(' + col + ',.16)'); g.addColorStop(1, 'rgba(' + col + ',0)');
+    c.fillStyle = g; c.beginPath(); c.ellipse(20, 30, 17, 24, 0, 0, 6.283); c.fill();
+    // a few soft motes drifting up round it, behind the figure
+    for (let i = 0; i < 7; i++) { const x = 5 + rr() * 30, y = 4 + rr() * 38, r = 0.25 + rr() * 0.3; const mg = c.createRadialGradient(x, y, 0, x, y, r * 3); mg.addColorStop(0, 'rgba(' + col + ',.6)'); mg.addColorStop(1, 'rgba(' + col + ',0)'); c.fillStyle = mg; c.beginPath(); c.arc(x, y, r * 3, 0, 6.283); c.fill(); }
+    c.restore();
+  };
+  // the plinth's medallion and studs (drawn over the base, before the figure)
+  B.bossBase = function (c) {
+    for (let i = 0; i < 9; i++) { const a = 0.35 + i * (2.44 / 8), x = 20 + Math.cos(a) * 14.4, y = 57 + Math.sin(a) * 3.8; c.fillStyle = '#f4d27a'; c.beginPath(); c.arc(x, y, 0.42, 0, 6.283); c.fill(); c.fillStyle = 'rgba(80,40,0,.6)'; c.beginPath(); c.arc(x + 0.12, y + 0.12, 0.2, 0, 6.283); c.fill(); }
+    const g = c.createRadialGradient(19.4, 57.6, 0.2, 20, 58.4, 2.2); g.addColorStop(0, '#fff2b8'); g.addColorStop(0.5, '#e0b040'); g.addColorStop(1, '#7a4a10');
+    c.fillStyle = g; c.beginPath(); c.ellipse(20, 58.6, 2.1, 1.5, 0, 0, 6.283); c.fill();
+    c.fillStyle = '#5a1020'; c.beginPath(); c.moveTo(18.9, 59.1); c.lineTo(18.9, 58.0); c.lineTo(19.45, 58.5); c.lineTo(20, 57.7); c.lineTo(20.55, 58.5); c.lineTo(21.1, 58.0); c.lineTo(21.1, 59.1); c.closePath(); c.fill();   // a crown
+  };
+
+  /* ---------- signature details, in the 40x64 layout (the face near (19.9, 10.7), shoulders y 15-17, belt y 29) ---------- */
+  const S = {};
+  const glow = (K, x, y, r, col, a) => K.ell(x, y, r, r, K.rad(x, y, 0, r, [[0, 'rgba(' + col + ',' + a + ')'], [1, 'rgba(' + col + ',0)']]));
+  const gem = (K, x, y, r, col) => { K.ell(x, y, r, r * 1.15, K.rad(x - r * 0.3, y - r * 0.4, 0.02, r * 1.2, [[0, '#ffffff'], [0.35, col], [1, shade(col, -60)]])); };
+  // the Barrow King: an ermine mantle on his shoulders, a chain of office, his crown alight
+  S.king = (K, c, H) => {
+    const m = K.shape(q => { q.moveTo(10.6, 17.6); q.quadraticCurveTo(12.4, 14.4, 16.6, 14.6); q.quadraticCurveTo(20, 15.6, 23.4, 14.6); q.quadraticCurveTo(27.6, 14.4, 29.4, 17.6); q.quadraticCurveTo(26, 18.6, 23.6, 17.4); q.quadraticCurveTo(20, 18.8, 16.4, 17.4); q.quadraticCurveTo(14, 18.6, 10.6, 17.6); q.closePath(); },
+      K.lin(10, 14, 30, 18, [[0, '#ffffff'], [0.6, '#ece6da'], [1, '#a8a294']]));
+    K.clip(m, () => { for (let i = 0; i < 70; i++) { const x = 10.6 + H.rr() * 18.8, y = 14.4 + H.rr() * 4.2; K.line([x, y, x + 0.1, y + 0.5], 0.06, 'rgba(120,110,100,.35)'); } });
+    for (const [x, y] of [[12.6, 16.8], [15.2, 16.2], [18.2, 16.8], [21.8, 16.8], [24.8, 16.2], [27.4, 16.8]]) { K.poly([x - 0.25, y - 0.4, x + 0.25, y - 0.4, x + 0.1, y + 0.5, x - 0.1, y + 0.5], '#141016'); }
+    for (let i = 0; i <= 12; i++) { const t = i / 12, x = 15.2 + t * 9.6, y = 17.6 + Math.sin(t * Math.PI) * 4.4; K.ell(x, y, 0.34, 0.24, i % 2 ? '#f4d27a' : '#c89a36'); }
+    gem(K, 20, 22.6, 0.9, '#c02838'); K.ell(20, 22.6, 1.25, 1.35, 'rgba(0,0,0,0)');
+    glow(K, 20, 5.2, 5.2, '255,220,120', 0.35); for (const [x, y, col] of [[17.6, 6.6, '#5ab0e8'], [20.1, 5.6, '#c8443c'], [22.6, 6.6, '#5ab0e8']]) glow(K, x, y, 1.1, col === '#c8443c' ? '255,90,80' : '120,200,255', 0.8);
+  };
+  // Ilvane Corr, crowned: the four shards rising from his crown, each burning its own colour
+  S.corrcrowned = (K) => {
+    const sh = [[17.4, 4.6, '120,230,255', '#7ae6ff'], [19.2, 3.4, '255,210,110', '#ffd26e'], [20.9, 3.4, '255,110,110', '#ff6e6e'], [22.7, 4.6, '140,255,160', '#8cffa0']];
+    for (const [x, y, rgb] of sh) glow(K, x, y, 2.4, rgb, 0.5);
+    for (const [x, y, , col] of sh) { K.poly([x, y - 1.8, x + 0.6, y, x, y + 0.9, x - 0.6, y], K.lin(x - 0.6, y - 1.8, x + 0.6, y + 0.9, [[0, '#ffffff'], [0.4, col], [1, shade(col, -50)]])); K.line([x - 0.15, y - 1.3, x - 0.25, y + 0.3], 0.08, 'rgba(255,255,255,.8)'); }
+  };
+  // Sister Veyra: the stolen shard on a cord at her breast
+  S.veyra = (K) => { K.curve([17.6, 14.8, 18.6, 17.8, 20, 18.6], 0.1, '#3a3040'); K.curve([22.4, 14.8, 21.4, 17.8, 20, 18.6], 0.1, '#3a3040'); glow(K, 20, 19.6, 3.2, '190,140,255', 0.55); K.poly([20, 18.4, 20.6, 19.6, 20, 21.0, 19.4, 19.6], K.lin(19.4, 18.4, 20.6, 21, [[0, '#ffffff'], [0.45, '#c8a0ff'], [1, '#5a2a9a']])); };
+  // Brannoc Vosk: a fat gold chain and rings on his fists
+  S.vosk = (K) => { for (let i = 0; i <= 14; i++) { const t = i / 14, x = 14.2 + t * 11.6, y = 16.4 + Math.sin(t * Math.PI) * 4.6; K.ell(x, y, 0.42, 0.3, i % 2 ? '#f4d27a' : '#c89a36'); } K.ell(20, 21.6, 1.1, 1.1, K.rad(19.6, 21.2, 0.1, 1.2, [[0, '#fff2b8'], [1, '#9a6a14']])); for (const [x, y] of [[11.9, 28.6], [29.3, 27.1]]) K.ell(x, y, 0.55, 0.35, '#f4d27a'); };
+  // Knight-Captain Ilsabet: a gilt laurel round her brow
+  S.ilsabet = (K) => { for (let i = 0; i < 9; i++) { const t = i / 8, x = 16.4 + t * 7.2, y = 7.5 - Math.sin(t * Math.PI) * 0.9; K.ell(x, y, 0.55, 0.28, '#e8c14a'); K.ell(x - 0.15, y - 0.08, 0.22, 0.1, '#fff2b8'); } };
+  // the ash knights: embers in the cracks of their armour, and sparks
+  const ember = (K, c, H) => {
+    for (let i = 0; i < 9; i++) { let x = 13.6 + H.rr() * 12.8, y = 16 + H.rr() * 16; const pts = [x, y]; for (let k = 0; k < 4; k++) { x += (H.rr() - 0.5) * 1.6; y += 0.5 + H.rr() * 0.9; pts.push(x, y); }
+      H.soft(0.25, () => K.line(pts, 0.5, 'rgba(255,120,40,.55)')); K.line(pts, 0.14, '#ffd27a'); }
+    for (let i = 0; i < 10; i++) { const x = 12 + H.rr() * 16, y = 2 + H.rr() * 14; glow(K, x, y, 0.8, '255,150,60', 0.9); }
+  };
+  S.ashmarshal = ember; S.ashenknight = ember; S.ashghoul = ember;
+  // the Hollow Abbot: a tall mitre over his hood
+  S.abbot = (K) => { const mt = K.shape(q => { q.moveTo(17.3, 6.6); q.quadraticCurveTo(17.6, 2.6, 20, 0.6); q.quadraticCurveTo(22.4, 2.6, 22.7, 6.6); q.closePath(); }, K.lin(17.3, 0, 22.7, 0, [[0, '#ffffff'], [0.6, '#e0dccc'], [1, '#8a8678']])); K.clip(mt, () => { K.R(19.5, 0, 1, 7, '#c8a040', 0); K.R(17, 3.4, 6, 0.8, '#c8a040', 0); }); };
+  // Grukk: a necklace of teeth and bones, and war paint
+  S.grukk = (K) => { for (let i = 0; i <= 10; i++) { const t = i / 10, x = 15.6 + t * 8.8, y = 16.6 + Math.sin(t * Math.PI) * 2.6; K.poly([x - 0.25, y, x + 0.25, y, x, y + 0.9], i % 3 ? '#f0e8d0' : '#c8b890'); } K.curve([15.6, 16.6, 20, 19.4, 24.4, 16.6], 0.08, '#4a3020'); for (const x of [17.6, 18.3, 21.6, 22.3]) K.line([x, 11.4, x - 0.2, 13.2], 0.22, 'rgba(180,30,30,.85)'); };
+  // Inquisitor Vell: a scarlet sash, and the silver hand pinned to it
+  S.inquisitor = (K) => { K.shape(q => { q.moveTo(13.8, 15.6); q.lineTo(15.6, 15.2); q.lineTo(26.6, 28.4); q.lineTo(24.6, 29.2); q.closePath(); }, K.lin(13, 15, 27, 29, [[0, '#d83040'], [1, '#701020']])); K.ell(17.4, 18.6, 0.9, 0.9, K.rad(17.1, 18.3, 0.05, 1, [[0, '#ffffff'], [1, '#8a90a0']])); };
+  // Lord Ashby: a lace cravat at his throat
+  S.duelist = (K) => { for (let i = 0; i < 4; i++) K.ell(20, 15.2 + i * 0.8, 1.3 - i * 0.18, 0.5, i % 2 ? '#f4efe4' : '#ffffff'); K.ell(20, 15.6, 0.32, 0.32, '#c02838'); };
+  // Rime-Mother Hesk: a crown of icicles
+  S.rimemother = (K) => { for (let i = 0; i < 7; i++) { const x = 16.6 + i * 1.15, h = 2 + (i % 2 ? 0.8 : 1.8); K.poly([x - 0.45, 6.6, x, 6.6 - h, x + 0.45, 6.6], K.lin(x, 6.6 - h, x, 6.6, [[0, '#ffffff'], [1, '#8ad0f0']])); } };
+  B.bossSig = S;
 })();
 
 /* ===== src/icons.js ===== */
@@ -9727,11 +9894,34 @@ B.drawVfx = function (c) {
     }
   }
   UI.portraitMap = () => { if (!map) build(); return map; };
-  UI.portraitOf = function (who) {
+  // The mood of a line, for the speaker's expression: happy, angry, worried, sad, or null (their usual face).
+  // Word lists and punctuation, weighed; a line has to lean clearly one way to change the face.
+  const MOODS = {
+    happy: /\b(i like (it|that)( very much)?|ha! ha|glad|good news|wonderful|splendid|marvellous|lovely|laugh\w*|cheers|hooray|huzzah|welcome back|delight\w*|excellent|perfect|at last|we did it|we won|victory|well done|beautiful|brilliant|proud of|best day|grin\w*)\b/i,
+    angry: /\b(curse\w*|you fools?|how dare|get out|liar|coward\w*|hate|filth|scum|wretch\w*|swine|vermin|you'll pay|pay for this|out of my way|back off|i'll break|never forgive|enough of|damn\w*)\b/i,
+    worried: /\b(careful|hush|afraid|fear\w*|danger\w*|trap\w*|i don'?t like|uneasy|worr\w*|watch out|look out|what was that|did you hear|too quiet|nervous|something is wrong|something's wrong|not right|stay close)\b/i,
+    sad: /\b(sorry|died|grief|griev\w*|miss (him|her|them|you)|mourn\w*|tears|all alone|left me alone|forgive me|too late|never came back|farewell|wept|weep\w*|lonely|regret\w*|i failed|my fault|lost (him|her|them|everything))\b/i
+  };
+  // phrases that look like a mood and are not one (wry, polite, or negated)
+  const NOT = /\b(not alone|never alone|not proud|forgive me if|sorry to say|old fool|can'?t miss|not sorry|is not sorry|not too late)\b/gi;
+  UI.mood = function (text) {
+    if (!text) return null; const t = String(text).replace(NOT, ' '), sc = {};
+    for (const m in MOODS) sc[m] = (t.match(new RegExp(MOODS[m].source, 'gi')) || []).length * 2;
+    const bang = (t.match(/!/g) || []).length;
+    if (bang) { if (sc.angry) sc.angry += bang; else if (sc.happy) sc.happy += bang; }
+    if (/\?/.test(t) && sc.worried) sc.worried += 1;
+    if (/\.\.\.|…/.test(t)) { if (sc.sad) sc.sad += 1; else if (sc.worried) sc.worried += 1; }
+    if (/\b(ha(ha)+|hah|heh)\b/i.test(t)) sc.happy += 3;
+    let best = null, bs = 1;
+    for (const m in sc) if (sc[m] > bs || (sc[m] === bs && best && false)) { best = m; bs = sc[m]; }
+    const second = Math.max(...Object.keys(sc).filter(m => m !== best).map(m => sc[m]));
+    return best && bs >= 2 && bs > second ? best : null;
+  };
+  UI.portraitOf = function (who, mood) {
     if (!who || G.opts.portraits === false || !B.faceURL) return null;
     if (!map) build();
     const s = map[who]; if (!s) return null;
-    try { return B.faceURL(s, HEROES[who] ? 0 : 2); } catch (e) { return null; }
+    try { return B.faceURL(s, HEROES[who] ? 0 : 2, G.opts.expressions === false ? null : mood); } catch (e) { return null; }
   };
 })();
 
@@ -11573,9 +11763,37 @@ const Title = G.title = { el: null };
 Title.draw = function (c) {
   const R = B.RES || 1; c.setTransform(R, 0, 0, R, 0, 0); c.imageSmoothingEnabled = true;
   Scenes.paint(c, 'title', G.time);
-  c.imageSmoothingEnabled = false;                     // the four of them, small, looking up at it
-  ['runa', 'dask', 'maren', 'finch'].forEach((s, i) => G.gfx.drawSprite(c, s, 'up', 0, 122 + i * 20, 206, 1));
+  const lineup = Title.lineup();
+  if (lineup) {                                          // the four of them, painted, two either side of the barrow, facing it
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+    const calm = B.calm && B.calm();
+    [['runa', 46, 1], ['dask', 92, 1], ['maren', 230, -1], ['finch', 276, -1]].forEach(([id, x, f], i) => {
+      const cv = lineup[id], w = 46, h = 73.6, sway = calm ? 0 : Math.sin(G.time / 1900 + i * 1.9) * 0.02;
+      c.save(); c.translate(x, 233); if (f < 0) c.scale(-1, 1); if (sway) c.transform(1, 0, sway, 1, 0, 0);
+      c.drawImage(cv, -w / 2, -h, w, h); c.restore();
+    });
+  } else {
+    c.imageSmoothingEnabled = false;                     // (classic figures: the four of them, small, looking up at it)
+    ['runa', 'dask', 'maren', 'finch'].forEach((s, i) => G.gfx.drawSprite(c, s, 'up', 0, 122 + i * 20, 206, 1));
+  }
   c.setTransform(1, 0, 0, 1, 0, 0);
+};
+// the heroes for the title, painted once: moonlight from above, the barrow's lamplight on the side facing it
+Title.lineup = function () {
+  if (!(B.heroicOn && B.heroicOn('runa') && B.heroPainter)) return null;
+  if (Title._lineup) return Title._lineup;
+  const out = {}, ks = 6;
+  for (const id of ['runa', 'dask', 'maren', 'finch']) {
+    const cv = document.createElement('canvas'); cv.width = 40 * ks; cv.height = 64 * ks;
+    const c = cv.getContext('2d'); c.scale(ks, ks); c.lineJoin = 'round'; c.lineCap = 'round';
+    const after = B.heroPainter(id)(c); if (after) after(c);
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop';
+    let g = c.createLinearGradient(0, 0, 0, cv.height); g.addColorStop(0, 'rgba(70,90,170,.30)'); g.addColorStop(1, 'rgba(20,24,60,.42)'); c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    g = c.createLinearGradient(cv.width * 0.45, 0, cv.width, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(255,190,110,.30)'); c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    g = c.createLinearGradient(0, 0, cv.width * 0.4, 0); g.addColorStop(0, 'rgba(170,200,255,.22)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    out[id] = cv;
+  }
+  return (Title._lineup = out);
 };
 // The title paints at screen resolution, like a battle; leaving it puts the canvas back for the field.
 Title.leave = () => { if (G.cv) { G.cv.width = 320; G.cv.height = 240; G.cv.classList.remove('smooth'); } };
@@ -11770,12 +11988,12 @@ window.addEventListener('load', function () {
     sirenshot: { name: 'Siren-string', desc: "+1 bow range, and Finch's first bow hit in each fight Inspires the nearest ally." },
     secondverse: { name: 'Second Verse', desc: "Finch's first song in each fight costs no Verve." }
   };
-  D.speakers = { Runa: '#f08a5a', Dask: '#7ad08a', Maren: '#f2e3a0', Finch: '#d890e8' };
+  D.speakers = { Runa: '#f08a5a', Dask: '#7ad08a', Maren: '#f2e3a0', Finch: '#f0a0b4' };
   D.sprites = {
-    runa: { skin: '#e0a67c', hair: '#c8572e', long: 1, top: '#7a5a3a', legs: '#4a3b2e', trim: '#b89a6a' },
-    dask: { skin: '#e8c09a', hair: '#3a2a1e', top: '#3d5a4a', legs: '#2e2a33', hood: '#2f4a3c' },
-    maren: { skin: '#c98e62', hair: '#9a9fac', long: 1, top: '#e9e2c8', robe: 1, trim: '#e8c14a' },
-    finch: { skin: '#f0c8a0', hair: '#e8c14a', top: '#b23a6a', legs: '#3a2f55', hat: '#7a2f8a', feather: '#f2d14a' }
+    runa: { skin: '#eebf9c', hair: '#d2582a', long: 1, top: '#7a4e30', legs: '#8a7058', trim: '#c8a050' },
+    dask: { skin: '#d6a07c', hair: '#2a1e18', top: '#5a4434', legs: '#4e4844', hood: '#3a7050' },
+    maren: { skin: '#e6b498', hair: '#f0eee8', long: 1, top: '#ece2c8', robe: 1, trim: '#a83444' },
+    finch: { skin: '#e8b896', hair: '#f0c868', top: '#9a3046', legs: '#4c4a66', hat: '#5c3456', feather: '#f4ead4' }
   };
 
   /* ---------- abilities ----------
@@ -12212,10 +12430,10 @@ window.addEventListener('load', function () {
   const D = G.D;
   D.looks = {
     // the party
-    runa: { hs: 'braids', fur: '#d8c8a8', belt: '#3a2a1e', held: 'axe', big: 1 },
-    dask: { short: 1, held: 'dagger', scarf: '#8a2f2f', belt: '#5a3a22' },
-    maren: { hs: 'bun', held: 'lantern', cape: '#8a7a5a', gem: '#ffe07a' },
-    finch: { held: 'lute', cape: '#4a2f7a', sleeves: '#f2d14a', brim: 1 },
+    runa: { hs: 'braids', fur: '#ece2cc', belt: '#5a3a26', held: 'axe', big: 1 },
+    dask: { short: 1, held: 'dagger', scarf: '#c03a30', belt: '#4a3628', cape: '#3a7050' },
+    maren: { hs: 'bun', held: 'lantern', cape: '#3a62a8', gem: '#ffe07a' },
+    finch: { held: 'lute', cape: '#7e2a44', sleeves: '#9a3046', belt: '#5a3a24', brim: 1 },
     // chapter 1
     goblin: { short: 1, held: 'dagger', belt: '#3a2a1e' },
     archer: { short: 1, held: 'bow' },

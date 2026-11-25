@@ -4,7 +4,7 @@ import glob
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = ['core', 'gfx', 'audio', 'ui', 'field', 'puzzle', 'hunt', 'script', 'battle', 'board', 'shapes', 'tactics', 'bonds', 'quips', 'terrain', 'fieldfx', 'pieces', 'beasts', 'beasts2', 'heroes', 'heroic', 'heroic2', 'figures', 'icons', 'portraits', 'scenes', 'iso', 'menu', 'handbook', 'bios', 'worldmap', 'main']
+SRC = ['core', 'gfx', 'audio', 'ui', 'field', 'puzzle', 'hunt', 'script', 'battle', 'board', 'shapes', 'tactics', 'bonds', 'quips', 'terrain', 'fieldfx', 'pieces', 'beasts', 'beasts2', 'heroes', 'heroic', 'heroic2', 'figures', 'bosslooks', 'icons', 'portraits', 'scenes', 'iso', 'menu', 'handbook', 'bios', 'worldmap', 'main']
 DATA = ['rules', 'items', 'bestiary', 'looks']
 
 

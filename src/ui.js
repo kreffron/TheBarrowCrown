@@ -74,7 +74,7 @@ UI.menu = function (o) {
 
 /* ---------- dialogue ---------- */
 UI.dlg = null;
-UI.showDlg = function (who) {
+UI.showDlg = function (who, text) {
   if (!UI.dlg) {
     const d = UI.el('div', 'win dlg');
     d.innerHTML = '<div class="dport"><img></div><div class="dname"></div><div class="dtext"></div><div class="dmore">▼</div>';
@@ -85,7 +85,7 @@ UI.showDlg = function (who) {
   if (who) { nm.textContent = who; nm.style.display = ''; nm.style.color = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   else nm.style.display = 'none';
   UI.dlg.classList.toggle('narr', !who);
-  const url = UI.portraitOf && UI.portraitOf(who), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
+  const url = UI.portraitOf && UI.portraitOf(who, UI.mood && UI.mood(text)), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
   UI.dlg.classList.toggle('port', !!url);
   if (url) { pt.querySelector('img').src = url; pt.style.borderColor = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   return UI.dlg;
@@ -141,7 +141,7 @@ UI.logLine = function (who, text, kind) {
 UI.say = async function (who, text, keep) {
   UI.logLine(who, text);
   if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;                    // for Journal -> Biographies
-  const d = UI.showDlg(who), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
+  const d = UI.showDlg(who, text), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
   const pages = UI.paginate(box, text);
   for (const p of pages) await UI.type(box, p, more);
   if (!keep) UI.hideDlg();
@@ -149,7 +149,7 @@ UI.say = async function (who, text, keep) {
 UI.choice = async function (who, text, labels) {
   UI.logLine(who, text);
   if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;
-  const d = UI.showDlg(who), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
+  const d = UI.showDlg(who, text), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');
   if (G.fast) box.textContent = text; else { box.textContent = text; }
   more.style.visibility = 'hidden';
   const r = await UI.menu({ items: labels.map((l, i) => ({ label: l, value: i })), cls: 'choice', cancel: false });

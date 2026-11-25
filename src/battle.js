@@ -71,6 +71,7 @@ B.setup = function (grp, o) {
   B.grp = grp; B.phase2 = false; B.lateSaid = false; B.objNote = null;
   B.objective = grp.objective || null;
   B.bossUnit = B.boss ? B.c.filter(x => x.side === 1).sort((p, q) => q.maxHp - p.maxHp)[0] : null;
+  if (B.bossUnit) B.bossUnit.boss = true;                       // painted as a boss: its own plinth, aura and size (bosslooks.js)
   // the heroes' exploring moves, once a fight each
   if (!B.brawl) B.c.forEach(c => { const mv = { runa: 'shove', dask: 'pellet', maren: 'flare', finch: 'hush' }[c.side === 0 && !c.guest && c.id]; if (mv && c.abilities.indexOf(mv) < 0) c.abilities = c.abilities.concat([mv]); c.usedOnce = {}; });
   B.clearUnderfoot();
@@ -783,7 +784,7 @@ B.addVfx = function (v) {
   v.t0 = G.time; v.dur = v.dur || { strike: 300, whiff: 240, burst: 420, beam: 520, rise: 760, ring: 600, shield: 560, aura: 420, quake: 480, blast: 650 }[v.k] || 400;
   v.seed = Math.random() * 1000; B.vfx.push(v);
 };
-B.pieceSize = o => ((o.def && (o.def.scale || 3) >= 4) ? 1.45 : 1) * (B.N > 12 ? 0.88 : 1);   // a little smaller on the 14-square boards
+B.pieceSize = o => ((o.def && (o.def.scale || 3) >= 4) ? 1.45 : 1) * (B.N > 12 ? 0.88 : 1) * (o.boss ? 1.1 : 1);   // a little smaller on the 14-square boards
 B.center = o => ({ x: o.px, y: o.py - 13 * B.pieceSize(o) });
 B.drawVfx = function (c) {
   const now = G.time, R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };

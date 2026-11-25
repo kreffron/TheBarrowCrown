@@ -12,10 +12,10 @@
   const D = G.D;
   D.looks = {
     // the party
-    runa: { hs: 'braids', fur: '#d8c8a8', belt: '#3a2a1e', held: 'axe', big: 1 },
-    dask: { short: 1, held: 'dagger', scarf: '#8a2f2f', belt: '#5a3a22' },
-    maren: { hs: 'bun', held: 'lantern', cape: '#8a7a5a', gem: '#ffe07a' },
-    finch: { held: 'lute', cape: '#4a2f7a', sleeves: '#f2d14a', brim: 1 },
+    runa: { hs: 'braids', fur: '#ece2cc', belt: '#5a3a26', held: 'axe', big: 1 },
+    dask: { short: 1, held: 'dagger', scarf: '#c03a30', belt: '#4a3628', cape: '#3a7050' },
+    maren: { hs: 'bun', held: 'lantern', cape: '#3a62a8', gem: '#ffe07a' },
+    finch: { held: 'lute', cape: '#7e2a44', sleeves: '#9a3046', belt: '#5a3a24', brim: 1 },
     // chapter 1
     goblin: { short: 1, held: 'dagger', belt: '#3a2a1e' },
     archer: { short: 1, held: 'bow' },

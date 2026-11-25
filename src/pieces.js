@@ -3,7 +3,7 @@
    the field sprites (D.sprites plus D.looks). Beasts are painted in the same hand by beasts.js (any left without a painter stand as their pixel sprite, smoothed). */
 (function () {
   const cache = {};
-  const BASE = { 0: ['#34508f', '#1e3060', '#e8c14a'], 1: ['#8a3030', '#521a1a', '#d8dce8'], 2: ['#2f7a52', '#1a4a30', '#e8c14a'] };
+  const BASE = { 0: ['#34508f', '#1e3060', '#e8c14a'], 1: ['#8a3030', '#521a1a', '#d8dce8'], 2: ['#2f7a52', '#1a4a30', '#e8c14a'], 3: ['#5a1424', '#24080e', '#f0c860'] };   // 3: a boss
   function shade(hex, d) {
     if (!hex || hex[0] !== '#') return hex;
     const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, v + d));
@@ -62,11 +62,13 @@
     c.fillStyle = lin(9, 0, 31, 0, [[0, shade(bd, 20)], [1, shade(bd, -10)]]); c.beginPath(); c.ellipse(20, 53.5, 10.5, 3, 0, 0, 3.1416); c.lineTo(9.5, 52); c.ellipse(20, 52, 10.5, 3, 0, 3.1416, 0, true); c.fill();
     ell(20, 52, 10.5, 3, lin(10, 0, 30, 0, [[0, shade(b, 40)], [0.5, b], [1, shade(b, -24)]]));
     c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 0.6; c.beginPath(); c.ellipse(20, 52, 9, 2.2, 0, 3.5, 4.9); c.stroke();
-    const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
+    if (side === 3 && B.bossBase) B.bossBase(c);
+    const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], { sigName: name });
     const paint = (!G.D.sprites[name] && B.beastPainter && B.beastPainter(name)) || (B.heroPainter && B.heroPainter(name));
     if (paint) {                                                // a beast painted to match the heroes (beasts.js)
       const heroic = (B.heroicOn && B.heroicOn(name)) || (!G.D.sprites[name] && B.figHeroic && B.figHeroic()), after = paint(c), fin = softOutline(cv, heroic ? '#1e1610' : '#1a1420', (heroic ? 1.4 : 2.2) * HD / 3); if (!heroic) lightHD(fin);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(fc); fc.restore(); }
+      if (side === 3 && B.bossDress) B.bossDress(fin, name, HD);
       cache[k] = fin; return fin;
     }
     if (!G.D.sprites[name] && pixIm) {
@@ -83,6 +85,7 @@
       H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11, clean: [s.short ? [19.9, 19.8, 2.7, 3.6] : [19.9, 11.8, 3.3, 4.5]], grade: 0.14, pop: 'saturate(1.12) brightness(1.06)' });
       const fin = softOutline(cv, '#1e1610', 1.4 * HD / 3);
       if (after) { const fc = fin.getContext('2d'); fc.save(); fc.scale(HD, HD); after(B.paintKit(fc), fc); fc.restore(); }
+      if (side === 3 && B.bossDress) B.bossDress(fin, name, HD);
       cache[k] = fin; return fin;
     }
     const after = B.paintSpec(c, B.paintKit(c), s, side);
@@ -683,8 +686,58 @@
       c.beginPath(); c.ellipse(p.x, p.y, 10 * sz, 3.8 * sz, 0, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
     }
   }
+  /* ---------- figures lit by their battlefield ---------- */
+  // each setting's light laid over the figure itself: a wash from above and one from below, and a warm or cool side
+  const ENV = {
+    snow: [['rgba(210,232,255,.16)', 'rgba(150,190,255,.10)'], ['rgba(230,245,255,.14)', 0]],
+    ash: [['rgba(60,16,0,.10)', 'rgba(255,120,40,.24)'], [0, 'rgba(255,130,50,.10)']],
+    crypt: [['rgba(24,28,60,.22)', 'rgba(16,18,40,.18)'], [0, 'rgba(255,170,90,.16)']],
+    throne: [['rgba(40,18,60,.20)', 'rgba(20,10,30,.18)'], [0, 'rgba(255,170,90,.14)']],
+    cave: [['rgba(20,18,36,.22)', 'rgba(12,10,24,.18)'], [0, 'rgba(255,170,90,.14)']],
+    sewer: [['rgba(16,30,24,.22)', 'rgba(10,20,16,.18)'], [0, 'rgba(255,170,90,.12)']],
+    fen: [['rgba(60,100,80,.12)', 'rgba(30,60,40,.14)'], [0, 0]],
+    forest: [['rgba(255,240,170,.10)', 'rgba(40,80,30,.08)'], [0, 0]],
+    tavern: [['rgba(255,190,120,.10)', 'rgba(255,150,70,.12)'], [0, 'rgba(255,180,100,.10)']],
+    beach: [['rgba(255,250,230,.10)', 'rgba(120,180,220,.06)'], [0, 0]],
+    town: [['rgba(255,240,210,.06)', 'rgba(0,0,0,.04)'], [0, 0]], city: [['rgba(255,240,210,.06)', 'rgba(0,0,0,.05)'], [0, 0]],
+    night: [['rgba(40,60,130,.24)', 'rgba(20,30,70,.20)'], ['rgba(170,200,255,.12)', 0]]
+  };
+  const envOf = () => { const d = typeof Field !== 'undefined' && Field.map && Field.map.def && Field.map.def.night; return d ? 'night' : B.bg; };
+  const litCache = new WeakMap();
+  B.envLit = function (src) {
+    const env = envOf(), E = ENV[env]; if (!E || G.opts.figures === 'classic') return src;
+    let m = litCache.get(src); if (!m) litCache.set(src, m = {}); if (m[env]) return m[env];
+    const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height; const c = cv.getContext('2d');
+    c.drawImage(src, 0, 0); c.globalCompositeOperation = 'source-atop';
+    const H = cv.height * 0.8, W = cv.width;                        // above the plinth
+    let g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, E[0][0]); g.addColorStop(1, E[0][1]); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    if (E[1][0]) { g = c.createLinearGradient(0, 0, W * 0.5, 0); g.addColorStop(0, E[1][0]); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H); }
+    if (E[1][1]) { g = c.createLinearGradient(W * 0.45, 0, W, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, E[1][1]); c.fillStyle = g; c.fillRect(0, 0, W, H); }
+    return (m[env] = cv);
+  };
+  // how strongly the nearest fire lights a figure (0 to about .3), within two and a half squares
+  function fireNear(o) {
+    let best = 9;
+    if (B.props) for (const [k, kind] of B.props) if (kind === 'brazier') { const [x, y] = k.split(',').map(Number); best = Math.min(best, Math.hypot(x - o.gx, y - o.gy)); }
+    if (B.terrain) for (const [k, ter] of B.terrain) if (ter === 'fire') { const [x, y] = k.split(',').map(Number); best = Math.min(best, Math.hypot(x - o.gx, y - o.gy) + 0.5); }
+    return best < 2.5 ? 0.3 * (1 - best / 2.5) : 0;
+  }
+  let calmT = -1e9, calmV = false;
+  const calmNow = () => { if (G.time - calmT > 2000) { calmT = G.time; calmV = !!(B.calm && B.calm()); } return calmV; };
+  // where a figure carries a light, in its 40x64 layout: [x, y, radius on the board, colour]
+  const lights = {};
+  function lightOf(name) {
+    if (!(B.figHeroic && B.figHeroic())) return null;              // the positions below are the heroic layout's
+    if (name in lights) return lights[name];
+    let L = null;
+    if (name === 'maren' && B.heroicOn && B.heroicOn('maren')) L = [31.9, 23.2, 9, '255,200,110'];
+    else if ({ wisp: 1, marshlight: 1, frostspirit: 1, ashwraith: 1 }[name]) L = [20, 24, 12, name === 'marshlight' ? '160,255,140' : name === 'frostspirit' ? '170,220,255' : name === 'ashwraith' ? '255,150,60' : '140,180,255'];
+    else { const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name]);
+      if (s.held === 'lantern') { let x = 20 + (29.4 + (s.big ? 1.6 : 0) - 20) * 1.04, y = 51.6 + (32.4 + 6.6 - 51.6) * 1.24; if (s.short) { x = 20 + (x - 20) * 0.8; y = 51.6 + (y - 51.6) * 0.8; } const g = (s.gem || '#ffe07a'); L = [x, y, 8, [1, 3, 5].map(i => parseInt(g.slice(i, i + 2), 16)).join(',')]; } }
+    return (lights[name] = L);
+  }
   function drawUnit(c, o) {
-    const sz = B.pieceSize(o), side = o.side === 1 ? 1 : o.guest ? 2 : 0, pc = B.piece(o.sprite, side);
+    const sz = B.pieceSize(o), side = o.side === 1 ? (o.boss ? 3 : 1) : o.guest ? 2 : 0, pc = B.piece(o.sprite, side);
     const w = 20 * sz, h = 32 * sz;
     let alpha = 1;
     const da = o.gone && o.downT ? G.time - o.downT : 0, dk = o.death || 'fall';
@@ -694,7 +747,9 @@
     // a soft shadow under the base
     if (!o.down) { const sg = c.createRadialGradient(o.px, o.py + 1, 1, o.px, o.py + 1, 10 * sz); sg.addColorStop(0, 'rgba(0,0,0,' + (0.42 * alpha) + ')'); sg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sg; c.beginPath(); c.ellipse(o.px + 1, o.py + 1, 10 * sz, 4 * sz, 0, 0, 7); c.fill(); }
     if (o.bob == null) o.bob = Math.random() * 6.283;
-    const breathe = o.down || o.anim || o.gone ? 0 : Math.sin(G.time / 520 + o.bob) * 0.75;
+    const idle = !o.down && !o.gone && !o.anim && !calmNow();
+    const breathe = o.down || o.anim || o.gone ? 0 : Math.sin(G.time / 520 + o.bob) * (idle ? 0.75 : 0.3);
+    const sway = idle ? Math.sin(G.time / 1900 + o.bob * 1.7) * 0.022 + Math.sin(G.time / 3100 + o.bob) * 0.01 : 0;   // shifting weight, slowly, each at its own pace
     c.globalAlpha = alpha;
     c.save(); c.translate(o.px, Math.round(o.py * 2) / 2);
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
@@ -710,6 +765,7 @@
     }
     if (!o.down && !o.gone && o.side === 0 && B.woundStage(o) >= 2) { c.rotate((face > 0 ? 1 : -1) * 0.06); c.scale(1, 0.97); }   // badly hurt: a hero sags and leans
     if (face < 0) c.scale(-1, 1);
+    if (sway) c.transform(1, 0, sway, 1, 0, 0);                  // leans from the base, so the plinth stays put
     const ring = !o.down && !o.gone ? (o === B.active ? '#ffd24a' : B.ui && B.ui.cur && B.ui.tint === 'foe' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy && o.side === 1 ? '#ff5a4a' : B.ui && B.ui.cur && B.ui.tint === 'ally' && B.ui.cur.x === o.gx && B.ui.cur.y === o.gy ? '#8af0a0' : null) : null;
     if (ring) {                                                 // a glowing outline on the piece whose turn it is, or the one being aimed at
       const tc = B.pieceTint(o.sprite, side, ring), ga = c.globalAlpha; c.globalAlpha = ga * (0.55 + 0.3 * Math.sin(G.time / 150));
@@ -719,7 +775,16 @@
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const ws = o.down || o.gone ? 0 : B.woundStage(o), wk = ws ? B.woundKind(o) : null;
     if (ws === 3) { c.translate(Math.sin(G.time / 45 + o.bob) * 0.35, 0); if (wk === 'spirit') c.globalAlpha *= 0.72 + 0.2 * Math.sin(G.time / 90 + o.bob); }
-    c.drawImage(ws ? B.woundedPiece(o.sprite, side, ws, wk) : pc, -w / 2, -h + 3 + breathe, w, h - breathe);
+    c.drawImage(B.envLit(ws ? B.woundedPiece(o.sprite, side, ws, wk) : pc), -w / 2, -h + 3 + breathe, w, h - breathe);
+    const fw = !o.gone && !o.down ? fireNear(o) : 0;               // a brazier or burning ground close by: warm, flickering light on the figure
+    if (fw > 0) { const ga = c.globalAlpha; c.globalAlpha = ga * fw * (0.85 + 0.15 * Math.sin(G.time / 70 + o.bob)); c.drawImage(B.pieceTint(o.sprite, side, '#ff9a48'), -w / 2, -h + 3 + breathe, w, h - breathe); c.globalAlpha = ga; }
+    if (idle) {                                                  // a lantern or a spirit's light, flickering
+      const L = lightOf(o.sprite);
+      if (L) { const f = 0.75 + Math.sin(G.time / 90 + o.bob) * 0.12 + Math.sin(G.time / 37 + o.bob * 3) * 0.08, x = -w / 2 + L[0] / 40 * w, y = -h + 3 + breathe + L[1] / 64 * (h - breathe), r = L[2] * sz;
+        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(' + L[3] + ',' + (0.5 * f * alpha) + ')'); g.addColorStop(1, 'rgba(' + L[3] + ',0)');
+        c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill(); c.restore(); }
+      if (SPIRITS[o.sprite]) c.globalAlpha *= 0.9 + 0.1 * Math.sin(G.time / 260 + o.bob);
+    }
     if (o.fx && o.fx.k === 'hit' && G.time - o.fx.t < 200) { c.globalAlpha = (1 - (G.time - o.fx.t) / 200) * 0.85 * alpha; c.drawImage(B.pieceFlash(o.sprite, side), -w / 2, -h + 3 + breathe, w, h - breathe); }
     c.restore(); c.globalAlpha = 1;
   }
@@ -954,9 +1019,13 @@
   };
   /* ---------- the turn-order ribbon: who has gone, who is up, who comes next this round ---------- */
   const faces = {};
-  function face(sprite, side) {
-    const k = sprite + ':' + side; if (faces[k]) return faces[k];
-    let pc = B.piece(sprite, side), ks = HD;
+  function face(sprite, side, mood) {
+    if (mood && !(B.withExpr && B.figHeroic && B.figHeroic() && G.D.sprites[sprite])) mood = null;     // expressions are for people, in the heroic style
+    const k = sprite + ':' + side + (mood ? ':' + mood : ''); if (faces[k]) return faces[k];
+    return (faces[k] = mood ? B.withExpr(mood, () => drawFace(sprite, side)) : drawFace(sprite, side));
+  }
+  function drawFace(sprite, side) {                               // (the battle piece is only borrowed when no sharper repaint is made)
+    let pc = null, ks = HD;
     const cv = document.createElement('canvas'); cv.width = 96; cv.height = 96;
     if (B.heroicOn && B.heroicOn(sprite)) {                      // heroic heads are small: paint them again, larger, for a sharp face
       ks = 14; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
@@ -964,12 +1033,13 @@
     } else if (B.figHeroic && B.figHeroic()) {                   // everyone else in the heroic style: the same, painted again at portrait size
       const hi = paintHi(sprite, side, 7); if (hi) { pc = hi; ks = 7; }
     }
+    if (!pc) pc = B.piece(sprite, side);
     const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
     const spec = Object.assign({}, G.D.sprites[sprite], (G.D.looks || {})[sprite], (G.D.battleLooks || {})[sprite]);
     const [sx, sy, sw] = box || (!isBeast && B.specFace ? B.specFace(spec) : [4, isBeast ? 16 : 3, 32]);   // the head and shoulders, in the piece's 40x64 layout
     c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, 96, 96);
-    return (faces[k] = cv.toDataURL());
+    return cv.toDataURL();
   }
   B.faceURL = face;
   B.paintHi = (n, sd, ks) => paintHi(n, sd, ks);
@@ -978,7 +1048,7 @@
     const cv = document.createElement('canvas'); cv.width = 40 * ks; cv.height = 64 * ks;
     const c = cv.getContext('2d'); c.scale(ks, ks); c.lineJoin = 'round'; c.lineCap = 'round';
     if (!G.D.sprites[name]) { const paint = B.beastPainter && B.beastPainter(name); if (!paint) return null; const after = paint(c); if (after) { c.save(); after(c); c.restore(); } return cv; }
-    const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], (G.D.battleLooks || {})[name]);
+    const s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], (G.D.battleLooks || {})[name], { sigName: name });
     let seed = 7; for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483000;
     const H = B.heroicKit(c, seed + 1), after = B.paintSpec(H.c, H.K, s, side, H);
     H.finish({ wear: 'cloth', shadowW: s.big ? 13 : s.short ? 8.6 : 11, clean: [s.short ? [19.9, 19.8, 2.7, 3.6] : [19.9, 11.8, 3.3, 4.5]], grade: 0.14, pop: 'saturate(1.12) brightness(1.06)' });
