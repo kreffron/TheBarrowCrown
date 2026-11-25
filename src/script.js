@@ -169,7 +169,8 @@ G.cmd = async function (c, ctx) {
     case 'fade': await UI.fade(c[1] === 'out', c[2]); break;
     case 'shake': Field.shakeT = c[1] || 300; break;
     case 'face': Field.p.dir = c[1]; break;
-    case 'card': await UI.card(c[1], c[2], c[3]); break;              // ['card', title, text, [lines]?]
+    case 'card': await UI.card(c[1], c[2], c[3]); break;
+    case 'anim': await G.playAnim(c[1]); break;                         // ['anim', 'opening']  a drawn, side-on cutscene (src/opening.js)              // ['card', title, text, [lines]?]
     case 'cutscene': {                                                 // ['cutscene', [cmds]]  letterboxed, X twice skips
       G.cine = { prevFast: G.fast }; UI.letterbox(true);
       try { await G.run(c[1], ctx); }

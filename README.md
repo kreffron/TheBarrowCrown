@@ -867,3 +867,13 @@ The portraits are painted ahead of time, so phones never wait for them:
 `tools/portraits/bust.js` paints the head and shoulders (anatomy, hair, headwear, beards, clothes, moods),
 `tools/portraits/styles.js` gives it the oil finish, and `render.py` writes `data/portraits_oil.js`. Anyone without an
 oil portrait falls back to the old figure face.
+
+## The opening, drawn side on
+
+A new game opens with a drawn, side-on 2D animation instead of the old top-down scenes (`src/opening.js`, played by
+the `['anim', 'opening']` script command). It has three parts. First, the history of Mornvale: the Barrow King's crown
+breaks into five shards that light five lamps, the Wardens keep them through the years, and one lamp goes out. Second,
+the Hollow Barrow, where the King wakes on his throne. Third, the Thane's Barrow, where Veyra puts out the lamp with
+the Hooded Man, Grukk and Skrit. The dialogue uses the oil portraits. A advances a line (or hurries the picture
+along), and B twice skips the whole opening, as with any cutscene. The file holds a small engine (jointed figures with
+walks, blinks and poses, a camera, lighting and a timeline), then the three scenes, then the hook into the game.

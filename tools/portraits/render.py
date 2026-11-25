@@ -41,7 +41,7 @@ EXTRA={
  'Hallvard':(None,{'spec':{'skin':'#e0a67c','hair':'#a8a8a8','beard':1,'top':'#5a3a2a','helm':'#8a8a94','fur':'#c8b898','held':'axe','big':1,'scar':1},'mouth':'set','age':0.8}),
  'The Old Herald':('herald',{'age':0.9,'spec':{'hair':'#e8e8e8'}}),
  'Camp Smith':('rook',{'spec':{'skin':'#d8a070','hair':'#5a3a22','beard':1}}),
- 'Skrit':('goblin',{'spec':{'held':'spade','hat':'#6a5030'},'mouth':'frown'}),
+ 'Skrit':('hexer',{'mouth':'smirk','foe':1}),
  'The Hollow Warden':('hollowwarden',{}),
  'Watch-Sergeant Brand':('mott',{'spec':{'hair':'#5a3a22','helm':'#a8aab4','top':'#6a1e2a','cape':'#4a1a24'},'nasal':1,'age':0.3}),
  'Grandmother':(None,{'sex':'f','spec':{'skin':'#e8c0a0','hair':'#f0eee8','hs':'bun','top':'#7a3a4a','robe':1,'scarf':'#d8a040','glasses':1},'mouth':'smirk','age':1}),
