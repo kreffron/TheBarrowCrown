@@ -202,6 +202,7 @@
     if (scene && scene.front) scene.front(ctx, cam);
     ctx.restore();
     if (scene && scene.light) scene.light(ctx, cam);
+    if (view.flare > 0) { const g = ctx.createRadialGradient(W / 2, SH / 2, 0, W / 2, SH / 2, 620); g.addColorStop(0, 'rgba(255,246,214,' + view.flare + ')'); g.addColorStop(0.45, 'rgba(255,196,110,' + view.flare + ')'); g.addColorStop(1, 'rgba(210,90,40,' + view.flare + ')'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, SH); }
     const lb = (OY ? 0 : 56) * view.letter; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, lb); ctx.fillRect(0, SH - lb, W, lb);
     if (view.fade < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - view.fade) + ')'; ctx.fillRect(0, 0, W, SH); }
     ctx.restore();
@@ -234,12 +235,12 @@
   OP.card = async (a, b, ms) => { view.card = [a, b]; await tween(view, { cardA: 1 }, 900); await sleep(ms || 2200); await tween(view, { cardA: 0 }, 800); view.card = null; };
   OP.fade = (to, ms) => tween(view, { fade: to }, ms || 700);
   OP.shake = (ms, amp) => { shakeT = now + (view.skip ? 0 : ms); shakeA = amp || 8; };
-  OP.cam = (x, y, z, ms) => tween(cam, { x, y: y || 0, z: z || 1 }, ms || 1200);
+  OP.cam = (x, y, z, ms, ez) => tween(cam, { x, y: y || 0, z: z || 1 }, ms || 1200, ez);
   OP.sfx = n => { if (!view.skip && OP.onSfx) OP.onSfx(n); };
   OP.sleep = sleep; OP.tween = tween; OP.actor = actor; OP.view = view; OP.cam0 = cam; OP.rr = rr; OP.al = al; OP.sh = sh;
   OP.setScene = s => { scene = s; actors = []; };
   OP.mount = (canvas, o) => { cv = canvas; ctx = cv.getContext('2d'); H = (o && o.h) || 540; OY = (H - SH) / 2; cv.width = W; cv.height = H;
-    now = 0; fx = []; waiters = []; actors = []; scene = null; Object.assign(view, { fade: 1, letter: 1, caption: null, capA: 0, card: null, cardA: 0, dlg: null, skip: false, lines: [], note: null }); Object.assign(cam, { x: 0, y: 0, z: 1 });
+    now = 0; fx = []; waiters = []; actors = []; scene = null; Object.assign(view, { fade: 1, letter: 1, caption: null, capA: 0, card: null, cardA: 0, dlg: null, skip: false, lines: [], note: null, flare: 0 }); Object.assign(cam, { x: 0, y: 0, z: 1 });
     running = true; requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); }); };
   OP.unmount = () => { running = false; advance = null; };
 })();
@@ -248,7 +249,7 @@
 (function () {
   const W = 960, H = 540, FLOOR = 362;
   const { al, sh, rr } = OP;
-  const S = {};                                   // per-scene state the painters read
+  const S = OP.state = {};                         // per-scene state the painters read (OP.state for tests)
   const par = (c, cam, f) => c.translate(cam.x * (1 - f), cam.y * (1 - f));   // a layer that moves at f of the camera's speed
 
   function darkness(c, amount, lights, cam, tint) {
@@ -352,6 +353,65 @@
       darkness(c, 0.5 + (1 - f) * 0.26, [{ x: LAMP[0], y: LAMP[1] - 10, r: 560 * Math.max(f, 0.01), i: f, col: '#ffb860', fl: 1 }, { x: 40, y: 200, r: 380, i: 0.7, col: '#8aa8e8' }, { x: 220, y: FLOOR, r: 220, i: 0.4 }, ...ex], cam, '4,4,12'); }
   };
 
+  /* ================= T: the table, where the Dungeon Master tells it ================= */
+  // Seen from the foot of the table: the DM behind his screen, a candle, the board with four little figures, and the
+  // four players, still, half in the dark. They do nothing much: the game is where they talk.
+  const TB = { dmx: 480, dmy: 258, dms: 4.2, cx: 622, cy: 352, mini: [470, 428] };
+  S.t = { lit: 0, eyes: 0, grin: 0, wide: 1, match: null, low: 0 };
+  function tableTop(c) {
+    const far = 318, l0 = 150, r0 = 810, near = 560, l1 = -80, r1 = 1040, P = (u, v) => [lerp(lerp(l0, l1, v), lerp(r0, r1, v), u), lerp(far, near, v)];
+    c.fillStyle = '#3e2716'; c.beginPath(); c.moveTo(l0, far); c.lineTo(r0, far); c.lineTo(r1, near); c.lineTo(l1, near); c.closePath(); c.fill();
+    c.fillStyle = '#5a3a20'; c.fillRect(l0, far - 3, r0 - l0, 4);
+    c.strokeStyle = 'rgba(20,10,4,.5)'; c.lineWidth = 1.2; for (let u = 0.08; u < 1; u += 0.12) { const a = P(u, 0), b = P(u, 1); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+    // the board, a little to the left of the candle
+    const B0 = [[300, 352], [640, 352], [700, 470], [240, 470]], q = (u, v) => [lerp(lerp(B0[0][0], B0[3][0], v), lerp(B0[1][0], B0[2][0], v), u), lerp(352, 470, v)];
+    c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); B0.forEach(([x, y], i) => i ? c.lineTo(x + 4, y + 5) : c.moveTo(x + 4, y + 5)); c.fill();
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { const a = q(i / 8, j / 8), b = q((i + 1) / 8, j / 8), d = q((i + 1) / 8, (j + 1) / 8), e = q(i / 8, (j + 1) / 8);
+      c.fillStyle = (i + j) % 2 ? '#3f6a34' : '#4c7a3e'; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.lineTo(e[0], e[1]); c.closePath(); c.fill(); }
+    c.strokeStyle = '#2a1a0c'; c.lineWidth = 2; c.beginPath(); B0.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.stroke();
+    // a little tavern on the board, and four figures in the heroes' colours waiting by its door
+    const [mx, my] = TB.mini; c.fillStyle = '#6a4a2a'; c.fillRect(mx - 52, my - 34, 34, 22); c.fillStyle = '#9a3a2a'; c.beginPath(); c.moveTo(mx - 56, my - 33); c.lineTo(mx - 35, my - 48); c.lineTo(mx - 14, my - 33); c.fill();
+    c.fillStyle = '#ffcf7a'; c.fillRect(mx - 31, my - 26, 6, 5);
+    B.table.PLAYERS.forEach((p, i) => { const x = mx - 6 + i * 13, y = my - 4 + (i % 2) * 6; c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(x, y + 1, 5.5, 2.2, 0, 0, 7); c.fill();
+      c.fillStyle = '#2a2a2a'; c.beginPath(); c.ellipse(x, y, 5, 2, 0, 0, 7); c.fill(); c.fillStyle = p.col; c.fillRect(x - 3, y - 11, 6, 10); c.fillStyle = p.skin; c.beginPath(); c.arc(x, y - 13.5, 2.8, 0, 7); c.fill(); c.fillStyle = p.hair; c.fillRect(x - 2.8, y - 16.6, 5.6, 2); });
+  }
+  function candle(c) { const T = S.t, x = TB.cx, y = TB.cy, h = 38 - T.low * 16;
+    c.fillStyle = '#6a5228'; c.beginPath(); c.ellipse(x, y, 20, 6, 0, 0, 7); c.fill(); c.fillStyle = '#8a6c34'; c.fillRect(x - 6, y - 6, 12, 6);
+    c.fillStyle = '#e8dcc0'; c.fillRect(x - 7, y - 6 - h, 14, h); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(x - 5, y - 6 - h, 3, h);
+    c.fillStyle = '#d8ccb0'; c.beginPath(); c.moveTo(x + 7, y - 6 - h); c.quadraticCurveTo(x + 9, y - h + 4, x + 8, y - h + 10); c.lineTo(x + 6, y - 6 - h); c.fill();     // a drip
+    c.strokeStyle = '#1a1008'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(x, y - 6 - h); c.lineTo(x + 0.5, y - 12 - h); c.stroke();
+    if (T.lit > 0.02) { const f = T.lit * (1 + Math.sin(performance.now() / 70) * 0.07 + Math.sin(performance.now() / 23) * 0.04), fy = y - 12 - h;
+      const g = c.createRadialGradient(x, fy - 6, 0, x, fy - 6, 46 * f); g.addColorStop(0, 'rgba(255,220,140,.5)'); g.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, fy - 6, 46 * f, 0, 7); c.fill();
+      c.fillStyle = '#ffb04a'; c.beginPath(); c.moveTo(x - 5 * f, fy); c.quadraticCurveTo(x - 6 * f, fy - 10 * f, x + Math.sin(performance.now() / 160) * 1.5, fy - 22 * f); c.quadraticCurveTo(x + 6 * f, fy - 10 * f, x + 5 * f, fy); c.closePath(); c.fill();
+      c.fillStyle = '#fff4c8'; c.beginPath(); c.ellipse(x, fy - 5 * f, 2.4 * f, 5 * f, 0, 0, 7); c.fill(); } }
+  const sceneT = {
+    back(c, cam) { const T = S.t, now = performance.now(), PL = B.table.PLAYERS;
+      c.fillStyle = '#0b0806'; c.fillRect(-400, -200, W + 800, H + 400);
+      c.fillStyle = '#140e0a'; for (let x = -40; x < W + 40; x += 150) c.fillRect(x, -200, 14, 560); c.fillStyle = '#100b08'; c.fillRect(-400, 40, W + 800, 8);
+      B.table.paintDM(c, TB.dmx, TB.dmy, TB.dms, now, { eyes: T.eyes, grin: T.grin, wide: T.wide, hands: false });
+      tableTop(c);
+      B.table.screenAt(c, TB.dmx, 328, 3.4);
+      candle(c);
+      // the players: one at each side, two at the near end with their backs to us; just breathing
+      // held back in the dark: the near two are little more than shapes against the candlelight
+      const pp = (x, y, sc, k, front, br, turn) => { c.save(); c.filter = 'brightness(' + br + '%)'; B.table.paintPlayer(c, x, y, sc, PL[k], front, now, k, { still: true, dim: 1, turn }); c.restore(); };
+      pp(112, 436, 4.4, 1, true, 62, 0.9); pp(848, 436, 4.4, 3, true, 62, -0.9);
+      pp(232, 668, 9.4, 0, false, 34, 0.55); pp(728, 668, 9.4, 2, false, 30, -0.55);
+    },
+    front(c) { const m = S.t.match; if (!m) return;
+      c.save(); c.globalAlpha = m.a; c.translate(m.x, m.y); c.scale(1.9, 1.9); c.rotate(-0.5); c.fillStyle = '#c8a878'; c.fillRect(-1.2, 0, 2.4, 26); c.fillStyle = '#3a1a10'; c.beginPath(); c.arc(0, 0, 2.4, 0, 7); c.fill();
+      if (m.f > 0) { const f = m.f * (1 + Math.sin(performance.now() / 50) * 0.1); c.fillStyle = '#ffb04a'; c.beginPath(); c.moveTo(-4 * f, 0); c.quadraticCurveTo(-4 * f, -8 * f, 0, -15 * f); c.quadraticCurveTo(4 * f, -8 * f, 4 * f, 0); c.fill(); c.fillStyle = '#fff2c0'; c.beginPath(); c.ellipse(0, -3 * f, 1.8 * f, 3.6 * f, 0, 0, 7); c.fill(); }
+      c.restore(); },
+    light(c, cam) { const T = S.t, m = T.match, Ls = [{ x: TB.cx, y: TB.cy - 60, r: 760 * Math.max(T.lit, 0.01), i: T.lit, col: '#ffb860', fl: 1 }];
+      if (m && m.f > 0) Ls.push({ x: m.x, y: m.y - 8, r: 300 * m.f, i: 0.8 * m.f * m.a, col: '#ffb860', fl: 1 });
+      darkness(c, 0.5 + (1 - T.lit) * 0.5, Ls, cam, '6,4,4');
+      // the eyes burn through the dark before anything else is lit
+      if (T.eyes > 0 && T.lit < 1) { const k = T.eyes * (1 - T.lit * 0.9), blink = (performance.now() % 5200) < 140 ? 0.2 : 1;
+        for (const ex of [-3.2, 3.2]) { const wx = TB.dmx + ex * TB.dms, wy = TB.dmy + (-33) * TB.dms, sx = (wx - cam.x - W / 2) * cam.z + W / 2, sy = (wy - cam.y - H / 2) * cam.z + H / 2;
+          const g = c.createRadialGradient(sx, sy, 0, sx, sy, 22 * cam.z); g.addColorStop(0, 'rgba(255,224,110,' + 0.55 * k + ')'); g.addColorStop(1, 'rgba(255,200,80,0)'); c.fillStyle = g; c.fillRect(sx - 30 * cam.z, sy - 30 * cam.z, 60 * cam.z, 60 * cam.z);
+          c.fillStyle = 'rgba(255,238,160,' + 0.95 * k + ')'; c.beginPath(); c.ellipse(sx, sy, 5.6 * cam.z, 3 * cam.z * blink, ex < 0 ? 0.25 : -0.25, 0, 7); c.fill(); } } }
+  };
+
   /* ================= the cast ================= */
   const KING = { skin: '#e2d6b8', cloth: '#4a1a2a', robe: 1, cape: '#3a1222', crown: 1, trim: '#e8c14a' };
   const VEYRA = { skin: '#e8dcd0', cloth: '#7a7a86', robe: 1, hood: '#70707c', hair: '#a8a8b4', cape: '#5a5a66', held: 'lantern', rope: '#c8c0a8', eye: '#5a6a8a' };
@@ -363,19 +423,33 @@
   /* ================= the timeline ================= */
   async function play() {
     const { say, caption, card, fade, cam, sleep, tween, actor, walk, turn, pose, view } = OP;
-    // A: Mornvale
-    OP.setScene(sceneA); const A = S.a; OP.cam0.x = 0; view.fade = 0; view.lines = [];
-    const line = async (t, y, hold) => { const L = { t, y, a: 0 }; view.lines.push(L); await tween(L, { a: 1 }, 900); await sleep(hold || 2600); return L; };
+    const DM = 'The Dungeon Master', line = t => say(DM, t);   // the narrator is the DM, as at the boss tables
     const clear = async () => { await Promise.all(view.lines.map(L => tween(L, { a: 0 }, 700))); view.lines = []; };
-    await fade(1, 1400);
+    const atTable = typeof B !== 'undefined' && !!(B.table && B.table.paintDM), T = S.t;
+    // T: the table in the dark. His eyes first, then a match, then the candle
+    if (atTable) {
+      OP.setScene(sceneT); Object.assign(T, { lit: 0, eyes: 0, grin: 0, wide: 1, match: null, low: 0 }); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 }); view.fade = 1;
+      await sleep(900); await tween(T, { eyes: 1 }, 1400); await sleep(700);
+      T.match = { x: 700, y: 250, a: 1, f: 0 }; OP.sfx('fire'); await tween(T.match, { f: 1.3 }, 120); await tween(T.match, { f: 1 }, 260);
+      await tween(T.match, { x: TB.cx + 4, y: TB.cy - 64 }, 900); await sleep(250);
+      await Promise.all([tween(T, { lit: 1 }, 1100), tween(T, { grin: 1 }, 1600)]);
+      await Promise.all([tween(T.match, { f: 0, x: 690, y: 230, a: 0 }, 700)]); T.match = null;
+      await say(DM, 'Settle in. This one starts a long way back.', 'happy');
+      // into the flame
+      await cam(TB.cx - W / 2, TB.cy - 62 - H / 2, 1.5, 1100);
+      await Promise.all([cam(TB.cx - W / 2, TB.cy - 62 - H / 2, 14, 1700, t => t * t * t), sleep(900).then(() => tween(view, { flare: 1 }, 800))]);
+    }
+    // A: Mornvale, out of the flame and into the burning sky
+    OP.setScene(sceneA); const A = S.a; Object.assign(OP.cam0, { x: 0, y: 0, z: 1 }); view.lines = [];
+    if (atTable) { view.fade = 1; await tween(view, { flare: 0 }, 1800); } else { view.fade = 0; await fade(1, 1400); }
     await tween(A, { crown: 1 }, 900);
-    await line('Three hundred years ago, the Barrow King bound his soul to his crown and would not die.', 110, 2800);
+    await line('Three hundred years ago, the Barrow King bound his soul to his crown and would not die.');
     await clear();
     // the crown breaks: five shards fly out over the valley to five barrows
     OP.shake(600, 6); OP.sfx('crit'); A.crown = 0; await sleep(200);
     A.shards = MOUNDS.map(([mx, my]) => ({ x0: 610, y0: 138, x1: mx, y1: my - 24, t: 0 }));
     const flight = Promise.all([tween(A, { king: 0 }, 1800), cam(500, 0, 1, 3800), tween(A, { sky: 1 }, 3800), ...A.shards.map((s, i) => sleep(i * 220).then(() => tween(s, { t: 1 }, 1600)).then(() => tween(A.lamps, { [i]: 1 }, 400)))]);
-    await line('Five heroes broke the crown in five, and buried each piece under a lamp that never goes out.', 110, 1400);
+    await line('Five heroes broke the crown in five, and buried each piece under a lamp that never goes out.');
     await flight; await sleep(800); await clear();
     // the years go by, and the Wardens walk their rounds
     const wd = actor({ sp: WARDEN, x: 100, y: FLOOR + 2, s: 1.15 }); walk(wd, 1300, 70);
@@ -384,14 +458,13 @@
     // until now
     A.dead = 1; A.deadF = 1; await cam(MOUNDS[1][0] * 0.4 - 100, 0, 1, 1400);
     for (const v of [0.4, 1, 0.2, 0.8, 0.1, 0.5, 0]) await tween(A, { deadF: v }, 160 + OP.rr() * 160);
-    await line('Until now.', 110, 2000); await clear(); await fade(0, 1200);
+    await say(DM, 'Until now.', 'happy'); await clear(); await fade(0, 1200);
 
     // B: the Hollow Barrow
     OP.setScene(sceneB); S.b.eyes = 0; OP.cam0.x = -200;
     const king = actor({ sp: KING, x: 1270, y: FLOOR - 30, s: 2.2, face: -1, sit: 1, throne: 1, kind: 'skel', glow: 0, armF: 0.6, foreF: 1.2, armB: 0.5, foreB: 1.3, depth: 2 });
     await fade(1, 1200);
-    caption('Far to the north, in the Hollow Barrow, the Barrow King still wears one fifth of his crown.', 3000);
-    await cam(770, 0, 1, 6500);
+    await Promise.all([cam(770, 0, 1, 6500), sleep(900).then(() => say(DM, 'Far to the north, in the Hollow Barrow, the Barrow King still wears one fifth of his crown.'))]);
     await sleep(500); OP.sfx('magic'); await tween(king, { glow: 1 }, 1400); king.glowCol = '#9fd8ff'; await tween(S.b, { eyes: 1 }, 600); OP.shake(400, 3);
     await pose(king, { tilt: -0.12 }, 700);
     await say('The Barrow King', 'One of my lamps has gone cold. I can feel the air again.', 'happy');
@@ -407,7 +480,7 @@
     const skrit = actor({ sp: SKRIT, x: 330, y: FLOOR + 4, s: 1.2, face: 1, kind: 'goblin', depth: 5, alpha: 0 });
     S.c.skrit = skrit; S.c.vey = vey; S.c.grukk = grukk;
     await fade(1, 1200);
-    await caption("Nine days ago. The Thane's Barrow, in the forest north of Brackenford.", 2400);
+    await say(DM, "Nine days ago. The Thane's Barrow, in the forest north of Brackenford.");
     await Promise.all([walk(hand, 520, 60), cam(200, 0, 1, 3600)]);
     await say('Hooded Man', 'Well, Sister?');
     await say('Veyra', 'Three hundred years it has burned. It deserves a moment.', 'sad');
@@ -421,7 +494,7 @@
     await sleep(700); OP.sfx('magic'); await tween(S.c, { flame: 0 }, 900); S.c.smoke = 1;
     OP.shake(700, 7); for (let i = 0; i < 90; i++) S.c.dust.push({ x: 200 + OP.rr() * 1200, y: 60 + OP.rr() * 20, v: OP.rr() * 2 });
     await Promise.all([pose(vey, { armF: 0.15, foreF: 0.2 }, 800), cam(260, 0, 1, 1400)]);
-    await caption('The flame goes out. Somewhere in the dark, old bones begin to shift.', 2200);
+    await say(DM, 'The flame goes out. Somewhere in the dark, old bones begin to shift.', 'happy');
     await tween(S.c, { bones: 1 }, 1600);
     // Grukk
     OP.sfx('door'); await walk(grukk, 420, 130);
@@ -444,6 +517,16 @@
     await cam(450, -40, 1.4, 1800);
     await say('Hooded Man', '(Alone, to the dark lamp.) A crown is wasted on the dead.', 'happy');
     await fade(0, 1400);
+    // T again: the candle lower now. Then down into the little tavern on the board
+    if (atTable) {
+      OP.setScene(sceneT); Object.assign(T, { lit: 1, eyes: 1, grin: 1, wide: 1, match: null, low: 1 }); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 });
+      await fade(1, 1200);
+      await tween(T, { wide: 1.35 }, 600);
+      await say(DM, 'Which brings us to tonight. Four friends, three weeks on the road, and, where else, a tavern.', 'happy');
+      await tween(T, { wide: 1 }, 500);
+      await cam(TB.mini[0] - W / 2, TB.mini[1] - 18 - H / 2, 1.4, 1000);
+      await Promise.all([cam(TB.mini[0] - W / 2, TB.mini[1] - 18 - H / 2, 8, 2000, t => t * t), sleep(1100).then(() => fade(0, 900))]);
+    }
     OP.setScene(null); await card('Chapter One', "The Thane's Barrow", 2600);
     window.DONE_ANIM = true;
   }

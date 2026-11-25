@@ -200,6 +200,7 @@
     // the hair, hats and anything in front
     if (Dk.face) Dk.face();
     Dk.front();
+    if (o.after) o.after(c, { P, fill, soft, ell, curve, line, clip, rad, lin, h });   // a last touch, in the face's own space (the DM's dark face)
     c.restore();
     return rec;
 

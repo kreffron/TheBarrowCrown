@@ -139,6 +139,8 @@ UI.logLine = function (who, text, kind) {
   if (log.length > 80) log.splice(0, log.length - 80);
 };
 UI.say = async function (who, text, keep) {
+  // narration is the Dungeon Master talking, with his portrait; asides in brackets ('(Tip) ...') stay plain
+  if (!who && text && G.opts.dmNarrator !== false && !/^\s*\(/.test(String(text))) who = 'The Dungeon Master';
   UI.logLine(who, text);
   if (who && G.S && G.S.flags) G.S.flags['met.' + who] = 1;                    // for Journal -> Biographies
   const d = UI.showDlg(who, text), box = d.querySelector('.dtext'), more = d.querySelector('.dmore');

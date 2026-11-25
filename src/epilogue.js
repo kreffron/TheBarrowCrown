@@ -248,6 +248,7 @@
       const g = ctx.createLinearGradient(0, top - 30, 0, top + 190); if (V.top) { g.addColorStop(0, 'rgba(0,0,0,' + 0.75 * a + ')'); g.addColorStop(1, 'rgba(0,0,0,0)'); } else { g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.35, 'rgba(0,0,0,' + 0.72 * a + ')'); g.addColorStop(1, 'rgba(0,0,0,' + 0.85 * a + ')'); }
       ctx.fillStyle = g; ctx.fillRect(0, V.top ? 0 : top - 30, CW, 220); ctx.globalAlpha = a; ctx.textAlign = 'center'; let y = top + 30;
       if (V.title) { ctx.fillStyle = '#e8c14a'; ctx.font = '600 34px Georgia, serif'; ctx.fillText(V.title, CW / 2, y); y += 28; if (V.sub) { ctx.fillStyle = '#c8b89a'; ctx.font = 'italic 20px Georgia, serif'; ctx.fillText(V.sub, CW / 2, y); y += 12; } y += 22; }
+      if (V.text && !V.title && EP.dmName) { ctx.fillStyle = '#d8b0ff'; ctx.font = 'italic 17px Georgia, serif'; ctx.fillText('— ' + EP.dmName + ' —', CW / 2, y - 6); y += 26; }   // plain narration: just his name, no portrait
       if (V.text) { ctx.fillStyle = '#efe6d2'; ctx.font = '23px Georgia, serif'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; y = wrap(V.text, CW / 2, y, CW - 140, 31); ctx.shadowBlur = 0; }
       ctx.globalAlpha = 1; }
     if (V.big && V.bigA > 0) { ctx.globalAlpha = V.bigA; ctx.textAlign = 'center'; ctx.fillStyle = '#e8c14a'; ctx.font = '600 46px Georgia, serif'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12; ctx.fillText(V.big[0], W * K / 2, H * K / 2 - (V.big[1] ? 10 : -14)); if (V.big[1]) { ctx.fillStyle = '#e8dcc4'; ctx.font = 'italic 26px Georgia, serif'; ctx.fillText(V.big[1], W * K / 2, H * K / 2 + 32); } ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
@@ -308,6 +309,7 @@
     await big('The End', 'The Barrow Crown', 3000);
   };
   EP.glass = {}; EP.scripts = {};
+  EP.dmName = null;   // set by the game when the DM narrates (G.opts.dmNarrator)
   EP.mount = (canvas) => { cv = canvas; ctx = cv.getContext('2d'); cv.width = W * K; cv.height = H * K; for (let i = 0; i < 4; i++) EP.windows[i] = makeWindow(i);
     now = 0; fx = []; waiters = []; advance = null; Object.assign(V, { scene: null, prev: null, mix: 1, fade: 0, text: null, textA: 0, title: null, sub: null, big: null, bigA: 0, skip: false });
     running = true; requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); }); };
@@ -321,7 +323,7 @@
   G.playEpilogue = async function () {
     const D = G.D, img = (D.portraitOil && D.portraitOil.img) || {};
     for (const id of ['runa', 'dask', 'maren', 'finch']) if (!EP.glass[id] && img['glass|' + id]) EP.glass[id] = await load(img['glass|' + id]);
-    EP.cond = k => G.cond(k); EP.scripts = D.scripts;
+    EP.cond = k => G.cond(k); EP.scripts = D.scripts; EP.dmName = G.opts.dmNarrator !== false ? "The Dungeon Master" : null;
     if (G.fast) return;
     const box = document.createElement('div'); box.className = 'animbox';
     box.style.cssText = 'position:absolute;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center';

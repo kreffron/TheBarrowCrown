@@ -561,7 +561,9 @@
     const units = B.c.filter(o => !o.gone || (o.downT && G.time - o.downT < 760));
     units.forEach(o => { const p = unitPos(o); o.px = p.x; o.py = p.y; });
     if (B.isIso()) B.isoBoard(c, dt, units); else flatBoard(c, units);
-    fog(c); drawLight(c, dt); beams(c);
+    const onTable = B.isIso() && B.table && B.table.dmOn();   // at the DM's table, fog keeps to the board
+    if (onTable) { c.save(); B.table.clipBoard(c, 40); fog(c); c.restore(); } else fog(c);
+    drawLight(c, dt); beams(c);
     // bars over pieces
     for (const o of units) {
       if (o.down || o.gone) continue;
@@ -589,7 +591,7 @@
     B.drawPreview(c);
     B.drawVfx(c);
     drawParts(c, Math.min(fdt, 60));
-    motes(c); weather(c);
+    if (B.isIso() && B.table && B.table.dmOn()) { c.save(); B.table.clipBoard(c, 55); motes(c); weather(c); c.restore(); } else { motes(c); weather(c); }   // leaves, rain and snow fall on the board, not in the DM's room
     c.restore();
     c.save(); B.camApply(c);
     B.drawBubbles(c);                                           // party chatter first, so a number is never hidden under a bubble

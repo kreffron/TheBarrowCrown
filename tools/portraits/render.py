@@ -119,9 +119,19 @@ def cast(c, S):
 
 
 PAGE = """<!doctype html><html><body><script>%s</script><script>%s</script><script>
+// the Dungeon Master: a hood with nothing in it but two eyes and a grin
+const DMFACE = mood => (c, k) => { const { P, fill, soft, ell, curve, line, rad } = k;
+  const hollow = P(q => q.ellipse(51, 45, 17.6, 25.4, 0, 0, 6.283)); c.save(); c.clip(hollow);
+  fill(P(q => q.rect(0, 0, 100, 100)), rad(51, 50, 2, 30, [[0, '#0a0608'], [0.75, '#050304'], [1, 'rgba(5,3,4,.6)']]));
+  soft(0.8, () => curve([38, 52, 40, 62, 51, 67.6, 62, 62, 64, 52], 0.5, 'rgba(150,120,170,.22)'));
+  for (const [x, y] of [[44.6, 41.4], [57.8, 41]]) { soft(3, () => ell(x, y, 6, 4, 'rgba(255,210,80,.35)')); soft(0.6, () => ell(x, y, 2.6, 1.1, 'rgba(255,235,150,.95)', x < 50 ? 0.22 : -0.22)); ell(x + 0.3, y, 0.7, 0.5, '#ffffff'); }
+  const w = mood === 'happy' ? 1.3 : 1, top = 56.6, bot = 61.4 + (w - 1) * 3;
+  fill(P(q => { q.moveTo(51 - 8.4 * w, top - 1); q.quadraticCurveTo(51, bot + 2, 51 + 8.4 * w, top - 1); q.quadraticCurveTo(51, top + 3.2, 51 - 8.4 * w, top - 1); q.closePath(); }), 'rgba(226,214,190,.85)');
+  for (let i = -5; i <= 5; i++) line([51 + i * 1.5 * w, top + 0.6, 51 + i * 1.5 * w, top + 2.4 + (1 - Math.abs(i) / 6) * 2.4], 0.22, 'rgba(10,6,8,.85)');
+  soft(1.6, () => ell(51, 59, 10 * w, 3, 'rgba(255,220,150,.08)')); c.restore(); };
 window.paintAll = function (jobs, SIZE, PAINT) { const out = {};
-  for (const j of jobs) { const tall = j.spec && (j.spec.hat || j.spec.horns || j.spec.crown || j.spec.hs === 'mohawk') || j.id === 'finch';
-    const art = Styles.oil(j.id, PAINT, { spec: j.spec, meta: j.meta, mood: j.mood, noFrame: true, zoom: tall ? [13, 0, 76] : [15, 7, 72] });
+  for (const j of jobs) { if (j.meta && j.meta.dm) j.after = DMFACE(j.mood); const tall = j.spec && (j.spec.hat || j.spec.horns || j.spec.crown || j.spec.hs === 'mohawk') || j.id === 'finch';
+    const art = Styles.oil(j.id, PAINT, { spec: j.spec, meta: j.meta, mood: j.meta && j.meta.dm ? 'usual' : j.mood, after: j.after, noFrame: true, zoom: tall ? [13, 0, 76] : [15, 7, 72] });
     const c = document.createElement('canvas'); c.width = c.height = SIZE; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(art, 0, 0, SIZE, SIZE);
     out[j.id + '|' + j.mood] = c.toDataURL('image/webp', 0.76); }
   return out; };
@@ -137,6 +147,8 @@ async def main():
         d = await pg.evaluate(DUMP)
         L = cast(d['out'], d['sprites'])
         who, jobs = {}, []
+        who['The Dungeon Master'] = 'dm'                       # the narrator: a hooded DM, as at the boss tables
+        for m in ['usual', 'happy']: jobs.append({'id': 'dm', 'mood': m, 'spec': {'skin': '#6a5a60', 'hood': '#1c1622', 'top': '#1c1622', 'robe': 1, 'cape': '#120e16', 'trim': '#5a4a2a', 'hair': '#0a0808'}, 'meta': {'dm': 1, 'sex': 'm', 'age': 0}})
         for h, hid in HEROES.items():
             who[h] = hid
             for m in ['usual'] + MOODS: jobs.append({'id': hid, 'mood': m, 'spec': None, 'meta': None})

@@ -270,7 +270,9 @@ glasses, eye-patches, crowns, small folk, and a held item such as an axe, lute, 
 
 data/ch1/prologue.js holds the prologue cutscenes, the tavern tutorial, the guided brawl and the
 closing scene. Cutscene and guided-battle commands are documented in the design bible's Content format
-section. Saving is switched off while the tutorial runs (flag `tut` set, `joined` not yet).
+section. Saving is switched off while the tutorial runs (flag `tut` set, `joined` not yet). In the brawl the guided round's
+order (the party in the guide's order, then any guest, then the Vosks) is written into everyone's initiative, so every
+later round keeps it.
 
 ## Puzzle dungeons
 
@@ -389,6 +391,27 @@ buttons at the top left of the battle screen (G.opts.bview: 'iso' or 'flat').
   raised square's sides). Arrow keys move the cursor by screen direction (up = up and to the right) at every angle.
 - **Speed**: the ground is painted once per fight onto a square canvas and laid onto the board with one transform;
   the slab and ground are then cached per angle, so a still diamond board costs about the same as the flat one.
+
+## The table (`src/table.js`)
+Every fight on the diamond board is played on a tabletop in a dark room, with a hooded Dungeon Master (glowing eyes, a
+grin) behind his screen at the foes' end. The screen stands at the table's angle, its art toward the players. At the
+chapter-end bosses (`FIGHTS`: Grukk, the Prior, the giant, the Colossus, Corr in all his shapes and the King) four
+players in the heroes' colours sit round the other sides too, turned toward the board, with small idle actions; at the
+last fights the DM leans in. Each fight opens turned so the DM sits top right; from the two views where he would be on
+our side, he and his screen fade to a faint see-through outline (Options > DM from behind: Faint, the default, or
+Hidden, which leaves them out). The board is drawn smaller (`zk`) and
+lower (`zy`); `B.isoPos` and `B.isoPick` are wrapped so labels and taps still land on the right squares. Option
+`table: false` turns it all off. `B.table.paintDM`, `paintPlayer` and `screenAt` are also used by the opening.
+Weather, drifting specks and fog are clipped to a column over the board (`B.table.clipBoard`), so rain and snow fall
+on the little world rather than in the DM's room; the board's wall torches (`B.isoTorches`) and their light move with
+the smaller board. Switching from flat back to diamond mid-fight reopens on the DM's view.
+
+## The Dungeon Master narrates
+Narration (`UI.say(null, ...)`, so every `['note', ...]` in the scripts) is spoken by **The Dungeon Master**, with his
+portrait (`dm|usual`, `dm|happy` in data/portraits_oil.js, drawn by DMFACE in tools/portraits/render.py). Lines that begin
+with a bracket, like `(Tip) ...`, stay plain. The opening's history lines and captions are his too. In the epilogue his
+plain lines keep the painted look: just his name in small italics over the text, no portrait (`EP.dmName`). Option `dmNarrator:
+false` goes back to plain narration.
 
 ## Battlefield shapes, new ground and new objects (`src/shapes.js`, `src/terrain.js`)
 
@@ -877,6 +900,13 @@ the Hollow Barrow, where the King wakes on his throne. Third, the Thane's Barrow
 the Hooded Man, Grukk and Skrit. The dialogue uses the oil portraits. A advances a line (or hurries the picture
 along), and B twice skips the whole opening, as with any cutscene. The file holds a small engine (jointed figures with
 walks, blinks and poses, a camera, lighting and a timeline), then the three scenes, then the hook into the game.
+
+It begins and ends at the Dungeon Master's table (`sceneT`, using the painters `B.table.paintDM`, `paintPlayer` and
+`screenAt` from src/table.js). In the dark only his eyes show; he strikes a match, lights a candle and grins, says one
+line, and the view goes into the flame, which flares and clears into the burning sky of the first scene. After the
+Thane's Barrow it comes back to the table, with the candle burned lower, for one more line, then sinks into the little
+tavern on the board before the Chapter One card. The four players only sit and breathe: their talking is the game.
+`OP.state` exposes the scenes' state for tests; `view.flare` is the flame-light wash.
 
 ## The epilogue, painted
 

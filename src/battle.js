@@ -166,6 +166,7 @@ B.run = async function (grp, o) {
     if (round === 1 && grp.guide && !G.auto) {                       // tutorial: the party goes first, in the guide's order
       const party = B.c.filter(x => x.side === 0 && !x.guest);
       order = party.concat(B.c.filter(x => x.guest), B.c.filter(x => x.side === 1));
+      order.forEach((x, i) => { x.init = 100 - i; });                // and keeps that order for the rest of the brawl
     }
     if (round === 1 && B.opening) {                                    // who saw whom first
       const first = B.opening === 'ambush' ? 0 : 1;

@@ -67,8 +67,11 @@ async def main():
         who = await pg.evaluate("[B.active.name, B.active.gx, B.active.gy]")
         await pg.keyboard.press('5'); await pg.wait_for_timeout(300)
         await pg.screenshot(path='/tmp/tac_threat.png')
-        for k in ['ArrowRight', 'ArrowRight']: await pg.keyboard.press(k); await pg.wait_for_timeout(120)
-        await pg.keyboard.press('e'); await pg.wait_for_timeout(1500)
+        # two squares one way; if that square is blocked in this fight's opening view, try the other ways
+        for keys in [['ArrowRight'] * 2, ['ArrowLeft'] * 4, ['ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp'], ['ArrowDown'] * 4]:
+            for k in keys: await pg.keyboard.press(k); await pg.wait_for_timeout(120)
+            await pg.keyboard.press('e'); await pg.wait_for_timeout(1500)
+            if await pg.evaluate("[B.active.gx, B.active.gy].join() !== %r" % ','.join(map(str, who[1:]))): break
         moved = await pg.evaluate("[B.active.gx, B.active.gy, [...document.querySelectorAll('.bcmd .mi')].map(e => e.textContent.trim())]")
         await pg.keyboard.press('u'); await pg.wait_for_timeout(400)
         back = await pg.evaluate("[B.active.gx, B.active.gy]")

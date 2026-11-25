@@ -93,8 +93,12 @@ async def main():
         for i in range(60):
             if await ev("G.scene === 'battle' && !!document.querySelector('.bcmd')"): break
             await key('e', 1, 120)
+        guided = "B.active && B.active.id === 'runa' && B.logEl.classList.contains('guide') && document.querySelectorAll('.bcmd .mi.dis').length === 5"
+        for i in range(15):                     # the menu can appear a moment before the lock is drawn: give it a beat
+            if await ev(guided): break
+            await pg.wait_for_timeout(200)
         await shot('62_guide_runa.png')
-        ok('Runa is guided to Attack, other commands locked', await ev("B.active && B.active.id === 'runa' && B.logEl.classList.contains('guide') && document.querySelectorAll('.bcmd .mi.dis').length === 5"))
+        ok('Runa is guided to Attack, other commands locked', await ev(guided))
         await key('ArrowDown'); await key('e'); await pg.wait_for_timeout(200)
         ok('a locked command cannot be chosen', await ev("!!document.querySelector('.bcmd') && !document.querySelector('.bsub')"))
         await key('ArrowUp'); await key('e'); await pg.wait_for_timeout(250)

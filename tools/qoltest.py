@@ -37,7 +37,7 @@ async def main():
           G.S.dlog = []; G.autoPick = o => 1;
           await G.run([['say', 'Hobb', 'Wolves keep off the forest road.'], ['note', 'The wind picks up.'], ['choice', 'Hobb', 'Well?', [['Yes', []], ['No', []]]]]);
           G.autoPick = null;
-          const L = G.S.dlog; ok('log keeps lines, narration, the choice prompt and the pick', L.length === 4 && L[0][0] === 'Hobb' && L[1][0] === '' && L[3][3] === 'pick' && L[3][1] === 'No');
+          const L = G.S.dlog; ok('log keeps lines, narration, the choice prompt and the pick', L.length === 4 && L[0][0] === 'Hobb' && (L[1][0] === '' || L[1][0] === 'The Dungeon Master') && L[3][3] === 'pick' && L[3][1] === 'No');
           for (let i = 0; i < 100; i++) UI.logLine('X', 'line ' + i); ok('log is capped at 80', G.S.dlog.length === 80 && G.S.dlog[79][1] === 'line 99');
           // 5. patch up
           G.S.bag = { draught: 5, greater: 2 }; G.S.party.forEach(m => { m.hp = Math.max(1, Math.floor(G.stats(m).maxHp * 0.4)); }); G.member('finch').hp = G.stats(G.member('finch')).maxHp - 2;

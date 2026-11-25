@@ -8,7 +8,7 @@
   const D = G.D, M = D.maps;
 
   Object.assign(D.speakers, {
-    'The Barrow King': '#c890f0', 'Hooded Man': '#b8b0d0', Brannoc: '#f0906a', 'Vosk Bruiser': '#d8a080', Ingrid: '#c8c8d4', Bram: '#e8d0a0'
+    'The Dungeon Master': '#d8b0ff', 'The Barrow King': '#c890f0', 'Hooded Man': '#b8b0d0', Brannoc: '#f0906a', 'Vosk Bruiser': '#d8a080', Ingrid: '#c8c8d4', Bram: '#e8d0a0'
   });
   Object.assign(D.sprites, {
     king: { skel: 1, helm: '#e8c14a' },
