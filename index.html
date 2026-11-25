@@ -6182,6 +6182,29 @@ B.drawVfx = function (c) {
     for (let a = 0; a < 12; a++) oc.drawImage(sil, Math.cos(a / 12 * 6.283) * r, Math.sin(a / 12 * 6.283) * r);
     oc.drawImage(cv, 0, 0); return out;
   }
+  // A painted miniature's base: a wide rim in the team's colour between gold lines (a boss's studded), a top of painted
+  // sand with a few stones and tufts of static grass, a thin ring of the team colour round its edge, and a soft cast shadow.
+  const RIMS = { 0: ['#3a64c8', '#8ab4ff', '#2c4ea8', '#142a66'], 1: ['#b83434', '#ff8a78', '#922424', '#4a0e0e'], 2: ['#2e8a52', '#86e0a2', '#22703e', '#0e3a1e'], 3: ['#8a1830', '#ff6a7a', '#6a0e20', '#2a0408'] };
+  function miniBase(c, side, name) {
+    const rim = RIMS[side] || RIMS[0], cx = 20, cy = 51.6, rx = 14.2, ry = 4.1, h = 4.0;
+    let s = 7; for (const ch of name || '') s = (s * 31 + ch.charCodeAt(0)) % 2147483000; s = s || 7;
+    const r = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    c.save();
+    c.save(); c.filter = 'blur(' + (1.1 * HD) + 'px)'; c.fillStyle = 'rgba(0,0,0,.5)'; c.beginPath(); c.ellipse(cx + 1.4, cy + h + 0.8, rx + 1, ry + 0.5, 0, 0, 6.283); c.fill(); c.restore();
+    const band = c.createLinearGradient(cx - rx, 0, cx + rx, 0); band.addColorStop(0, rim[0]); band.addColorStop(0.28, rim[1]); band.addColorStop(0.62, rim[2]); band.addColorStop(1, rim[3]);
+    c.fillStyle = band; c.beginPath(); c.ellipse(cx, cy + h, rx, ry, 0, 0, Math.PI); c.lineTo(cx - rx, cy); c.ellipse(cx, cy, rx, ry, 0, Math.PI, 0, true); c.closePath(); c.fill();
+    c.strokeStyle = side === 3 ? '#f4d27a' : '#e8c14a'; c.lineWidth = 0.34; c.beginPath(); c.ellipse(cx, cy + h - 0.16, rx - 0.02, ry, 0, 0.05, Math.PI - 0.05); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 0.16; c.beginPath(); c.ellipse(cx, cy + h * 0.55, rx - 0.1, ry, 0, 2.0, 2.8); c.stroke();
+    if (side === 3) for (let i = 0; i < 13; i++) { const a = 0.22 + i * (2.7 / 12); c.fillStyle = '#f4d27a'; c.beginPath(); c.arc(cx + Math.cos(a) * rx, cy + h * 0.5 + Math.sin(a) * ry, 0.4, 0, 6.283); c.fill(); }
+    c.save(); c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, 6.283); c.clip();
+    const top = c.createRadialGradient(cx - 3.4, cy - 1.3, 0.5, cx, cy, rx); top.addColorStop(0, '#a08a6a'); top.addColorStop(0.7, '#72604a'); top.addColorStop(1, '#4e4030'); c.fillStyle = top; c.fillRect(cx - rx, cy - ry, 2 * rx, 2 * ry);
+    for (let i = 0; i < 520; i++) { const x = cx - rx + r() * 2 * rx, y = cy - ry + r() * 2 * ry; c.fillStyle = r() > 0.5 ? 'rgba(225,205,165,.5)' : 'rgba(40,30,20,.45)'; c.fillRect(x, y, 0.14 + r() * 0.1, 0.1); }
+    for (let k = 0; k < 2 + Math.floor(r() * 2); k++) { const sd = r() > 0.5 ? 1 : -1, x = cx + sd * (6 + r() * 5), y = cy - 1 + r() * 2.4, w = 0.7 + r() * 0.8; const g = c.createLinearGradient(x - w, y - w, x + w, y + w); g.addColorStop(0, '#cfcbc3'); g.addColorStop(1, '#4a4844'); c.fillStyle = g; c.beginPath(); c.ellipse(x, y, w, w * 0.62, 0.3, 0, 6.283); c.fill(); }
+    c.restore();
+    c.strokeStyle = rim[1]; c.lineWidth = 0.38; c.beginPath(); c.ellipse(cx, cy, rx - 0.16, ry - 0.1, 0, 0, 6.283); c.stroke();
+    for (let k = 0; k < 4; k++) { const sd = k % 2 ? 1 : -1, x = cx + sd * (5 + r() * 6.5), y = cy - 1.6 + r() * 3.6; for (let i = 0; i < 18; i++) { const a = -1.57 + (r() - 0.5) * 1.6, l = 0.6 + r() * 0.9; c.strokeStyle = r() > 0.5 ? '#a4b050' : '#6e7e32'; c.lineWidth = 0.1; c.beginPath(); c.moveTo(x + (r() - 0.5) * 0.8, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke(); } }
+    c.restore();
+  }
   B.piece = function (name, side) {
     const k = name + ':' + side;
     if (cache[k]) return cache[k];
@@ -6192,6 +6215,8 @@ B.drawVfx = function (c) {
     const line = (x0, y0, x1, y1, w, col) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
     const lin = (x0, y0, x1, y1, stops) => { const g = c.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
     const [b, bd, rim] = BASE[side];
+    if (B.figHeroic && B.figHeroic()) miniBase(c, side, name);    // heroic style: a miniature's base, sand and grass on a team-coloured rim
+    else {
     // the base: a lacquered two-tier plinth with a gold or silver rim
     ell(20, 59.5, 15.5, 4.2, 'rgba(0,0,0,.35)');
     c.fillStyle = lin(5, 0, 35, 0, [[0, shade(bd, 10)], [0.5, bd], [1, shade(bd, -20)]]); c.beginPath(); c.ellipse(20, 58, 15, 4, 0, 0, 3.1416); c.lineTo(5, 56); c.ellipse(20, 56, 15, 4, 0, 3.1416, 0, true); c.fill();
@@ -6200,6 +6225,7 @@ B.drawVfx = function (c) {
     ell(20, 52, 10.5, 3, lin(10, 0, 30, 0, [[0, shade(b, 40)], [0.5, b], [1, shade(b, -24)]]));
     c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 0.6; c.beginPath(); c.ellipse(20, 52, 9, 2.2, 0, 3.5, 4.9); c.stroke();
     if (side === 3 && B.bossBase) B.bossBase(c);
+    }
     const pixIm = G.gfx.pix[name], s = Object.assign({}, G.D.sprites[name], (G.D.looks || {})[name], { sigName: name });
     const paint = (!G.D.sprites[name] && B.beastPainter && B.beastPainter(name)) || (B.heroPainter && B.heroPainter(name));
     if (paint) {                                                // a beast painted to match the heroes (beasts.js)

@@ -756,6 +756,12 @@ every other person uses the same kit through `B.paintSpec`:
   dialogue faces are painted at 10x; `B.warmFaces()` paints the party's battle figures and every mood of their faces
   ahead, in idle time, from each `Field.enter`.
 
+## Miniature bases (Nov 2026)
+
+In the heroic style every piece stands on a painted miniature's base (`miniBase` in pieces.js) instead of the lacquered
+plinth: painted sand with stones and static grass, a soft cast shadow, and a wide rim in the team colour between gold
+lines (`RIMS`: blue heroes, red foes, green guests, crimson with gold studs for a boss). Classic keeps the plinths.
+
 ## Reachability pass
 
 `tools/reachtest.py` walks the whole game from the new-game start, through every door, stair and story move, and lists any map or thing the party can never reach. It found three sealed areas, fixed in `data/ch9_world/u_fixes.js`:
