@@ -170,7 +170,8 @@ G.cmd = async function (c, ctx) {
     case 'shake': Field.shakeT = c[1] || 300; break;
     case 'face': Field.p.dir = c[1]; break;
     case 'card': await UI.card(c[1], c[2], c[3]); break;
-    case 'anim': await G.playAnim(c[1]); break;                         // ['anim', 'opening']  a drawn, side-on cutscene (src/opening.js)              // ['card', title, text, [lines]?]
+    case 'anim': await G.playAnim(c[1]); break;
+    case 'epilogue': await G.playEpilogue(); break;                    // the painted epilogue: the valley, the hall of windows, the Crooked Lantern (src/epilogue.js)                         // ['anim', 'opening']  a drawn, side-on cutscene (src/opening.js)              // ['card', title, text, [lines]?]
     case 'cutscene': {                                                 // ['cutscene', [cmds]]  letterboxed, X twice skips
       G.cine = { prevFast: G.fast }; UI.letterbox(true);
       try { await G.run(c[1], ctx); }

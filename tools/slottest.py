@@ -26,7 +26,7 @@ async def main():
           Object.assign(G.S.flags, { ending: 1, camp2: 2, camp3: 2, camp4: 2, camp5: 4, 'bond.dask': 12, 'bond.maren': 5, 'bond.finch': 1 });
           G.auto = true; await G.run(G.D.scripts.epilogueHeroes, {});
           out.push(...cards);
-          out.push('epilogue5 has heroes: ' + JSON.stringify(G.D.scripts.epilogue5).includes('epilogueHeroes'));
+          out.push('epilogue5 has heroes: ' + (JSON.stringify(G.D.scripts.epilogue5).includes('"epilogue"') && !!G.playEpilogue && !!G.D.epilogueValley));
           return out.join('\n');
         })()""")
         print(r); print(errs)

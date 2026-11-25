@@ -877,3 +877,25 @@ the Hollow Barrow, where the King wakes on his throne. Third, the Thane's Barrow
 the Hooded Man, Grukk and Skrit. The dialogue uses the oil portraits. A advances a line (or hurries the picture
 along), and B twice skips the whole opening, as with any cutscene. The file holds a small engine (jointed figures with
 walks, blinks and poses, a camera, lighting and a timeline), then the three scenes, then the hook into the game.
+
+## The epilogue, painted
+
+The ending plays as a run of painted 2D scenes in the title screen's style, with gentle movement only
+(`src/epilogue.js`, played by the `['epilogue']` script command). It opens on the valley at dawn, then shows one scene
+for each place that has something to say:
+
+- Brackenford, with Old Pell at the graves and Ingrid's horseshoe over the door when those came to pass
+- Saltmere, with boats going out, or lamps in the windows for six who did not come home, and the lighthouse lit or dark
+- Karrow Hold, with the giant's Cairn lamp lit or cold
+- Highmoor, with the Duke's banners and rider, or a greyer city
+- the Wardens' road, where lamps light towards Maren and Veyra (or Veyra alone), or the High Warden's study with its
+  white lamp
+- Finch's ballad, with a full house and Ennet in the front row, a single quiet verse, or a grey lamp on the stage
+- the goblins' camp in the north hills, and Snik's eel stall
+
+Then comes a crypt where the four heroes loom as stained-glass windows over a cloaked figure in the shadows. The rose
+window lights in the colours of your ending. Each hero's window then blazes in turn as their fate is told (a little
+brighter the closer they ended up to Runa), and companion pairs light together. It closes on the Crooked Lantern by the
+fire, with the four in their chairs or the chairs left empty, and "The End". The words all come from the game's own
+epilogue lines (`D.epilogueValley` in `data/ch5/story.js`, and `D.scripts.epilogueHeroes`), so every branch shows
+exactly the lines it earned. The windows' portraits are painted on glass by `tools/portraits/render.py`.

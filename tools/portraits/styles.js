@@ -153,9 +153,9 @@
     c.restore(); }
 
   /* ---------------- stained glass ---------------- */
-  St.glass = function (id, N) {
-    const g = mk(N), c = g.getContext('2d'), s = N / 100;
-    const arch = new Path2D(); arch.moveTo(8, 100); arch.lineTo(8, 34); arch.arc(50, 34, 42, Math.PI, 0); arch.lineTo(92, 100); arch.closePath();
+  St.glass = function (id, N, ex) {
+    const g = mk(N), c = g.getContext('2d'), s = N / 100, panel = ex && ex.panel;
+    const arch = new Path2D(); if (panel) arch.rect(0, 0, 100, 100); else { arch.moveTo(8, 100); arch.lineTo(8, 34); arch.arc(50, 34, 42, Math.PI, 0); arch.lineTo(92, 100); arch.closePath(); }
     c.fillStyle = '#1a1612'; c.fillRect(0, 0, N, N);
     c.save(); c.scale(s, s); c.clip(arch);
     // background panes: deep blue with ruby and gold borders, cut into cells
@@ -167,7 +167,7 @@
     const halo = new Path2D(); halo.arc(50, 40, 26, 0, 6.283); let gr = c.createRadialGradient(50, 40, 6, 50, 40, 26); gr.addColorStop(0, '#fff3b0'); gr.addColorStop(0.6, '#f0c040'); gr.addColorStop(1, '#c08010'); c.fillStyle = gr; c.fill(halo);
     c.restore();
     // the figure: cloth and hair as saturated glass, the face painted in grisaille on pale glass
-    const b = base(id, N, { zoom: [4, 2, 96] });
+    const b = base(id, N, { zoom: (ex && ex.zoom) || [4, 2, 96] });
     const glassFig = mk(N), fc = glassFig.getContext('2d'); zt(fc, b.rec.z, N);
     for (const r of b.rec) { if (!r.col) continue; const isSkin = r.role === 'skin' || r.role === 'neck', col = isSkin ? '#f4e2c4' : sat(r.col);
       if (r.role === 'eye' || r.role === 'line' || r.role === 'feature' || r.role === 'lip' || r.role === 'paint') continue;
@@ -187,10 +187,10 @@
     bl.setTransform(1, 0, 0, 1, 0, 0); bl.globalCompositeOperation = 'destination-out'; bl.drawImage(figM, 0, 0);
     const fl = inkLayer(b, N, r => r.role === 'cloth' || r.role === 'hair' || r.role === 'hat' || r.role === 'trim' ? [1.3, '#141210'] : r.role === 'skin' ? [1.1, '#141210'] : r.role === 'feature' ? [0.35, 'rgba(30,20,16,.85)'] : r.role === 'line' ? [0.3, 'rgba(30,20,16,.7)'] : null);
     const cuts = mk(N), cc = cuts.getContext('2d'); zt(cc, b.rec.z, N); for (let i = 0; i < 12; i++) { const sp = new Path2D(), x = 4 + rr() * 92, y = 74 + rr() * 22; sp.moveTo(x, y); sp.lineTo(x + (rr() - 0.5) * 24, y + 8 + rr() * 12); lead(cc, sp, 1); } cc.setTransform(1, 0, 0, 1, 0, 0); cc.globalCompositeOperation = 'destination-in'; cc.drawImage(figMask(b, N, ['cloth']), 0, 0);
-    c.save(); c.scale(s, s); c.clip(arch); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(bgL, 0, 0); c.drawImage(cuts, 0, 0); c.drawImage(fl, 0, 0); c.scale(s, s); lead(c, arch, 2.6); c.restore();
+    c.save(); c.scale(s, s); c.clip(arch); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(bgL, 0, 0); c.drawImage(cuts, 0, 0); c.drawImage(fl, 0, 0); c.scale(s, s); if (!panel) lead(c, arch, 2.6); c.restore();
     // light through the glass
     c.save(); c.globalCompositeOperation = 'screen'; gr = c.createRadialGradient(N * 0.35, N * 0.25, 0, N * 0.35, N * 0.25, N * 0.7); gr.addColorStop(0, 'rgba(255,245,220,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gr; c.fillRect(0, 0, N, N); c.restore();
-    return frame(g, 'stone');
+    return panel ? g : frame(g, 'stone');
   };
   function sat(h) { const n = parseInt(h.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; const m = (r + g + b) / 3; [r, g, b] = [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(m + (v - m) * 1.7)))); return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join(''); }
   function voronoi(pts) { // each cell as the polygon of a 100 x 100 square cut by the bisectors with every other point

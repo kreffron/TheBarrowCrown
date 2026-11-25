@@ -125,6 +125,7 @@ window.paintAll = function (jobs, SIZE, PAINT) { const out = {};
     const c = document.createElement('canvas'); c.width = c.height = SIZE; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(art, 0, 0, SIZE, SIZE);
     out[j.id + '|' + j.mood] = c.toDataURL('image/webp', 0.76); }
   return out; };
+window.paintGlass = function (ids, SIZE) { const out = {}; for (const id of ids) { const g = Styles.glass(id, 420, { panel: true, zoom: [12, 4, 80] }); const c = document.createElement('canvas'); c.width = c.height = SIZE; c.getContext('2d').drawImage(g, 0, 0, SIZE, SIZE); out['glass|' + id] = c.toDataURL('image/webp', 0.82); } return out; };
 </script></body></html>"""
 
 
@@ -154,6 +155,7 @@ async def main():
         for i in range(0, len(jobs), 20):
             img.update(await pg2.evaluate('([j, s, n]) => paintAll(j, s, n)', [jobs[i:i + 20], SIZE, PAINT]))
             sys.stdout.write('.'); sys.stdout.flush()
+        img.update(await pg2.evaluate('([i, s]) => paintGlass(i, s)', [list(HEROES.values()), 320]))   # the heroes on glass, for the epilogue's windows
         await b.close()
     js = ('/* Oil portraits for everyone who speaks, painted by tools/portraits/render.py (do not edit by hand).\n'
           '   who: speaker name -> portrait id; img: "id|mood" -> picture. A missing mood falls back to "id|usual". */\n'

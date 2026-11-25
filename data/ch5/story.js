@@ -353,46 +353,60 @@
   ];
 
   /* ---------- the epilogue ---------- */
+  // What became of the valley: one painted scene for each place (src/epilogue.js), with the lines it earned.
+  D.epilogueValley = [
+    ['brackenford', [
+        ['note', 'Brackenford. The Crooked Lantern is louder than it has ever been, which is saying a good deal.'],
+        ['if', 'tobiasFree', [['note', 'Warden Tobias is back under his temple lamp, a little thinner, telling everyone about Greyhold whether they ask or not.']],
+          [['if', 'shard1Stolen', [['note', 'Warden Tobias never came home from Greyhold. The town lit a lamp for him in the temple window, and keeps it lit.']],
+            [['note', 'Warden Tobias keeps his lamp, and his stories, and sits up late with whoever needs him.']]]]],
+        ['if', 'silver=1', [['note', 'The grave silver stays where it belongs. Old Pell visits Alder on Sundays.']]],
+        ['if', 'ingridAlly', [['note', 'Ingrid the smith hangs a horseshoe over the tavern door. Nobody is allowed to ask why.']]]
+    ]],
+    ['saltmere', [
+        ['if', 'hostagesSaved', [['note', 'Saltmere. Six fishermen who should have drowned go out with the boats every morning, and come back every night.']],
+          [['note', 'Saltmere. Six names are painted on the chapel board. The town keeps the lamps lit in the windows for them.']]],
+        ['if', 'lightLit', [['note', 'The Saltmere light sweeps the water. Pip has been made assistant keeper, and is unbearable about it.']]]
+    ]],
+    ['karrow', [
+        ['if', 'giant=1', [['note', 'Karrow Hold. Hrimgar sleeps under a lamp that never gutters now. The children leave him songs on the Cairn step.']],
+          [['note', 'Karrow Hold. The Cairn is empty and cold, and the clan keeps it anyway, because an oath is an oath.']]],
+        ['if', 'runaOath=4', [['note', 'Runa Stonehand goes home in the spring to keep her five winters on the Cairn. She finds that she does not mind at all.']],
+          [['if', 'runaOath=2', [['note', 'Runa Stonehand pays one more visit to Karrow Hold, and stays a week, and nobody mentions silver once.']],
+            [['note', 'Runa Stonehand goes home to Karrow Hold whenever she likes now. Bryn meets her at the gate every time.']]]]]
+    ]],
+    ['highmoor', [
+        ['if', 'dukeCured', [['note', 'Highmoor. Duke Aldric rides out every morning again, and has had every lamp in the city re-trimmed with clean oil.']],
+          [['note', 'Highmoor. With the Duke gone and the Chancellor in chains, the city learns to govern itself. Badly, at first. Then less badly.']]],
+        ['if', 'wrenFree', [['note', 'Dask Underbough and his sister Wren open a small counting-house of their own. It lends money at no interest at all, and is somehow still in business.']],
+          [['if', 'dask5=1', [['note', 'Dask Underbough burned every debt in Highmoor, and tells anyone who asks that it was the best money he never made.']],
+            [['note', 'Dask Underbough owes nobody anything, for the first time in his life. He finds it takes some getting used to.']]]]]
+    ]],
+    ['wardens', [
+        ['if', 'veyra5=1', [
+          ['if', 'ending=3', [['note', 'Maren Vale becomes a High Warden. She keeps a white lamp on her desk that she never lets anyone trim but herself.']],
+            [['note', 'Maren Vale and Sister Veyra walk the valley together, relighting every ward-lamp the grey oil poisoned. It takes them three years.']]]
+        ], [['if', 'veyra5=2', [['note', 'Maren Vale speaks at Veyra\'s judgement for a whole day. The Wardens give Veyra a lamp and a road, and tell her to light every lamp on it.']],
+          [['if', 'veyra5=3', [['note', 'Maren Vale visits Veyra in the Wardens\' house every week. One spring, Veyra asks for a lamp of her own to trim.']],
+            [['note', 'Maren Vale becomes a High Warden, and teaches her pupils what to do when someone they love is on the other side of the door.']]]]]]]
+    ]],
+    ['ballad', [
+        ['if', 'ending=1', [['note', 'Finch Tallowmere finishes the Ballad of the Five Lamps, and sings it in every tavern in the valley. Ennet Tallowmere sits in the front row and corrects him.']],
+          [['if', 'ending=2', [['note', 'Finch Tallowmere finishes the Ballad of the Five Lamps. He sings the last verse only once a year, on the night the crown broke.']],
+            [['note', 'Finch Tallowmere finishes the Ballad of the Five Lamps, with a sixth verse nobody asked for, about a Warden in grey who lit one last lamp.']]]]]
+    ]],
+    ['goblins', [
+        ['if', 'grukk3=1', [['note', 'Grukk\'s goblins settle in the north hills, and trade goats with Karrow Hold. Both sides cheat. Both sides seem happy.']]]
+    ]],
+    ['snik', [
+        ['if', 'snik=1', [['note', 'Snik sells eels in Saltmere. Honest eels. Mostly.']]]
+    ]]
+  ];
   D.scripts.epilogue5 = [
     ['cutscene', [
       ['fade', 'out', 900],
-      ['card', '', 'Afterwards'],
-      ['scene', 'brackenford', 'z', 'up', true], ['cam', 20, 14],
-      ['note', 'Brackenford. The Crooked Lantern is louder than it has ever been, which is saying a good deal.'],
-      ['if', 'tobiasFree', [['note', 'Warden Tobias is back under his temple lamp, a little thinner, telling everyone about Greyhold whether they ask or not.']],
-        [['if', 'shard1Stolen', [['note', 'Warden Tobias never came home from Greyhold. The town lit a lamp for him in the temple window, and keeps it lit.']],
-          [['note', 'Warden Tobias keeps his lamp, and his stories, and sits up late with whoever needs him.']]]]],
-      ['if', 'silver=1', [['note', 'The grave silver stays where it belongs. Old Pell visits Alder on Sundays.']]],
-      ['if', 'ingridAlly', [['note', 'Ingrid the smith hangs a horseshoe over the tavern door. Nobody is allowed to ask why.']]],
-      ['scene', 'saltmere', 'u', 'up', true],
-      ['if', 'hostagesSaved', [['note', 'Saltmere. Six fishermen who should have drowned go out with the boats every morning, and come back every night.']],
-        [['note', 'Saltmere. Six names are painted on the chapel board. The town keeps the lamps lit in the windows for them.']]],
-      ['if', 'lightLit', [['note', 'The Saltmere light sweeps the water. Pip has been made assistant keeper, and is unbearable about it.']]],
-      ['scene', 'karrow', 'a', 'down', true],
-      ['if', 'giant=1', [['note', 'Karrow Hold. Hrimgar sleeps under a lamp that never gutters now. The children leave him songs on the Cairn step.']],
-        [['note', 'Karrow Hold. The Cairn is empty and cold, and the clan keeps it anyway, because an oath is an oath.']]],
-      ['if', 'runaOath=4', [['note', 'Runa Stonehand goes home in the spring to keep her five winters on the Cairn. She finds that she does not mind at all.']],
-        [['if', 'runaOath=2', [['note', 'Runa Stonehand pays one more visit to Karrow Hold, and stays a week, and nobody mentions silver once.']],
-          [['note', 'Runa Stonehand goes home to Karrow Hold whenever she likes now. Bryn meets her at the gate every time.']]]]],
-      ['scene', 'highmoor', 'h', 'up', true],
-      ['if', 'dukeCured', [['note', 'Highmoor. Duke Aldric rides out every morning again, and has had every lamp in the city re-trimmed with clean oil.']],
-        [['note', 'Highmoor. With the Duke gone and the Chancellor in chains, the city learns to govern itself. Badly, at first. Then less badly.']]],
-      ['if', 'wrenFree', [['note', 'Dask Underbough and his sister Wren open a small counting-house of their own. It lends money at no interest at all, and is somehow still in business.']],
-        [['if', 'dask5=1', [['note', 'Dask Underbough burned every debt in Highmoor, and tells anyone who asks that it was the best money he never made.']],
-          [['note', 'Dask Underbough owes nobody anything, for the first time in his life. He finds it takes some getting used to.']]]]],
-      ['if', 'veyra5=1', [
-        ['if', 'ending=3', [['note', 'Maren Vale becomes a High Warden. She keeps a white lamp on her desk that she never lets anyone trim but herself.']],
-          [['note', 'Maren Vale and Sister Veyra walk the valley together, relighting every ward-lamp the grey oil poisoned. It takes them three years.']]]
-      ], [['if', 'veyra5=2', [['note', 'Maren Vale speaks at Veyra\'s judgement for a whole day. The Wardens give Veyra a lamp and a road, and tell her to light every lamp on it.']],
-        [['if', 'veyra5=3', [['note', 'Maren Vale visits Veyra in the Wardens\' house every week. One spring, Veyra asks for a lamp of her own to trim.']],
-          [['note', 'Maren Vale becomes a High Warden, and teaches her pupils what to do when someone they love is on the other side of the door.']]]]]]],
-      ['if', 'ending=1', [['note', 'Finch Tallowmere finishes the Ballad of the Five Lamps, and sings it in every tavern in the valley. Ennet Tallowmere sits in the front row and corrects him.']],
-        [['if', 'ending=2', [['note', 'Finch Tallowmere finishes the Ballad of the Five Lamps. He sings the last verse only once a year, on the night the crown broke.']],
-          [['note', 'Finch Tallowmere finishes the Ballad of the Five Lamps, with a sixth verse nobody asked for, about a Warden in grey who lit one last lamp.']]]]],
-      ['if', 'grukk3=1', [['note', 'Grukk\'s goblins settle in the north hills, and trade goats with Karrow Hold. Both sides cheat. Both sides seem happy.']]],
-      ['if', 'snik=1', [['note', 'Snik sells eels in Saltmere. Honest eels. Mostly.']]],
-      ['fade', 'out', 900],
-      ['card', 'The End', 'The Barrow Crown'],
+      ['endtally'],
+      ['epilogue'],                     // the valley, the hall of windows and the Crooked Lantern, painted (src/epilogue.js)
       ['recap', 'The last chapter', 5],
       ['card', 'Thank you for playing', '', ['Runa, Dask, Maren and Finch', 'will be at the Crooked Lantern,', 'should you ever need them again.']]
     ]],
@@ -400,4 +414,5 @@
     ['note', 'The Barrow Crown is over. You can keep exploring the valley for as long as you like.'],
     ['save']
   ];
+
 })();
