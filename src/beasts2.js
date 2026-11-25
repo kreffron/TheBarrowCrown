@@ -52,7 +52,8 @@
     // near legs: a long foreleg, the hind leg bent back at the hock
     K.shape(q => { q.moveTo(27, 36.8); q.lineTo(29.8, 37); q.lineTo(29.6, 45); q.lineTo(30.8, 50.8); q.quadraticCurveTo(29.6, 51.8, 28.2, 51.2); q.lineTo(28, 45.4); q.closePath(); }, K.lin(27, 0, 31, 0, [[0, shade(fur, 6)], [1, shade(fur, -34)]]));
     K.shape(q => { q.moveTo(9.4, 36); q.quadraticCurveTo(15.6, 37.6, 16.2, 42); q.lineTo(14.2, 47.2); q.lineTo(15.4, 50.8); q.quadraticCurveTo(14, 51.8, 12.6, 51.2); q.lineTo(12.4, 46.8); q.lineTo(13.4, 43.4); q.quadraticCurveTo(9.4, 41.6, 9.4, 36); q.closePath(); }, K.lin(9, 0, 16, 0, [[0, shade(fur, 4)], [1, shade(fur, -34)]]));
-    for (const x of [29.4, 14]) for (let i = 0; i < 3; i++) K.line([x + i * 0.5, 51, x + 0.3 + i * 0.5, 51.6], 0.2, '#2a2420');
+    for (const x of [29.6, 14.0]) { K.ell(x + 0.4, 50.9, 1.5, 0.75, shade(fur, -10)); for (let i = 0; i < 3; i++) { const tx = x - 0.4 + i * 0.75; K.ell(tx, 51.05, 0.42, 0.34, shade(fur, -24)); K.shape(q => { q.moveTo(tx + 0.1, 51.2); q.quadraticCurveTo(tx + 0.55, 51.3, tx + 0.65, 51.8); q.quadraticCurveTo(tx + 0.25, 51.7, tx - 0.05, 51.4); q.closePath(); }, '#201a1c'); } }
+    for (const [x, y] of [[28.9, 45.2], [13.7, 47.1]]) H.soft(0.35, () => K.ell(x, y, 0.9, 0.5, 'rgba(0,0,0,.25)'));   // the wrist and the hock
   }
 
   /* ---------- the bear: huge and hunched, shoulders high, head low, long claws ---------- */
@@ -73,12 +74,19 @@
     K.ell(40.4, 32.6, 1.1, 0.85, '#16121a'); K.ell(40.1, 32.3, 0.3, 0.2, 'rgba(255,255,255,.6)');
     K.curve([40.2, 34.2, 38, 34.8, 36.2, 35.4], 0.35, shade(dk, -50));
     K.eye(34.6, 30.4, 0.8, p.eye || '#1a1620');
-    // near legs: thick as posts, with long dark claws
-    for (const [x, sh] of [[9.6, -4], [24.2, 6]]) {
-      const lg = K.shape(q => { q.moveTo(x, 40); q.quadraticCurveTo(x + 3, 38.6, x + 6, 40); q.lineTo(x + 6.2, 50.4); q.quadraticCurveTo(x + 3, 51.6, x - 0.2, 50.6); q.closePath(); }, K.lin(x, 0, x + 6, 0, [[0, shade(fur, sh + 8)], [1, shade(fur, sh - 30)]]));
-      hairs(K, H, lg, [x, 39, 6.4, 12], 90, 1.5, 'rgba(255,255,255,.3)', alpha(dk, 0.5));
-      for (let i = 0; i < 4; i++) K.curve([x + 1.6 + i * 1.1, 51, x + 2 + i * 1.1, 51.6, x + 2.4 + i * 1.1, 51.8], 0.32, '#2a2430');
+    // near legs: thick and tapering, the elbow and the knee, broad paws with toes and long dark claws
+    for (const [x, sh, back] of [[9.6, -4, 1], [24.2, 6, 0]]) {
+      const lg = K.shape(q => { q.moveTo(x - 0.6, 38.6); q.quadraticCurveTo(x + 3, 36.6, x + 6.6, 38.8); q.quadraticCurveTo(x + 6.4 - back * 0.8, 44, x + 5.6, 48.6);
+        q.quadraticCurveTo(x + 6.8, 49.6, x + 6.6, 51.2); q.lineTo(x - 0.2, 51.2); q.quadraticCurveTo(x - 0.6, 49.4, x + 0.4, 48.4); q.quadraticCurveTo(x + back * 0.8 - 0.6, 43.4, x - 0.6, 38.6); q.closePath(); },
+        K.lin(x, 0, x + 6.6, 0, [[0, shade(fur, sh + 10)], [0.55, shade(fur, sh - 6)], [1, shade(fur, sh - 34)]]));
+      K.clip(lg, () => { H.soft(0.5, () => K.ell(x + 3.2, 44.6 + back * 0.6, 2.6, 0.9, 'rgba(0,0,0,.12)')); H.soft(0.5, () => K.ell(x + 1.6, 40.4, 1.6, 2.6, 'rgba(255,255,255,.18)')); H.soft(0.4, () => K.ell(x + 3, 50.6, 3.6, 0.8, alpha(dk, 0.6))); });
+      hairs(K, H, lg, [x - 1, 37, 8, 15], 130, 1.5, 'rgba(255,255,255,.3)', alpha(dk, 0.5));
+      for (let i = 0; i < 4; i++) { const tx = x + 0.9 + i * 1.5; K.ell(tx, 50.8, 0.75, 0.55, shade(fur, sh - 22)); K.shape(q => { q.moveTo(tx - 0.25, 51); q.quadraticCurveTo(tx + 0.6, 51.2, tx + 0.9, 52.1); q.quadraticCurveTo(tx + 0.3, 51.9, tx - 0.2, 51.5); q.closePath(); }, '#241e26'); K.line([tx + 0.05, 51.15, tx + 0.5, 51.5], 0.06, 'rgba(255,255,255,.4)'); }
     }
+    // the shoulder hump and a heavy brow over the eye
+    H.soft(0.8, () => K.ell(23.6, 27.2, 4.4, 1.4, 'rgba(255,255,255,.22)'));
+    K.curve([32.6, 29.4, 34.6, 29.0, 36.4, 29.9], 0.45, alpha(dk, 0.7));
+    K.curve([31.4, 33.6, 33.6, 34.6, 36.6, 34.2], 0.3, alpha(dk, 0.45));
   }
 
   /* ---------- the rat: hunched, pointed snout, round ears, a naked scaly tail ---------- */

@@ -1604,7 +1604,7 @@ UI.showDlg = function (who, text) {
   if (who) { nm.textContent = who; nm.style.display = ''; nm.style.color = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   else nm.style.display = 'none';
   UI.dlg.classList.toggle('narr', !who);
-  const url = UI.portraitOf && UI.portraitOf(who, UI.mood && UI.mood(text)), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
+  const url = UI.portraitOf && UI.portraitOf(who, UI.moodFor ? UI.moodFor(text) : UI.mood && UI.mood(text)), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
   UI.dlg.classList.toggle('port', !!url);
   if (url) { pt.querySelector('img').src = url; pt.style.borderColor = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   return UI.dlg;
@@ -1853,6 +1853,7 @@ Field.notePlaces = function () {
   }
 };
 Field.enter = async function (mapId, at, o) {
+  if (B.warmFaces) setTimeout(() => B.warmFaces(), 1500);           // paint the heroes' dialogue faces ahead, while idle
   o = o || {};
   if (!o.noFade) await UI.fade(true, 200);
   Field.load(mapId);
@@ -2403,7 +2404,7 @@ Field.hud = function (force, sx, sy) {
   if (!force && el.dataset.k === key) return;
   el.dataset.k = key;
   const lead = Field.leader(), L = Field.LEAD[lead] || {};
-  el.innerHTML = G.S.party.map(m => '<span class="lchip' + (m.id === lead ? ' on' : '') + '" data-id="' + m.id + '" title="' + UI.esc(Field.nameOf(m.id)) + '"><img src="' + (B.faceURL ? B.faceURL(m.id, 0) : '') + '"></span>').join('') +
+  el.innerHTML = G.S.party.map(m => '<span class="lchip' + (m.id === lead ? ' on' : '') + '" data-id="' + m.id + '" title="' + UI.esc(Field.nameOf(m.id)) + '"><img src="' + (B.faceURL ? B.faceURL(m.id, 0, null, true) : '') + '"></span>').join('') +
     '<span class="lname"><b>' + UI.esc(Field.nameOf(lead)) + '</b> · ' + UI.esc(L.name || '') + ' <em>' + Menu.keyHint('ability') + '</em><br><small>' + Menu.keyHint('switch') + ' to switch</small></span>';
 };
 
@@ -7155,16 +7156,21 @@ B.drawVfx = function (c) {
   };
   /* ---------- the turn-order ribbon: who has gone, who is up, who comes next this round ---------- */
   const faces = {};
-  function face(sprite, side, mood) {
+  // small: a little face for a chip (turn order, the party bar), cropped from the battle piece already painted;
+  // otherwise a sharp face for dialogue and the journal, painted again at portrait size
+  function face(sprite, side, mood, small) {
+    if (small) mood = null;
     if (mood && !(B.withExpr && B.figHeroic && B.figHeroic() && G.D.sprites[sprite])) mood = null;     // expressions are for people, in the heroic style
-    const k = sprite + ':' + side + (mood ? ':' + mood : ''); if (faces[k]) return faces[k];
-    return (faces[k] = mood ? B.withExpr(mood, () => drawFace(sprite, side)) : drawFace(sprite, side));
+    const k = sprite + ':' + side + (mood ? ':' + mood : '') + (small ? ':s' : ''); if (faces[k]) return faces[k];
+    if (small && faces[sprite + ':' + side]) return faces[sprite + ':' + side];                  // a sharp one already made will do
+    return (faces[k] = mood ? B.withExpr(mood, () => drawFace(sprite, side)) : drawFace(sprite, side, small));
   }
-  function drawFace(sprite, side) {                               // (the battle piece is only borrowed when no sharper repaint is made)
+  function drawFace(sprite, side, small) {                        // (the battle piece is only borrowed when no sharper repaint is made)
     let pc = null, ks = HD;
-    const cv = document.createElement('canvas'); cv.width = 96; cv.height = 96;
-    if (B.heroicOn && B.heroicOn(sprite)) {                      // heroic heads are small: paint them again, larger, for a sharp face
-      ks = 14; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
+    const cv = document.createElement('canvas'); cv.width = small ? 64 : 96; cv.height = small ? 64 : 96;
+    if (small) { /* the battle piece, below */ }
+    else if (B.heroicOn && B.heroicOn(sprite)) {                 // heroic heads are small: paint them again, larger, for a sharp face
+      ks = 10; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
       const pcc = pc.getContext('2d'); pcc.scale(ks, ks); pcc.lineJoin = 'round'; pcc.lineCap = 'round'; const after = B.heroPainter(sprite)(pcc); if (after) after(pcc);
     } else if (B.figHeroic && B.figHeroic()) {                   // everyone else in the heroic style: the same, painted again at portrait size
       const hi = paintHi(sprite, side, 7); if (hi) { pc = hi; ks = 7; }
@@ -7174,10 +7180,25 @@ B.drawVfx = function (c) {
     const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
     const spec = Object.assign({}, G.D.sprites[sprite], (G.D.looks || {})[sprite], (G.D.battleLooks || {})[sprite]);
     const [sx, sy, sw] = box || (!isBeast && B.specFace ? B.specFace(spec) : [4, isBeast ? 16 : 3, 32]);   // the head and shoulders, in the piece's 40x64 layout
-    c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, 96, 96);
+    c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, cv.width, cv.height);
     return cv.toDataURL();
   }
   B.faceURL = face;
+  // While the player is idle, paint ahead the faces dialogue will ask for: the four heroes, usual and in each mood.
+  B.warmFaces = function () {
+    if (B._warming || !(B.figHeroic && B.figHeroic()) || !(G.S && G.S.party)) return; B._warming = true;
+    const todo = [];
+    for (const m of G.S.party) todo.push([m.id, 'piece']);                                   // their battle figures first
+    for (const m of G.S.party) for (const md of [null, 'happy', 'sad', 'worried', 'angry']) todo.push([m.id, md]);
+    const idle = window.requestIdleCallback || (f => setTimeout(() => f({ timeRemaining: () => 8 }), 400));
+    const step = dl => {
+      if (G.scene === 'battle' || G.busy) { idle(step, { timeout: 4000 }); return; }   // not while a battle or a scene is running
+      const job = todo.shift(); if (!job) { B._warming = false; return; }
+      try { if (job[1] === 'piece') B.piece(job[0], 0); else face(job[0], 0, job[1]); } catch (e) { }
+      idle(step, { timeout: 4000 });
+    };
+    idle(step, { timeout: 4000 });
+  };
   B.paintHi = (n, sd, ks) => paintHi(n, sd, ks);
   // a person or beast painted again at ks times the layout, for a sharp portrait (heroic style only)
   function paintHi(name, side, ks) {
@@ -7200,7 +7221,7 @@ B.drawVfx = function (c) {
     order.forEach((c, i) => {
       const side = c.side === 1 ? 1 : c.guest ? 2 : 0;
       const cls = 'tchip s' + side + (c === B.active ? ' now' : '') + (i < ti && c !== B.active ? ' done' : '') + (c.down ? ' dn' : '');
-      h += '<span class="' + cls + '" title="' + UI.esc(c.name) + '"><img src="' + face(c.sprite, side) + '">' + (side === 1 && G.opts.foeHp !== 'always' ? '' : '<i style="width:' + Math.round(100 * Math.max(0, c.hp) / c.maxHp) + '%"></i>') + '</span>';
+      h += '<span class="' + cls + '" title="' + UI.esc(c.name) + '"><img src="' + face(c.sprite, side, null, true) + '">' + (side === 1 && G.opts.foeHp !== 'always' ? '' : '<i style="width:' + Math.round(100 * Math.max(0, c.hp) / c.maxHp) + '%"></i>') + '</span>';
       if (c === B.active) h += '<span class="tarrow">▸</span>';
     });
     const now = B.active ? B.active.name : '';
@@ -7242,12 +7263,13 @@ B.drawVfx = function (c) {
       // an eye with a glint; glow eyes get a soft halo
       eye(x, y, r, col, glow) {
         if (K.real) {                                       // heroic style: a small eye in a shadowed socket, a pin of light
-          const e = r * 0.62;
-          K.ell(x, y + e * 0.1, e * 1.6, e * 1.15, 'rgba(10,6,10,.45)');
-          if (glow) K.ell(x, y, r * 1.7, r * 1.7, K.rad(x, y, 0, r * 1.7, [[0, alpha(col, 0.5)], [1, alpha(col, 0)]]));
-          K.ell(x, y, e * 1.15, e * 0.82, glow ? col : shade(col, -30));
-          K.ell(x, y, e * 0.42, e * 0.7, glow ? 'rgba(255,250,230,.9)' : '#0c080c');
-          K.ell(x - e * 0.4, y - e * 0.32, e * 0.2, e * 0.2, 'rgba(255,255,255,.85)');
+          const e = r * 0.66;                               // a socket, a wet eye with a ringed iris, a heavy lid, a catchlight
+          K.ell(x + e * 0.1, y + e * 0.15, e * 1.75, e * 1.3, K.rad(x, y, e * 0.6, e * 1.8, [[0, 'rgba(10,6,10,.5)'], [1, 'rgba(10,6,10,0)']]));
+          if (glow) K.ell(x, y, r * 1.8, r * 1.8, K.rad(x, y, 0, r * 1.8, [[0, alpha(col, 0.55)], [1, alpha(col, 0)]]));
+          K.ell(x, y, e * 1.2, e * 0.9, glow ? K.rad(x, y, 0, e * 1.2, [[0, '#fffbe8'], [0.4, col], [1, shade(col, -30)]]) : K.rad(x - e * 0.2, y + e * 0.2, 0, e * 1.2, [[0, shade(col, 40)], [0.6, col], [1, shade(col, -55)]]));
+          if (!glow) K.ell(x, y, e * 0.36, e * 0.72, '#08060a');
+          K.shape(q => { q.moveTo(x - e * 1.3, y - e * 0.05); q.quadraticCurveTo(x, y - e * 1.35, x + e * 1.3, y - e * 0.15); q.quadraticCurveTo(x, y - e * 0.7, x - e * 1.3, y - e * 0.05); q.closePath(); }, 'rgba(14,8,10,.75)');
+          K.ell(x - e * 0.38, y - e * 0.28, e * 0.24, e * 0.22, 'rgba(255,255,255,.95)'); K.ell(x + e * 0.35, y + e * 0.38, e * 0.1, e * 0.08, 'rgba(255,255,255,.5)');
           return;
         }
         if (glow) { K.ell(x, y, r * 2.4, r * 2.4, K.rad(x, y, 0, r * 2.4, [[0, alpha(col, 0.55)], [1, alpha(col, 0)]])); }
@@ -7652,6 +7674,7 @@ B.drawVfx = function (c) {
       const H = B.heroicKit(c, seed + 3), K = kit(H.c); K.real = true; H.c.save(); H.c.lineJoin = 'round'; H.c.lineCap = 'round';
       const real = B.REAL_BEASTS && B.REAL_BEASTS[name];          // the animals have their own realistic painters (beasts2.js)
       const after = real ? real(H.c, K, H) : fn(H.c, K); H.c.restore();
+      if (B.beastMat && B.beastMat[name]) { H.c.save(); H.c.globalCompositeOperation = 'source-atop'; H.c.lineJoin = 'round'; H.c.lineCap = 'round'; B.beastMat[name](H.c, K, H); H.c.restore(); }
       H.finish({ wear: FURRED[name] && !real ? 'fur' : 'cloth', fur: real ? null : FURRED[name], grade: 0.16, pop: 'contrast(1.05) brightness(1.05)', shadowW: (FACE[name] && FACE[name][2] > 24) ? 14 : 11 });
       return after ? (c2 => { c2.save(); c2.lineCap = 'round'; after(kit(c2), c2); c2.restore(); }) : null;
     };
@@ -7715,7 +7738,8 @@ B.drawVfx = function (c) {
     // near legs: a long foreleg, the hind leg bent back at the hock
     K.shape(q => { q.moveTo(27, 36.8); q.lineTo(29.8, 37); q.lineTo(29.6, 45); q.lineTo(30.8, 50.8); q.quadraticCurveTo(29.6, 51.8, 28.2, 51.2); q.lineTo(28, 45.4); q.closePath(); }, K.lin(27, 0, 31, 0, [[0, shade(fur, 6)], [1, shade(fur, -34)]]));
     K.shape(q => { q.moveTo(9.4, 36); q.quadraticCurveTo(15.6, 37.6, 16.2, 42); q.lineTo(14.2, 47.2); q.lineTo(15.4, 50.8); q.quadraticCurveTo(14, 51.8, 12.6, 51.2); q.lineTo(12.4, 46.8); q.lineTo(13.4, 43.4); q.quadraticCurveTo(9.4, 41.6, 9.4, 36); q.closePath(); }, K.lin(9, 0, 16, 0, [[0, shade(fur, 4)], [1, shade(fur, -34)]]));
-    for (const x of [29.4, 14]) for (let i = 0; i < 3; i++) K.line([x + i * 0.5, 51, x + 0.3 + i * 0.5, 51.6], 0.2, '#2a2420');
+    for (const x of [29.6, 14.0]) { K.ell(x + 0.4, 50.9, 1.5, 0.75, shade(fur, -10)); for (let i = 0; i < 3; i++) { const tx = x - 0.4 + i * 0.75; K.ell(tx, 51.05, 0.42, 0.34, shade(fur, -24)); K.shape(q => { q.moveTo(tx + 0.1, 51.2); q.quadraticCurveTo(tx + 0.55, 51.3, tx + 0.65, 51.8); q.quadraticCurveTo(tx + 0.25, 51.7, tx - 0.05, 51.4); q.closePath(); }, '#201a1c'); } }
+    for (const [x, y] of [[28.9, 45.2], [13.7, 47.1]]) H.soft(0.35, () => K.ell(x, y, 0.9, 0.5, 'rgba(0,0,0,.25)'));   // the wrist and the hock
   }
 
   /* ---------- the bear: huge and hunched, shoulders high, head low, long claws ---------- */
@@ -7736,12 +7760,19 @@ B.drawVfx = function (c) {
     K.ell(40.4, 32.6, 1.1, 0.85, '#16121a'); K.ell(40.1, 32.3, 0.3, 0.2, 'rgba(255,255,255,.6)');
     K.curve([40.2, 34.2, 38, 34.8, 36.2, 35.4], 0.35, shade(dk, -50));
     K.eye(34.6, 30.4, 0.8, p.eye || '#1a1620');
-    // near legs: thick as posts, with long dark claws
-    for (const [x, sh] of [[9.6, -4], [24.2, 6]]) {
-      const lg = K.shape(q => { q.moveTo(x, 40); q.quadraticCurveTo(x + 3, 38.6, x + 6, 40); q.lineTo(x + 6.2, 50.4); q.quadraticCurveTo(x + 3, 51.6, x - 0.2, 50.6); q.closePath(); }, K.lin(x, 0, x + 6, 0, [[0, shade(fur, sh + 8)], [1, shade(fur, sh - 30)]]));
-      hairs(K, H, lg, [x, 39, 6.4, 12], 90, 1.5, 'rgba(255,255,255,.3)', alpha(dk, 0.5));
-      for (let i = 0; i < 4; i++) K.curve([x + 1.6 + i * 1.1, 51, x + 2 + i * 1.1, 51.6, x + 2.4 + i * 1.1, 51.8], 0.32, '#2a2430');
+    // near legs: thick and tapering, the elbow and the knee, broad paws with toes and long dark claws
+    for (const [x, sh, back] of [[9.6, -4, 1], [24.2, 6, 0]]) {
+      const lg = K.shape(q => { q.moveTo(x - 0.6, 38.6); q.quadraticCurveTo(x + 3, 36.6, x + 6.6, 38.8); q.quadraticCurveTo(x + 6.4 - back * 0.8, 44, x + 5.6, 48.6);
+        q.quadraticCurveTo(x + 6.8, 49.6, x + 6.6, 51.2); q.lineTo(x - 0.2, 51.2); q.quadraticCurveTo(x - 0.6, 49.4, x + 0.4, 48.4); q.quadraticCurveTo(x + back * 0.8 - 0.6, 43.4, x - 0.6, 38.6); q.closePath(); },
+        K.lin(x, 0, x + 6.6, 0, [[0, shade(fur, sh + 10)], [0.55, shade(fur, sh - 6)], [1, shade(fur, sh - 34)]]));
+      K.clip(lg, () => { H.soft(0.5, () => K.ell(x + 3.2, 44.6 + back * 0.6, 2.6, 0.9, 'rgba(0,0,0,.12)')); H.soft(0.5, () => K.ell(x + 1.6, 40.4, 1.6, 2.6, 'rgba(255,255,255,.18)')); H.soft(0.4, () => K.ell(x + 3, 50.6, 3.6, 0.8, alpha(dk, 0.6))); });
+      hairs(K, H, lg, [x - 1, 37, 8, 15], 130, 1.5, 'rgba(255,255,255,.3)', alpha(dk, 0.5));
+      for (let i = 0; i < 4; i++) { const tx = x + 0.9 + i * 1.5; K.ell(tx, 50.8, 0.75, 0.55, shade(fur, sh - 22)); K.shape(q => { q.moveTo(tx - 0.25, 51); q.quadraticCurveTo(tx + 0.6, 51.2, tx + 0.9, 52.1); q.quadraticCurveTo(tx + 0.3, 51.9, tx - 0.2, 51.5); q.closePath(); }, '#241e26'); K.line([tx + 0.05, 51.15, tx + 0.5, 51.5], 0.06, 'rgba(255,255,255,.4)'); }
     }
+    // the shoulder hump and a heavy brow over the eye
+    H.soft(0.8, () => K.ell(23.6, 27.2, 4.4, 1.4, 'rgba(255,255,255,.22)'));
+    K.curve([32.6, 29.4, 34.6, 29.0, 36.4, 29.9], 0.45, alpha(dk, 0.7));
+    K.curve([31.4, 33.6, 33.6, 34.6, 36.6, 34.2], 0.3, alpha(dk, 0.45));
   }
 
   /* ---------- the rat: hunched, pointed snout, round ears, a naked scaly tail ---------- */
@@ -9666,7 +9697,8 @@ B.drawVfx = function (c) {
 
     if (glow && skel) afters.push(inHead(K2 => { const rr = s.hood ? 4.2 : 4.8, sy = 13.8 + (s.hood ? 0.6 : 0); for (const ex of [20.3 - rr * 0.34, 20.3 + rr * 0.42]) K2.ell(ex, sy + 0.1, 1.1, 1.1, K2.rad(ex, sy + 0.1, 0, 1.1, [[0, alpha(glow, 0.6)], [1, alpha(glow, 0)]])); }));
     if (H) c.restore();
-    if (H && s.sigName && B.bossSig && B.bossSig[s.sigName]) { c.save(); B.bossSig[s.sigName](K, c, H, X, s); c.restore(); }   // a chief villain's signature detail (bosslooks.js)
+    const sig = H && s.sigName && ((B.bossSig && B.bossSig[s.sigName]) || (B.townSig && B.townSig[s.sigName]));
+    if (sig && !s.short) { c.save(); sig(K, c, H, X, s); c.restore(); }   // a signature detail (bosslooks.js)   // a chief villain's signature detail (bosslooks.js)
     if (s.short) c.restore();
     if (!afters.length) return null;
     return (K2, c2) => { c2.save(); if (s.short) { c2.translate(20, 51.6); c2.scale(0.8, 0.8); c2.translate(-20, -51.6); } afters.forEach(f => { c2.save(); if (H && !f.head) bodyT(c2); f(K2, c2); c2.restore(); }); c2.restore(); };
@@ -9785,6 +9817,160 @@ B.drawVfx = function (c) {
   // Rime-Mother Hesk: a crown of icicles
   S.rimemother = (K) => { for (let i = 0; i < 7; i++) { const x = 16.6 + i * 1.15, h = 2 + (i % 2 ? 0.8 : 1.8); K.poly([x - 0.45, 6.6, x, 6.6 - h, x + 0.45, 6.6], K.lin(x, 6.6 - h, x, 6.6, [[0, '#ffffff'], [1, '#8ad0f0']])); } };
   B.bossSig = S;
+})();
+/* Recurring townsfolk: one small signature detail each, in the 40x64 layout (eyes near y 10.5 at x 18.9 and 21.4,
+   the mouth near (20.4, 12.7), the near ear near (17.1, 11.1), the collar near y 14.5). */
+(function () {
+  const T = {}, { shade, alpha } = B.fig;
+  const ring = (c, x, y, rx, ry, w, col) => { c.save(); c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 6.283); c.stroke(); c.restore(); };
+  const quillPen = (K, x0, y0, x1, y1, col) => { K.line([x0, y0, x1, y1], 0.12, '#3a2a20'); const a = Math.atan2(y1 - y0, x1 - x0), nx = -Math.sin(a), ny = Math.cos(a);
+    K.shape(q => { q.moveTo(x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25); q.quadraticCurveTo(x1 + nx * 0.9, y1 + ny * 0.9, x1 + (x1 - x0) * 0.15, y1 + (y1 - y0) * 0.15); q.quadraticCurveTo(x1 - nx * 0.5, y1 - ny * 0.5, x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25); q.closePath(); }, col || '#f2ece0'); };
+  // Reeve Halda: the reeve's brass badge, and a quill behind her ear
+  T.halda = (K, c) => { quillPen(K, 17.8, 10.4, 15.0, 6.6); K.shape(q => { q.moveTo(15.4, 17.6); q.lineTo(17.8, 17.6); q.lineTo(17.8, 19.4); q.quadraticCurveTo(16.6, 20.6, 16.6, 20.6); q.quadraticCurveTo(15.4, 19.4, 15.4, 19.4); q.closePath(); }, K.lin(15.4, 17.6, 17.8, 20.6, [[0, '#fff0b0'], [0.5, '#d8a840'], [1, '#7a5214']])); K.ell(16.6, 18.8, 0.35, 0.35, '#7a5214'); };
+  // Tobias: round spectacles
+  T.tobias = (K, c) => { ring(c, 18.9, 10.55, 0.85, 0.72, 0.1, '#5a4a30'); ring(c, 21.4, 10.55, 0.74, 0.66, 0.1, '#5a4a30'); K.curve([19.75, 10.4, 20.15, 10.15, 20.66, 10.4], 0.09, '#5a4a30'); K.line([18.05, 10.4, 17.4, 10.8], 0.09, '#5a4a30');
+    K.ell(18.6, 10.25, 0.25, 0.15, 'rgba(255,255,255,.55)'); K.ell(21.15, 10.25, 0.22, 0.13, 'rgba(255,255,255,.5)'); };
+  // Old Pell: a long clay pipe, and a curl of smoke
+  T.pell = (K, c, H) => { K.line([20.9, 12.9, 23.6, 14.2], 0.22, '#e8e0d0'); K.shape(q => { q.moveTo(23.2, 13.6); q.lineTo(24.4, 13.4); q.lineTo(24.2, 14.8); q.quadraticCurveTo(23.6, 15.2, 23.3, 14.6); q.closePath(); }, '#d8cebe'); K.ell(23.8, 13.5, 0.5, 0.18, '#3a2a24'); K.ell(23.8, 13.45, 0.25, 0.1, '#ff9a40');
+    H.soft(0.25, () => K.curve([23.8, 13.2, 23.2, 11.6, 24.4, 10.2, 23.6, 8.4], 0.4, 'rgba(240,240,240,.35)')); };
+  // Garrick: a stalk of wheat in the corner of his mouth
+  T.garrick = (K) => { K.line([20.9, 12.85, 24.8, 11.6], 0.1, '#d8b860'); for (let i = 0; i < 5; i++) { const t = 0.72 + i * 0.06, x = 20.9 + 3.9 * t, y = 12.85 - 1.25 * t; K.ell(x, y - 0.18, 0.22, 0.12, '#e8c870'); K.ell(x, y + 0.18, 0.22, 0.12, '#c8a850'); } };
+  // Wenna: a flower tucked in her hair
+  T.wenna = (K) => { const x = 17.2, y = 7.4; for (let i = 0; i < 5; i++) { const a = i * 1.257; K.ell(x + Math.cos(a) * 0.55, y + Math.sin(a) * 0.55, 0.42, 0.42, i % 2 ? '#f8f0f4' : '#f0e0ea'); } K.ell(x, y, 0.32, 0.32, '#f0c040'); K.ell(x + 1, y + 0.6, 0.5, 0.2, '#5a8a3a'); };
+  // Odo: a bright feather in his hatband, and a gold ring on show
+  T.odo = (K) => { K.shape(q => { q.moveTo(17.2, 6.2); q.quadraticCurveTo(14.4, 3.2, 13.0, 1.2); q.quadraticCurveTo(15.6, 2.8, 17.8, 5.8); q.closePath(); }, K.lin(13, 1, 17.8, 6.2, [[0, '#f0d060'], [0.5, '#d84030'], [1, '#801818']])); K.line([17.4, 6.0, 13.4, 1.6], 0.06, 'rgba(255,240,220,.6)'); };
+  // Harbourmaster Quill: a brass spyglass at his hip, a gold earring
+  T.quill = (K, c) => { const sp = K.shape(q => { q.moveTo(23.2, 25.2); q.lineTo(27.6, 30.4); q.lineTo(26.8, 31.0); q.lineTo(22.6, 25.8); q.closePath(); }, K.lin(22.6, 25.2, 27.6, 31, [[0, '#fff0b0'], [0.5, '#c89a40'], [1, '#6a4a14']])); for (const t of [0.3, 0.6]) K.line([23.2 + 4.4 * t - 0.4, 25.2 + 5.2 * t + 0.3, 23.2 + 4.4 * t + 0.3, 25.2 + 5.2 * t - 0.3], 0.14, '#5a3a10'); ring(c, 17.1, 12.3, 0.32, 0.38, 0.12, '#e8c050'); };
+  // Mags: gold hoop earrings
+  T.mags = (K, c) => { ring(c, 17.1, 12.4, 0.42, 0.5, 0.14, '#e8c050'); K.ell(16.8, 12.1, 0.12, 0.1, '#fff4c8'); };
+  // Chief Sigrid: a gold torc at her throat
+  T.sigrid = (K) => { K.curve([18.2, 14.4, 20.2, 15.6, 22.2, 14.4], 0.42, '#c8962e'); K.curve([18.2, 14.3, 20.2, 15.4, 22.2, 14.3], 0.14, '#fff0b8'); K.ell(18.1, 14.3, 0.5, 0.5, '#e0b040'); K.ell(22.3, 14.3, 0.5, 0.5, '#c8962e'); };
+  // High Warden Oriel: the Warden's lamp on a chain at her breast
+  T.oriel = (K) => { K.curve([18.4, 14.6, 20, 17.6, 21.6, 14.6], 0.08, '#d8b040'); K.R(19.4, 17.6, 1.2, 1.6, K.rad(20, 18.4, 0.1, 1, [[0, '#fff6c8'], [1, '#ffb040']]), 0.2); K.R(19.25, 17.4, 1.5, 0.35, '#c8962e', 0.1); K.R(19.25, 19.1, 1.5, 0.35, '#c8962e', 0.1); };
+  // Wren: a clerk's quill behind her ear, and ink on her cheek
+  T.wren = (K, c, H) => { quillPen(K, 17.8, 10.4, 15.2, 7.0, '#e8e4dc'); H.soft(0.08, () => K.line([18.2, 13.3, 19.0, 13.5], 0.16, 'rgba(30,40,90,.45)')); };
+  // Bram: a bar towel over his shoulder
+  T.bram = (K, c, H) => { const tw = K.shape(q => { q.moveTo(24.4, 15.2); q.quadraticCurveTo(26.2, 14.8, 27.4, 16); q.lineTo(28, 21.6); q.lineTo(26.2, 21.8); q.lineTo(25.4, 17); q.closePath(); }, K.lin(24.4, 0, 28, 0, [[0, '#f4ece0'], [1, '#c8bca8']])); K.clip(tw, () => { for (const y of [19.4, 20.2]) K.line([25, y, 28.4, y - 0.2], 0.2, 'rgba(180,60,50,.6)'); }); };
+  // Ingrid: soot on her cheek and brow from the forge
+  T.ingrid = (K, c, H) => { H.soft(0.15, () => K.curve([18.6, 8.7, 20.2, 8.4, 22.0, 8.8], 0.32, 'rgba(40,32,28,.3)')); };   // soot where she wiped her brow
+  B.townSig = T;
+})();
+
+/* ===== src/beastmat.js ===== */
+/* Beasts, heroic style: surface materials laid over each creature's own layer (clipped to it by source-atop in
+   B.beastPainter): chitin sheen and pitting, scales, scratched and grimy metal, cracked and stained bone, wet mud,
+   a slime's depth. Coordinates are the 40x64 layout. */
+(function () {
+  const M = {}, { alpha, shade } = B.fig;
+  const speck = (K, H, box, n, cols, r) => { for (let i = 0; i < n; i++) K.ell(box[0] + H.rr() * box[2], box[1] + H.rr() * box[3], (r || 0.08) * (0.5 + H.rr()), (r || 0.08) * (0.4 + H.rr() * 0.8), cols[i % cols.length]); };
+  const crack = (K, H, x, y, len, w, col) => { const pts = [x, y]; let a = H.rr() * 6.28; for (let k = 0; k < 4; k++) { a += (H.rr() - 0.5) * 1.4; x += Math.cos(a) * len / 4; y += Math.sin(a) * len / 4; pts.push(x, y); } K.line(pts, w, col); return pts; };
+  // shells: a lacquered sheen in arcs, pits and nicks, a pale rim where the light catches the edge
+  const chitin = (box, arcs) => (c, K, H) => {
+    for (const [x, y, rx, ry] of arcs) { H.soft(0.35, () => K.ell(x, y, rx, ry, 'rgba(255,255,255,.22)')); H.soft(0.12, () => K.ell(x - rx * 0.2, y - ry * 0.3, rx * 0.35, ry * 0.25, 'rgba(255,255,255,.5)')); }
+    speck(K, H, box, 120, ['rgba(0,0,0,.22)', 'rgba(255,240,230,.18)'], 0.12);
+    for (let i = 0; i < 6; i++) crack(K, H, box[0] + H.rr() * box[2], box[1] + H.rr() * box[3], 1.2, 0.07, 'rgba(0,0,0,.35)');
+  };
+  M.crab = chitin([3, 26, 34, 18], [[18, 30.4, 5.4, 1.6], [6.4, 27, 1.6, 1.2], [31.6, 27, 1.6, 1.2]]);
+  M.spider = chitin([6, 28, 28, 14], [[15, 31, 3.4, 1.4], [24.4, 35, 1.6, 0.9]]);
+  // the eel: rows of small scales over the back, a slick light down its length
+  M.eel = (c, K, H) => {
+    for (let y = 12; y < 50; y += 0.9) for (let x = 14; x < 30; x += 1.1) { const xo = x + ((y * 10) % 2 ? 0.55 : 0); c.strokeStyle = 'rgba(0,0,0,.16)'; c.lineWidth = 0.07; c.beginPath(); c.arc(xo, y, 0.55, 0.3, 2.85); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.08)'; c.beginPath(); c.arc(xo, y - 0.12, 0.5, 3.6, 5.8); c.stroke(); }
+    H.soft(0.5, () => K.curve([20, 44, 18.8, 34, 21.6, 22, 23.6, 14], 0.7, 'rgba(255,255,255,.22)'));
+  };
+  // the automaton: brushed scratches, a grime of oil in the seams, rust blooms, worn bright edges
+  M.automaton = (c, K, H) => {
+    for (let i = 0; i < 260; i++) { const x = 10 + H.rr() * 20, y = 8 + H.rr() * 44, a = 1.57 + (H.rr() - 0.5) * 0.5, l = 0.3 + H.rr() * 0.9; K.line([x, y, x + Math.cos(a) * l, y + Math.sin(a) * l], 0.035, H.rr() > 0.5 ? 'rgba(255,250,220,.3)' : 'rgba(40,20,0,.25)'); }
+    for (const [x, y, r] of [[14.6, 30, 1.6], [25.4, 22, 1.2], [17, 44, 1.4], [22.6, 37, 1.0], [12.6, 21, 0.9]]) { H.soft(0.4, () => K.ell(x, y, r, r * 0.8, 'rgba(140,60,20,.35)')); speck(K, H, [x - r, y - r, 2 * r, 2 * r], 18, ['rgba(120,50,10,.5)', 'rgba(200,110,40,.4)'], 0.12); }
+    for (const x of [15.4, 24.6]) H.soft(0.3, () => K.line([x, 22, x + 0.2, 34], 0.4, 'rgba(30,16,4,.28)'));
+  };
+  // the bone colossus: hairline cracks, an old yellow stain in the hollows, chips
+  M.colossus = (c, K, H) => {
+    for (let i = 0; i < 18; i++) crack(K, H, 12 + H.rr() * 16, 2 + H.rr() * 46, 1.6, 0.06, 'rgba(60,40,20,.5)');
+    for (const [x, y, r] of [[20, 4, 3], [20, 20, 3.4], [20, 33, 3], [14, 26, 1.6], [26, 26, 1.6]]) H.soft(0.8, () => K.ell(x, y, r, r * 0.8, 'rgba(150,120,60,.2)'));
+    speck(K, H, [12, 0, 16, 50], 140, ['rgba(110,90,60,.25)', 'rgba(255,255,240,.25)'], 0.09);
+  };
+  // the golem: chipped edges and lichen speckle on top of its own cracks
+  M.golem = (c, K, H) => { speck(K, H, [8, 8, 24, 42], 200, ['rgba(0,0,0,.2)', 'rgba(255,255,255,.18)', 'rgba(110,140,80,.3)'], 0.13); for (let i = 0; i < 8; i++) crack(K, H, 10 + H.rr() * 20, 12 + H.rr() * 36, 1.8, 0.08, 'rgba(0,0,0,.35)'); };
+  // the bogling: wet mud, a shine on the bulges, drips, pebbles and roots in it
+  M.bogling = (c, K, H) => {
+    for (const [x, y, rx, ry] of [[16, 26, 3, 1.4], [26, 32, 2.4, 1.2], [13, 40, 2, 1]]) H.soft(0.4, () => K.ell(x, y, rx, ry, 'rgba(255,250,220,.22)'));
+    speck(K, H, [6, 18, 28, 32], 160, ['rgba(30,18,6,.3)', 'rgba(200,170,120,.22)'], 0.13);
+    for (let i = 0; i < 9; i++) { const x = 9 + H.rr() * 22, y = 34 + H.rr() * 12; K.line([x, y, x + (H.rr() - 0.5) * 0.3, y + 1 + H.rr() * 1.6], 0.35, 'rgba(50,34,14,.45)'); }
+    for (let i = 0; i < 5; i++) { const x = 9 + H.rr() * 22, y = 22 + H.rr() * 22; K.curve([x, y, x + 0.8, y + 0.6, x + 1.6, y + 0.2], 0.1, 'rgba(60,40,20,.6)'); }
+  };
+  // the ooze: depth inside it, a few things suspended, a hard specular on top
+  M.ooze = (c, K, H) => {
+    H.soft(1.6, () => K.ell(20, 40, 8, 5, 'rgba(10,40,0,.28)'));
+    for (const [x, y, r] of [[16, 40, 0.5], [24, 36, 0.4], [21, 44, 0.6], [13, 44, 0.35], [27, 42, 0.45]]) { K.ell(x, y, r, r, 'rgba(255,255,255,.22)'); K.ell(x - r * 0.3, y - r * 0.3, r * 0.3, r * 0.3, 'rgba(255,255,255,.7)'); }
+    K.ell(23.6, 46, 0.7, 0.4, 'rgba(240,230,200,.35)');
+  };
+  // the rats, wolves and bear: a few longer guard hairs catching the light, and a damp nose shine is in their painters
+  B.beastMat = M;
+})();
+
+/* ===== src/moodlines.js ===== */
+/* Hand-picked expressions for the story's big moments. A line whose text begins with one of these (or equals it, for
+   short ones) shows that face; 'usual' keeps the speaker's normal face where the word-guess in UI.mood would be wrong.
+   Lines not listed here still fall back to UI.mood. */
+(function () {
+  const L = [
+    // the brawl and the barrow
+    ['OUT! All three of you!', 'angry'], ['You have no idea who you just crossed.', 'angry'], ['I leave a notice on the board for one morning', 'angry'],
+    ['A real adventure, friends.', 'happy'], ['The road to Saltmere is open.', 'happy'], ['If you are ever back this way, there is a stool', 'happy'],
+    ['Are you going to fight a dragon?', 'happy'], ['I asked her to come home. I meant it.', 'sad'], ['I told her there was no coming back.', 'sad'],
+    ['Chapter one of the ballad, done.', 'happy'], ['She asked me to come home.', 'sad'],
+    // Veyra at Brackenford
+    ['Veyra. I hoped Tobias was wrong.', 'sad'], ['Veyra. It was you. You put out the lamp.', 'angry'], ['I put out a lie.', 'angry'],
+    ["...Don't. Don't be kind to me.", 'sad'], ['You put out a ward-lamp, and the dead', 'angry'], ['No more graves, Maren. Not one.', 'sad'],
+    ['(Under his breath.) More than one.', 'worried'], ['Well. Every ballad needs a villain', 'happy'],
+    // the first camp
+    ["...That is terrible arithmetic, Stonehand. I'll take it.", 'happy'], ['I keep trying to remember the day she changed', 'sad'],
+    ['I taught her that death is a door', 'sad'], ['I want to believe that more than is wise', 'worried'],
+    ['I have been trying to rhyme "Gravepicker"', 'happy'], ['"We." Oh, that is going in.', 'happy'],
+    // Saltmere
+    ["Jory Fenn walked into his mother's kitchen", 'happy'], ['...All six. I see.', 'sad'], ['You stopped it, though. No more will go.', 'sad'],
+    ['Whatever you paid for them, I will not ask.', 'sad'], ['And the Abbey lamp is burning.', 'happy'],
+    ['I struck her, Runa.', 'sad'], ['Every time I see her she is further away.', 'sad'], ['I know. That is the part I cannot bear.', 'sad'],
+    ['I will. And then I will have to sing it', 'worried'], ['You killed it! You killed Old Snapjaw!', 'happy'],
+    // the oath and the Cairn
+    ['The clan takes the price. The clan does not have to like it.', 'angry'], ['...Two hundred. And I will remember your face', 'angry'],
+    ['...The clan has heard. The oath is answered. Welcome home, niece.', 'happy'], ['Pretty words, singer.', 'angry'],
+    ['I broke the Oath of Stone.', 'sad'], ['Runa...', 'worried'], ['You... you killed it. Lamplighter.', 'happy'],
+    ['Stay back, all of you. The shard is mine', 'angry'], ['Veyra, please. Look at what is waking.', 'worried'], ['I see it. I see you, too. No.', 'angry'],
+    ['...Her song. That is her song.', 'happy'], ['Hush now, old one.', 'sad'], ['...Not her song. But kind.', 'sad'],
+    ['Hush now... ah. I do not know her words.', 'sad'], ['I swore to keep him. ...Do it. He is suffering.', 'sad'], ['Do it quickly.', 'sad'],
+    ['The lamp will not take.', 'sad'], ['He held the Cairn to the end, Chief.', 'sad'], ['Then it was.', 'sad'],
+    ['Like a baby. A baby the size of a barn.', 'happy'], ['You let my prisoner walk, Warden.', 'angry'],
+    ["A man at the Duke's court, paying Orrin", 'angry'], ["Orrin and Sons keeps the Pale Hand's books.", 'angry'],
+    ['You told me she could still be turned.', 'worried'], ['You said we would find the ending.', 'happy'], ['You said some songs end badly.', 'worried'],
+    ['Together. And out again.', 'happy'],
+    // Highmoor
+    ['Master Orrin. I am... speechless.', 'happy'], ['My lord? My lord, you cannot...', 'worried'], ["(Quietly, to Runa.) Look at the Duke's lips.", 'worried'],
+    ['Your Grace! Riders from Brackenford.', 'worried'], ['Tobias...', 'worried'], ['I owe you a knife.', 'angry'], ['You want it for yourself.', 'angry'],
+    ['Corr!', 'angry'], ['Corr. The Chancellor himself.', 'angry'], ['Duke Aldric rose from his bed', 'happy'],
+    ['And somebody burned every debt-paper', 'happy'], ['And every debt-paper in Highmoor has vanished.', 'worried'],
+    ['Go, Maren. Do not look back at me. Win.', 'sad'], ['Veyra. I told them where you were. It was the law.', 'sad'],
+    ['I know. You always did keep your vows.', 'sad'], ['Then I will be here. Come back, Maren.', 'sad'],
+    ['Wren hugged me.', 'happy'], ['Wren will not speak to me.', 'sad'], ['I told the Wardens where she was.', 'sad'],
+    ['She came, Runa. She came down that stair', 'happy'], ['Twenty years of grey oil. Every lamp I ever trimmed.', 'angry'],
+    ['That would make a very good last verse.', 'happy'],
+    // the door and the end
+    ['Corr. You told me it would end graves. You lied.', 'angry'], ['Debt collected.', 'happy'], ['My lord! A song for the new king', 'happy'],
+    ['You know what I keep thinking? Five years ago', 'happy'], ['Wren wrote. She says if I die', 'happy'],
+    ['Twenty years I have kept lamps. Tomorrow', 'worried'], ['I keep looking for her at the fires.', 'sad'], ['Four stanzas. Five lamps. One door.', 'worried'],
+    ['You made it. Good. Look around you, Maren.', 'happy'], ['And... goblins. They say Grukk owes you.', 'happy'], ['Saltmere sent its fishermen.', 'happy'],
+    ['Brackenford sent its militia.', 'happy'], ['It is only the Wardens. We will have to be enough.', 'sad'], ['One of them is Tobias of Brackenford.', 'worried'],
+    ['You came. Three hundred years, and somebody came.', 'happy'], ["Ennet Tallowmere. And you have my sister's face.", 'happy'],
+    ['Tallowmere. My grandmother.', 'sad'], ['Ennet. You let them in.', 'angry'], ['Let me. I am tired', 'sad'],
+    ['No. She has held it for three hundred years.', 'sad'], ['Veyra...', 'sad'], ['I put out two lamps, Maren. Let me light one.', 'sad'],
+    ['Goodbye, my best pupil.', 'sad'], ['Wait. Wait. I have the whole song now.', 'happy'], ['"...and when the last lamp lit the road', 'happy']
+  ];
+  UI.moodFor = function (text) {
+    if (!text) return null; const t = String(text);
+    for (const [k, m] of L) if (k.length >= 14 ? t.startsWith(k) : t === k) return m === 'usual' ? null : m;
+    return UI.mood ? UI.mood(t) : null;
+  };
+  UI.moodLines = L;
 })();
 
 /* ===== src/icons.js ===== */

@@ -85,7 +85,7 @@ UI.showDlg = function (who, text) {
   if (who) { nm.textContent = who; nm.style.display = ''; nm.style.color = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   else nm.style.display = 'none';
   UI.dlg.classList.toggle('narr', !who);
-  const url = UI.portraitOf && UI.portraitOf(who, UI.mood && UI.mood(text)), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
+  const url = UI.portraitOf && UI.portraitOf(who, UI.moodFor ? UI.moodFor(text) : UI.mood && UI.mood(text)), pt = UI.dlg.querySelector('.dport');   // the speaker's face, when there is one
   UI.dlg.classList.toggle('port', !!url);
   if (url) { pt.querySelector('img').src = url; pt.style.borderColor = (G.D.speakers && G.D.speakers[who]) || '#9cc4ff'; }
   return UI.dlg;

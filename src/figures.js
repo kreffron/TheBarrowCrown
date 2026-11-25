@@ -329,7 +329,8 @@
 
     if (glow && skel) afters.push(inHead(K2 => { const rr = s.hood ? 4.2 : 4.8, sy = 13.8 + (s.hood ? 0.6 : 0); for (const ex of [20.3 - rr * 0.34, 20.3 + rr * 0.42]) K2.ell(ex, sy + 0.1, 1.1, 1.1, K2.rad(ex, sy + 0.1, 0, 1.1, [[0, alpha(glow, 0.6)], [1, alpha(glow, 0)]])); }));
     if (H) c.restore();
-    if (H && s.sigName && B.bossSig && B.bossSig[s.sigName]) { c.save(); B.bossSig[s.sigName](K, c, H, X, s); c.restore(); }   // a chief villain's signature detail (bosslooks.js)
+    const sig = H && s.sigName && ((B.bossSig && B.bossSig[s.sigName]) || (B.townSig && B.townSig[s.sigName]));
+    if (sig && !s.short) { c.save(); sig(K, c, H, X, s); c.restore(); }   // a signature detail (bosslooks.js)   // a chief villain's signature detail (bosslooks.js)
     if (s.short) c.restore();
     if (!afters.length) return null;
     return (K2, c2) => { c2.save(); if (s.short) { c2.translate(20, 51.6); c2.scale(0.8, 0.8); c2.translate(-20, -51.6); } afters.forEach(f => { c2.save(); if (H && !f.head) bodyT(c2); f(K2, c2); c2.restore(); }); c2.restore(); };

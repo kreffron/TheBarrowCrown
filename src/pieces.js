@@ -1019,16 +1019,21 @@
   };
   /* ---------- the turn-order ribbon: who has gone, who is up, who comes next this round ---------- */
   const faces = {};
-  function face(sprite, side, mood) {
+  // small: a little face for a chip (turn order, the party bar), cropped from the battle piece already painted;
+  // otherwise a sharp face for dialogue and the journal, painted again at portrait size
+  function face(sprite, side, mood, small) {
+    if (small) mood = null;
     if (mood && !(B.withExpr && B.figHeroic && B.figHeroic() && G.D.sprites[sprite])) mood = null;     // expressions are for people, in the heroic style
-    const k = sprite + ':' + side + (mood ? ':' + mood : ''); if (faces[k]) return faces[k];
-    return (faces[k] = mood ? B.withExpr(mood, () => drawFace(sprite, side)) : drawFace(sprite, side));
+    const k = sprite + ':' + side + (mood ? ':' + mood : '') + (small ? ':s' : ''); if (faces[k]) return faces[k];
+    if (small && faces[sprite + ':' + side]) return faces[sprite + ':' + side];                  // a sharp one already made will do
+    return (faces[k] = mood ? B.withExpr(mood, () => drawFace(sprite, side)) : drawFace(sprite, side, small));
   }
-  function drawFace(sprite, side) {                               // (the battle piece is only borrowed when no sharper repaint is made)
+  function drawFace(sprite, side, small) {                        // (the battle piece is only borrowed when no sharper repaint is made)
     let pc = null, ks = HD;
-    const cv = document.createElement('canvas'); cv.width = 96; cv.height = 96;
-    if (B.heroicOn && B.heroicOn(sprite)) {                      // heroic heads are small: paint them again, larger, for a sharp face
-      ks = 14; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
+    const cv = document.createElement('canvas'); cv.width = small ? 64 : 96; cv.height = small ? 64 : 96;
+    if (small) { /* the battle piece, below */ }
+    else if (B.heroicOn && B.heroicOn(sprite)) {                 // heroic heads are small: paint them again, larger, for a sharp face
+      ks = 10; pc = document.createElement('canvas'); pc.width = 40 * ks; pc.height = 64 * ks;
       const pcc = pc.getContext('2d'); pcc.scale(ks, ks); pcc.lineJoin = 'round'; pcc.lineCap = 'round'; const after = B.heroPainter(sprite)(pcc); if (after) after(pcc);
     } else if (B.figHeroic && B.figHeroic()) {                   // everyone else in the heroic style: the same, painted again at portrait size
       const hi = paintHi(sprite, side, 7); if (hi) { pc = hi; ks = 7; }
@@ -1038,10 +1043,25 @@
     const isBeast = !G.D.sprites[sprite], box = (isBeast && B.beastFace && B.beastFace(sprite)) || (B.heroFace && B.heroFace(sprite));
     const spec = Object.assign({}, G.D.sprites[sprite], (G.D.looks || {})[sprite], (G.D.battleLooks || {})[sprite]);
     const [sx, sy, sw] = box || (!isBeast && B.specFace ? B.specFace(spec) : [4, isBeast ? 16 : 3, 32]);   // the head and shoulders, in the piece's 40x64 layout
-    c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, 96, 96);
+    c.drawImage(pc, sx * ks, sy * ks, sw * ks, sw * ks, 0, 0, cv.width, cv.height);
     return cv.toDataURL();
   }
   B.faceURL = face;
+  // While the player is idle, paint ahead the faces dialogue will ask for: the four heroes, usual and in each mood.
+  B.warmFaces = function () {
+    if (B._warming || !(B.figHeroic && B.figHeroic()) || !(G.S && G.S.party)) return; B._warming = true;
+    const todo = [];
+    for (const m of G.S.party) todo.push([m.id, 'piece']);                                   // their battle figures first
+    for (const m of G.S.party) for (const md of [null, 'happy', 'sad', 'worried', 'angry']) todo.push([m.id, md]);
+    const idle = window.requestIdleCallback || (f => setTimeout(() => f({ timeRemaining: () => 8 }), 400));
+    const step = dl => {
+      if (G.scene === 'battle' || G.busy) { idle(step, { timeout: 4000 }); return; }   // not while a battle or a scene is running
+      const job = todo.shift(); if (!job) { B._warming = false; return; }
+      try { if (job[1] === 'piece') B.piece(job[0], 0); else face(job[0], 0, job[1]); } catch (e) { }
+      idle(step, { timeout: 4000 });
+    };
+    idle(step, { timeout: 4000 });
+  };
   B.paintHi = (n, sd, ks) => paintHi(n, sd, ks);
   // a person or beast painted again at ks times the layout, for a sharp portrait (heroic style only)
   function paintHi(name, side, ks) {
@@ -1064,7 +1084,7 @@
     order.forEach((c, i) => {
       const side = c.side === 1 ? 1 : c.guest ? 2 : 0;
       const cls = 'tchip s' + side + (c === B.active ? ' now' : '') + (i < ti && c !== B.active ? ' done' : '') + (c.down ? ' dn' : '');
-      h += '<span class="' + cls + '" title="' + UI.esc(c.name) + '"><img src="' + face(c.sprite, side) + '">' + (side === 1 && G.opts.foeHp !== 'always' ? '' : '<i style="width:' + Math.round(100 * Math.max(0, c.hp) / c.maxHp) + '%"></i>') + '</span>';
+      h += '<span class="' + cls + '" title="' + UI.esc(c.name) + '"><img src="' + face(c.sprite, side, null, true) + '">' + (side === 1 && G.opts.foeHp !== 'always' ? '' : '<i style="width:' + Math.round(100 * Math.max(0, c.hp) / c.maxHp) + '%"></i>') + '</span>';
       if (c === B.active) h += '<span class="tarrow">▸</span>';
     });
     const now = B.active ? B.active.name : '';

@@ -29,12 +29,13 @@
       // an eye with a glint; glow eyes get a soft halo
       eye(x, y, r, col, glow) {
         if (K.real) {                                       // heroic style: a small eye in a shadowed socket, a pin of light
-          const e = r * 0.62;
-          K.ell(x, y + e * 0.1, e * 1.6, e * 1.15, 'rgba(10,6,10,.45)');
-          if (glow) K.ell(x, y, r * 1.7, r * 1.7, K.rad(x, y, 0, r * 1.7, [[0, alpha(col, 0.5)], [1, alpha(col, 0)]]));
-          K.ell(x, y, e * 1.15, e * 0.82, glow ? col : shade(col, -30));
-          K.ell(x, y, e * 0.42, e * 0.7, glow ? 'rgba(255,250,230,.9)' : '#0c080c');
-          K.ell(x - e * 0.4, y - e * 0.32, e * 0.2, e * 0.2, 'rgba(255,255,255,.85)');
+          const e = r * 0.66;                               // a socket, a wet eye with a ringed iris, a heavy lid, a catchlight
+          K.ell(x + e * 0.1, y + e * 0.15, e * 1.75, e * 1.3, K.rad(x, y, e * 0.6, e * 1.8, [[0, 'rgba(10,6,10,.5)'], [1, 'rgba(10,6,10,0)']]));
+          if (glow) K.ell(x, y, r * 1.8, r * 1.8, K.rad(x, y, 0, r * 1.8, [[0, alpha(col, 0.55)], [1, alpha(col, 0)]]));
+          K.ell(x, y, e * 1.2, e * 0.9, glow ? K.rad(x, y, 0, e * 1.2, [[0, '#fffbe8'], [0.4, col], [1, shade(col, -30)]]) : K.rad(x - e * 0.2, y + e * 0.2, 0, e * 1.2, [[0, shade(col, 40)], [0.6, col], [1, shade(col, -55)]]));
+          if (!glow) K.ell(x, y, e * 0.36, e * 0.72, '#08060a');
+          K.shape(q => { q.moveTo(x - e * 1.3, y - e * 0.05); q.quadraticCurveTo(x, y - e * 1.35, x + e * 1.3, y - e * 0.15); q.quadraticCurveTo(x, y - e * 0.7, x - e * 1.3, y - e * 0.05); q.closePath(); }, 'rgba(14,8,10,.75)');
+          K.ell(x - e * 0.38, y - e * 0.28, e * 0.24, e * 0.22, 'rgba(255,255,255,.95)'); K.ell(x + e * 0.35, y + e * 0.38, e * 0.1, e * 0.08, 'rgba(255,255,255,.5)');
           return;
         }
         if (glow) { K.ell(x, y, r * 2.4, r * 2.4, K.rad(x, y, 0, r * 2.4, [[0, alpha(col, 0.55)], [1, alpha(col, 0)]])); }
@@ -439,6 +440,7 @@
       const H = B.heroicKit(c, seed + 3), K = kit(H.c); K.real = true; H.c.save(); H.c.lineJoin = 'round'; H.c.lineCap = 'round';
       const real = B.REAL_BEASTS && B.REAL_BEASTS[name];          // the animals have their own realistic painters (beasts2.js)
       const after = real ? real(H.c, K, H) : fn(H.c, K); H.c.restore();
+      if (B.beastMat && B.beastMat[name]) { H.c.save(); H.c.globalCompositeOperation = 'source-atop'; H.c.lineJoin = 'round'; H.c.lineCap = 'round'; B.beastMat[name](H.c, K, H); H.c.restore(); }
       H.finish({ wear: FURRED[name] && !real ? 'fur' : 'cloth', fur: real ? null : FURRED[name], grade: 0.16, pop: 'contrast(1.05) brightness(1.05)', shadowW: (FACE[name] && FACE[name][2] > 24) ? 14 : 11 });
       return after ? (c2 => { c2.save(); c2.lineCap = 'round'; after(kit(c2), c2); c2.restore(); }) : null;
     };

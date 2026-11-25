@@ -93,6 +93,7 @@ Field.notePlaces = function () {
   }
 };
 Field.enter = async function (mapId, at, o) {
+  if (B.warmFaces) setTimeout(() => B.warmFaces(), 1500);           // paint the heroes' dialogue faces ahead, while idle
   o = o || {};
   if (!o.noFade) await UI.fade(true, 200);
   Field.load(mapId);
@@ -643,7 +644,7 @@ Field.hud = function (force, sx, sy) {
   if (!force && el.dataset.k === key) return;
   el.dataset.k = key;
   const lead = Field.leader(), L = Field.LEAD[lead] || {};
-  el.innerHTML = G.S.party.map(m => '<span class="lchip' + (m.id === lead ? ' on' : '') + '" data-id="' + m.id + '" title="' + UI.esc(Field.nameOf(m.id)) + '"><img src="' + (B.faceURL ? B.faceURL(m.id, 0) : '') + '"></span>').join('') +
+  el.innerHTML = G.S.party.map(m => '<span class="lchip' + (m.id === lead ? ' on' : '') + '" data-id="' + m.id + '" title="' + UI.esc(Field.nameOf(m.id)) + '"><img src="' + (B.faceURL ? B.faceURL(m.id, 0, null, true) : '') + '"></span>').join('') +
     '<span class="lname"><b>' + UI.esc(Field.nameOf(lead)) + '</b> · ' + UI.esc(L.name || '') + ' <em>' + Menu.keyHint('ability') + '</em><br><small>' + Menu.keyHint('switch') + ' to switch</small></span>';
 };
 

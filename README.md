@@ -744,6 +744,18 @@ every other person uses the same kit through `B.paintSpec`:
   piece; a flickering warm glow near braziers and burning ground (`fireNear`).
 - **Title** (`Title.lineup` in main.js): the four painted heroes in moonlight, facing the barrow; classic keeps the sprites.
 
+## Beasts, story faces, townsfolk, slow phones (Nov 2026)
+
+- **Beasts** (`src/beastmat.js`, beasts.js, beasts2.js): fuller eyes in the heroic style (`K.eye` with `K.real`); the bear
+  rebuilt (tapered legs, paws, hump, brow); wolf paws; `B.beastMat[name]` lays a surface over each creature's own layer
+  (chitin, scales, worn metal, bone, mud, ooze depth, lichen).
+- **Story faces** (`src/moodlines.js`): `UI.moodFor(text)` checks a hand-picked table of 109 lines (prefix match, exact
+  for short ones; 'usual' forces the normal face) before falling back to `UI.mood`.
+- **Townsfolk** (`B.townSig` in bosslooks.js): one signature detail each for 13 recurring people.
+- **Slow phones**: chips (turn order, party bar) use `B.faceURL(id, side, null, true)`, a crop of the battle piece; hero
+  dialogue faces are painted at 10x; `B.warmFaces()` paints the party's battle figures and every mood of their faces
+  ahead, in idle time, from each `Field.enter`.
+
 ## Reachability pass
 
 `tools/reachtest.py` walks the whole game from the new-game start, through every door, stair and story move, and lists any map or thing the party can never reach. It found three sealed areas, fixed in `data/ch9_world/u_fixes.js`:
