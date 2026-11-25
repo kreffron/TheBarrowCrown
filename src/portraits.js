@@ -52,7 +52,11 @@
     return best && bs >= 2 && bs > second ? best : null;
   };
   UI.portraitOf = function (who, mood) {
-    if (!who || G.opts.portraits === false || !B.faceURL) return null;
+    if (!who || G.opts.portraits === false) return null;
+    // the painted oil portraits (data/portraits_oil.js), with the face the line calls for; the old figure-face otherwise
+    const oil = G.D.portraitOil, id = oil && oil.who[who];
+    if (id) { const m = G.opts.expressions === false ? 'usual' : mood || 'usual'; return oil.img[id + '|' + m] || oil.img[id + '|usual']; }
+    if (!B.faceURL) return null;
     if (!map) build();
     const s = map[who]; if (!s) return null;
     try { return B.faceURL(s, HEROES[who] ? 0 : 2, G.opts.expressions === false ? null : mood); } catch (e) { return null; }

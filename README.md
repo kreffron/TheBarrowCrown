@@ -851,3 +851,19 @@ Out of reach on purpose: cutscene maps (v_*), shopkeepers behind counters, priso
 - **Enemy habits** (`data/ch9_world/y_roles.js`, `B.roleFor`, `B.roleBias`): pack, brute, skirmisher, archer, caster, venom, guardian, undead, zealot, healer, boss. A habit tips who a foe goes for (with a little chance in it, so it is a good guess, never a certainty); the bestiary shows it once one has been beaten. Healers mend first, usually. Balance runs across all five chapters came out the same as before.
 - **Status turns**: the turns left on each status icon over a figure.
 - The handbook's battle page covers team-ups, auto-battle, weather and habits.
+
+## Oil portraits and moods
+
+Every character who speaks has a painted oil portrait in the dialogue box: 144 portraits (the four heroes, plus 140 of
+the cast), each painted from that character's look in the game, with their own head shape. Characters whose lines
+call for it also get mood faces: happy, angry, worried and sad (262 pictures in all). `src/moodlines.js` hand-tags the
+mood of the story's key lines; the rest are guessed from the words. Turning off expressions in the options shows each
+speaker's usual face.
+
+The portraits are painted ahead of time, so phones never wait for them:
+
+    python3 tools/build.py && python3 tools/portraits/render.py && python3 tools/build.py
+
+`tools/portraits/bust.js` paints the head and shoulders (anatomy, hair, headwear, beards, clothes, moods),
+`tools/portraits/styles.js` gives it the oil finish, and `render.py` writes `data/portraits_oil.js`. Anyone without an
+oil portrait falls back to the old figure face.
