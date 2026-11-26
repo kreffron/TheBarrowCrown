@@ -11965,7 +11965,14 @@ const Scenes = G.scenes = {};
   const cu0 = B.camUpdate; B.camUpdate = function () { if (!(T.dmOn() && T._t0 != null && G.time - T._t0 < 2400 && B.zoomFlip == null)) return cu0.apply(this, arguments);
     B.zoomFlip = false; try { return cu0.apply(this, arguments); } finally { B.zoomFlip = null; } };
   const pos0 = B.isoPos; B.isoPos = function (gx, gy) { const p = pos0.call(this, gx, gy); if (T.inside || !T.dmOn()) return p; const ZK = zk(), ZY = zy(); return { x: 168 + (p.x - 168) * ZK, y: 122 + (p.y - 122 + ZY) * ZK }; };
-  const pick0 = B.isoPick; B.isoPick = function (lx, ly) { if (!T.dmOn()) return pick0.call(this, lx, ly); const ZK = zk(), ZY = zy(); return pick0.call(this, 168 + (lx - 168) / ZK, 122 + (ly - 122) / ZK - ZY); };
+  // A click is read on the board as drawn full size. The pieces' own hit boxes use where each piece is shown (o.px, o.py,
+  // on the smaller board), so for the pick they are moved back to full-size positions too, then put back.
+  const pick0 = B.isoPick; B.isoPick = function (lx, ly) {
+    if (!T.dmOn()) return pick0.call(this, lx, ly);
+    const ZK = zk(), ZY = zy(), un = (x, y) => [168 + (x - 168) / ZK, 122 + (y - 122) / ZK - ZY], moved = [];
+    for (const o of B.c || []) if (o.px != null) { moved.push([o, o.px, o.py]); [o.px, o.py] = un(o.px, o.py); }
+    try { const q = un(lx, ly); return pick0.call(this, q[0], q[1]); } finally { for (const [o, x, y] of moved) { o.px = x; o.py = y; } }
+  };
   // the opening view puts the DM at the top right, clear of the command menu on the left
   const nf0 = B.isoNewFight; B.isoNewFight = function () { nf0.apply(this, arguments); if (!T.dmOn()) return; syncM(); T._for = null; T._t0 = G.time; T.react = null; T.lean = 0; T._downs = null; T._ph = false;
     if (B.cam) Object.assign(B.cam, { z: 1, x: 160, y: 120 });   // start each fight seeing the whole table

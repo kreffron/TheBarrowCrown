@@ -108,6 +108,17 @@ async def main():
           let ch = B.propChoice(foes[0]); out.push('AI keg choice with two heroes beside it: ' + (ch && ch.kind)); ok('AI lights the keg', ch && ch.kind === 'keg');
           foes[1].gx = 6; foes[1].gy = 5; ch = B.propChoice(foes[0]); ok('AI spares its own', !ch || ch.kind !== 'keg');
           foes[1].gx = 12; foes[1].gy = 12; foes[0].tags = ['beast']; ch = B.propChoice(foes[0]); ok('beasts leave kegs alone', !ch);
+          // 4b. at the DM's table the board is drawn smaller: a click on the middle of a piece still picks that piece
+          ({ party, foes } = fresh('square')); G.opts.bview = 'iso';
+          const spots = [[2, 2], [2, 7], [7, 2], [7, 7], [10, 4], [4, 10]], all = party.concat(foes).slice(0, spots.length);
+          all.forEach((o, i) => { o.gx = spots[i][0]; o.gy = spots[i][1]; });
+          if (B.isoNewFight) B.isoNewFight();
+          if (B.table && B.table.dmOn()) {
+            const k = B.table.players() ? 0.62 : 0.72, miss = [];
+            for (const o of all) { const q = B.isoPos(o.gx, o.gy); o.px = q.x; o.py = q.y; }
+            for (const o of all) { const hit = B.isoPick(o.px, o.py - 11 * B.pieceSize(o) * k); if (!hit || hit[0] !== o.gx || hit[1] !== o.gy) miss.push(o.name + '@' + o.gx + ',' + o.gy + '->' + hit); }
+            out.push('table pick misses: ' + JSON.stringify(miss)); ok('clicks on pieces land at the table', miss.length === 0);
+          }
           // 5. a fight on every shape plays out, on the diamond board and the flat one
           const res = {};
           for (const view of ['iso', 'flat']) for (const shape of Object.keys(B.SHAPES)) {

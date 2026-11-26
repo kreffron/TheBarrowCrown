@@ -54,7 +54,8 @@ async def main():
         fails += r
         # 2. running, with real keys: tiles covered in 600ms walking, then holding Shift
         async def walk(shift):
-            await pg.evaluate("(() => { G.fast = false; const p = Field.p; p.x = p.tx = 6; p.y = p.ty = 14; p.dir = 'right'; p.moving = false; })()")
+            # no random encounter mid-measure: a fight starting would freeze the walk at 0 tiles
+            await pg.evaluate("(() => { G.fast = false; Field.danger = -1e9; const p = Field.p; p.x = p.tx = 6; p.y = p.ty = 14; p.dir = 'right'; p.moving = false; })()")
             await pg.wait_for_timeout(200)
             x0 = await pg.evaluate("Field.p.x")
             if shift: await pg.keyboard.down('Shift')

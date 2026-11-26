@@ -400,7 +400,7 @@ players in the heroes' colours sit round the other sides too, turned toward the 
 last fights the DM leans in. Each fight opens turned so the DM sits top right; from the two views where he would be on
 our side, he and his screen fade to a faint see-through outline (Options > DM from behind: Faint, the default, or
 Hidden, which leaves them out). The board is drawn smaller (`zk`) and
-lower (`zy`); `B.isoPos` and `B.isoPick` are wrapped so labels and taps still land on the right squares. Option
+lower (`zy`); `B.isoPos` and `B.isoPick` are wrapped so labels and taps still land on the right squares; for a pick the pieces' hit boxes (`o.px`, `o.py`, where they are shown) are moved back to full-board positions as well, so a click on a piece picks that piece (boardtest checks it). Option
 `table: false` turns it all off. `B.table.paintDM`, `paintPlayer` and `screenAt` are also used by the opening.
 The table runs further past the board only when players sit at it (`M` 1.7 at bosses, 1.0 otherwise), so ordinary
 fights draw the board larger (`zk` 0.72 against 0.62). He reacts (`T.reactTo`, `mood()`): a wider grin and brighter
