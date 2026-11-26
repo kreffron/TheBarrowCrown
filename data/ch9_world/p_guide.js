@@ -34,6 +34,8 @@
         'Defend: +4 AC until your next turn, and 1 skill point back.\n\nOnce a fight, free: Runa\'s Shove, Dask\'s Smoke Pellet, Maren\'s Lamp Flare, Finch\'s Hush.\n\nFlee: a d20 plus your party\'s best speed, against 8 plus the enemies\' best speed.\n\nBosses wind up big blows, marked in red: step out of them. At half health a boss is enraged and calls for help.'],
       ['Status effects',
         'Good: Blessed (+2 to hit and saves), Inspired (next attack +1d6 to hit and damage), Rage (+2 damage, hits taken -2), Warded (hits taken -3), Hidden (cannot be targeted; next attack is a critical), Regen, Lamp-ward, Taunt.\n\nBad: Rattled (worse to hit), Weakened (-2 to hit and AC), Marked (-3 AC, open to Sneak Attack), Poisoned, Asleep (damage wakes them), Stunned, Turned (attacks its own side).\n\nSaves resist many of them.'],
+      ['The table',
+        'On the diamond board, every fight is played at a table. The Dungeon Master sits behind his screen at the enemies\' end, watching: he grins when things go badly for you and leans in when the party is nearly beaten. For each chapter\'s last fight, four players join him.\n\nTurn the board ({rot_l} {rot_r}) to walk round. From his side he fades to an outline; Options > DM from behind can hide him. The flat board has no table.'],
       ['If the party falls',
         'You choose: try the fight again from the start, or retreat to your last rest, fully healed but a tenth of your gold poorer.']
     ]],
@@ -59,7 +61,7 @@
       ['Journal and map',
         'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, Biographies (who you have met, growing as the story does), the bestiary, Recent conversations and The last fight are there too.\n\nMap: Area is this place (+ Maren can pray, ♪ Finch can play); Region is the whole land, clouded where you have not been.'],
       ['Options',
-        '· Difficulty: Easy foes are weaker, Hard ones stronger.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· Music and sound volume: left and right.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
+        '· Difficulty: Easy foes are weaker, Hard ones stronger.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· DM from behind: faint or hidden.\n· Music and sound: left and right.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
     ]]
   ];
 })();

@@ -156,8 +156,7 @@
       ['say', 'Hooded Man', 'Then the road north will be crowded. Good. I am tired of waiting.'],
       ['fade', 'out', 800],
       ['card', 'End of Chapter Two', 'The Drowned Abbey'],
-      ['recap', 'What you chose', 2],
-      ['card', 'Coming next', 'Chapter Three: The Oath of Stone']
+      ['tableEnd', 2]                 // the DM's line, his notebook of what they chose, and next time (data/ch9_world/table_ends.js)
     ]],
     ['set', 'cs.veyraNorth', 0], ['set', 'ch2done'],
     ['warp', 'saltmere', 'u', 'up'],

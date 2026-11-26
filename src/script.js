@@ -58,6 +58,13 @@ G.cmd = async function (c, ctx) {
       await UI.card(c[1], '', G.D.chronicle.filter(e => G.cond(e[0]) && (!c[2] || (e[2] || 1) === c[2])).map(e => e[1]));
       break;
     }
+    case 'tableEnd': {                                                 // ['tableEnd', chapter]  the chapter's end at the DM's table (data/ch9_world/table_ends.js)
+      const d = G.D.tableEnds[c[1]], notes = G.D.chronicle.filter(e => G.cond(e[0]) && (e[2] || 1) === c[1]).map(e => e[1]);
+      if (G.fast || G.opts.table === false || !d) { await UI.card('What you chose', '', notes); if (d) await UI.card('Coming next', d.card); break; }
+      const ln = d.lines.find(l => G.cond(l[0]));
+      await G.playAnim('chapterEnd', { ch: c[1], title: d.title, sub: d.sub, place: d.place, next: d.next, notes, line: ln ? ln[1] : d.fallback });
+      break;
+    }
     case 'give': {                                                     // ['give', item, n?]
       const n = c[2] || 1; G.give(c[1], n); G.audio.sfx('item');
       UI.toast('Got ' + I[c[1]].name + (n > 1 ? ' ×' + n : '')); break;

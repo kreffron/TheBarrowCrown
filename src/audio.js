@@ -107,6 +107,7 @@ G.audio = (function () {
       case 'door': noise(t, 0.12, 0.3, d); q(110, 0, 0.12, 'square', 0.1); break;
       case 'lever': q(140, 0, 0.08, 'square', 0.18); noise(t + 0.1, 0.5, 0.35, d); break;
       case 'roll': for (let i = 0; i < 6; i++) q(300 + Math.random() * 500, i * 0.06, 0.04, 'square', 0.07); break;
+      case 'dice': [0, 0.07, 0.125, 0.17, 0.205, 0.235].forEach((at, i) => { noise(t + at, 0.022, 0.16 * (1 - i * 0.13), d, 2400); q(1100 + Math.random() * 500, at, 0.012, 'triangle', 0.035 * (1 - i * 0.12)); }); break;   // dice tumbling across a wooden table
       case 'good': q(659, 0, 0.09); q(880, 0.09, 0.18); break;
       case 'bad': q(220, 0, 0.12, 'sawtooth', 0.14); q(165, 0.12, 0.22, 'sawtooth', 0.14); break;
       case 'encounter': for (let i = 0; i < 5; i++) q(220 + i * 110, i * 0.05, 0.06, 'sawtooth', 0.14); break;

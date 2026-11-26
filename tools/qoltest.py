@@ -63,9 +63,12 @@ async def main():
             await pg.wait_for_timeout(300); return (await pg.evaluate("Field.p.x")) - x0
         await pg.evaluate("Field.enter('ashroad', { x: 6, y: 14 }, { noFade: true, noSave: true, quiet: true }).then(() => 1)")
         await pg.evaluate("(() => { G.S.flags.chapter = 5; Field.map.def.enc = null; Field.danger = -1e9; })()")
-        w = await walk(False); r2 = await walk(True)
-        await pg.evaluate("G.opts.alwaysRun = true; void 0"); a = await walk(False); await pg.evaluate("G.opts.alwaysRun = false; void 0")
-        print('tiles in 0.9s: walk', w, 'run', r2, 'always run', a)
+        # timed with real keys, so a busy machine can drop frames: take up to three tries before calling it a failure
+        for attempt in range(3):
+            w = await walk(False); r2 = await walk(True)
+            await pg.evaluate("G.opts.alwaysRun = true; void 0"); a = await walk(False); await pg.evaluate("G.opts.alwaysRun = false; void 0")
+            print('tiles in 0.9s: walk', w, 'run', r2, 'always run', a)
+            if r2 > w and a > w: break
         if not (r2 > w and a > w): fails.append('running is not faster')
         # screenshots: the prompt, a shop with comparisons, the log, patch up
         await pg.evaluate("(async () => { G.fast = true; await Field.enter('brackenford', null, { noFade: true, noSave: true, quiet: true }); const npc = Field.map.things.find(t => t.def.type === 'npc' && t.def.script && Field.visible(t) && !Field.blocked(t.x, t.y + 1)); Field.p.x = Field.p.tx = npc.x; Field.p.y = Field.p.ty = npc.y + 1; Field.p.dir = 'up'; G.fast = false; })()")

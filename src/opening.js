@@ -202,6 +202,7 @@
     if (scene && scene.front) scene.front(ctx, cam);
     ctx.restore();
     if (scene && scene.light) scene.light(ctx, cam);
+    if (scene && scene.overlay) scene.overlay(ctx);
     if (view.flare > 0) { const g = ctx.createRadialGradient(W / 2, SH / 2, 0, W / 2, SH / 2, 620); g.addColorStop(0, 'rgba(255,246,214,' + view.flare + ')'); g.addColorStop(0.45, 'rgba(255,196,110,' + view.flare + ')'); g.addColorStop(1, 'rgba(210,90,40,' + view.flare + ')'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, SH); }
     const lb = (OY ? 0 : 56) * view.letter; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, lb); ctx.fillRect(0, SH - lb, W, lb);
     if (view.fade < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - view.fade) + ')'; ctx.fillRect(0, 0, W, SH); }
@@ -231,6 +232,7 @@
     if (OP.onLine) OP.onLine(who, text);
     if (view.skip || window.AUTO) { waiters.push({ at: now + (view.skip ? 0 : window.AUTO), r: done }); return; }
     const self = () => { if (view.dlg && view.dlg.n < text.length) { view.dlg.n = text.length; advance = self; return; } done(); }; advance = self; });
+  OP.waitTap = () => new Promise(r => { if (view.skip || window.AUTO) { waiters.push({ at: now + (view.skip ? 0 : window.AUTO), r }); return; } advance = () => r(); });   // hold until the player taps on
   OP.caption = async (t, ms) => { view.caption = t; await tween(view, { capA: 1 }, 700); await sleep(ms || 2600); await tween(view, { capA: 0 }, 600); view.caption = null; };
   OP.card = async (a, b, ms) => { view.card = [a, b]; await tween(view, { cardA: 1 }, 900); await sleep(ms || 2200); await tween(view, { cardA: 0 }, 800); view.card = null; };
   OP.fade = (to, ms) => tween(view, { fade: to }, ms || 700);
@@ -357,7 +359,29 @@
   // Seen from the foot of the table: the DM behind his screen, a candle, the board with four little figures, and the
   // four players, still, half in the dark. They do nothing much: the game is where they talk.
   const TB = { dmx: 480, dmy: 258, dms: 4.2, cx: 622, cy: 352, mini: [470, 428] };
-  S.t = { lit: 0, eyes: 0, grin: 0, wide: 1, match: null, low: 0 };
+  S.t = { lit: 0, eyes: 0, grin: 0, wide: 1, match: null, low: 0, book: null, place: 'tavern' };
+  // a little model of a place, standing on the board by the four figures: x, y is the middle of its base
+  function model(c, kind, x, y) {
+    const box = (x0, y0, w, h, col, top) => { c.fillStyle = col; c.fillRect(x0, y0, w, h); if (top) { c.fillStyle = top; c.fillRect(x0, y0, w, 2); } };
+    c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(x + 2, y + 1, 24, 5, 0, 0, 7); c.fill();
+    if (kind === 'tavern') { box(x - 17, y - 22, 34, 22, '#6a4a2a'); c.fillStyle = '#9a3a2a'; c.beginPath(); c.moveTo(x - 21, y - 21); c.lineTo(x, y - 36); c.lineTo(x + 21, y - 21); c.fill(); c.fillStyle = '#ffcf7a'; c.fillRect(x + 4, y - 14, 6, 5); }
+    if (kind === 'barrow') {        // a grassy mound with a stone door and its lamp
+      c.fillStyle = '#4e6a34'; c.beginPath(); c.ellipse(x, y, 24, 16, 0, Math.PI, 0); c.fill(); c.fillStyle = '#5e7c40'; c.beginPath(); c.ellipse(x - 4, y - 4, 16, 9, 0, Math.PI, 0); c.fill();
+      box(x - 6, y - 12, 12, 12, '#6a6660'); c.fillStyle = '#1a1612'; c.fillRect(x - 3.5, y - 9, 7, 9); c.fillStyle = '#ffd27a'; c.beginPath(); c.arc(x + 10, y - 13, 1.8, 0, 7); c.fill(); c.fillStyle = '#5a4a3a'; c.fillRect(x + 9.4, y - 12, 1.2, 12); }
+    if (kind === 'abbey') {         // a grey chapel and bell tower, up to its knees in water
+      c.fillStyle = '#2e5a7a'; c.beginPath(); c.ellipse(x, y, 26, 6, 0, 0, 7); c.fill();
+      box(x - 18, y - 18, 24, 18, '#8a8a8e'); c.fillStyle = '#5a5a62'; c.beginPath(); c.moveTo(x - 20, y - 17); c.lineTo(x - 6, y - 28); c.lineTo(x + 8, y - 17); c.fill();
+      box(x + 6, y - 32, 10, 32, '#9a9aa0'); c.fillStyle = '#5a5a62'; c.beginPath(); c.moveTo(x + 5, y - 31); c.lineTo(x + 11, y - 40); c.lineTo(x + 17, y - 31); c.fill(); c.fillStyle = '#2a2a30'; c.fillRect(x + 9, y - 27, 4, 5);
+      c.fillStyle = 'rgba(80,140,180,.55)'; c.fillRect(x - 22, y - 3, 44, 3); }
+    if (kind === 'cairn') {         // a ring of standing stones in the snow
+      c.fillStyle = '#e8eef2'; c.beginPath(); c.ellipse(x, y, 25, 7, 0, 0, 7); c.fill();
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, sx = x + Math.cos(a) * 18, sy = y + Math.sin(a) * 4.6, h = 9 + (i % 3) * 3; box(sx - 2.2, sy - h, 4.4, h, '#7a7e86', '#f2f6f8'); }
+      box(x - 3, y - 7, 6, 7, '#6a6e76', '#f2f6f8'); }
+    if (kind === 'highmoor') {      // a stretch of city wall, a tower, the Pale Hand's banner
+      box(x - 24, y - 14, 34, 14, '#8a7e6e'); for (let i = 0; i < 5; i++) box(x - 24 + i * 7.5, y - 18, 4, 4, '#8a7e6e');
+      box(x + 8, y - 30, 12, 30, '#9a8e7c'); for (let i = 0; i < 3; i++) box(x + 8 + i * 4.4, y - 33, 3, 3, '#9a8e7c'); c.fillStyle = '#2a2420'; c.fillRect(x - 10, y - 8, 6, 8);
+      c.fillStyle = '#5a4a3a'; c.fillRect(x + 13.4, y - 44, 1.2, 12); c.fillStyle = '#ece6da'; c.beginPath(); c.moveTo(x + 14.6, y - 44); c.lineTo(x + 24, y - 41); c.lineTo(x + 14.6, y - 38); c.fill(); }
+  }
   function tableTop(c) {
     const far = 318, l0 = 150, r0 = 810, near = 560, l1 = -80, r1 = 1040, P = (u, v) => [lerp(lerp(l0, l1, v), lerp(r0, r1, v), u), lerp(far, near, v)];
     c.fillStyle = '#3e2716'; c.beginPath(); c.moveTo(l0, far); c.lineTo(r0, far); c.lineTo(r1, near); c.lineTo(l1, near); c.closePath(); c.fill();
@@ -370,8 +394,7 @@
       c.fillStyle = (i + j) % 2 ? '#3f6a34' : '#4c7a3e'; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.lineTo(e[0], e[1]); c.closePath(); c.fill(); }
     c.strokeStyle = '#2a1a0c'; c.lineWidth = 2; c.beginPath(); B0.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.stroke();
     // a little tavern on the board, and four figures in the heroes' colours waiting by its door
-    const [mx, my] = TB.mini; c.fillStyle = '#6a4a2a'; c.fillRect(mx - 52, my - 34, 34, 22); c.fillStyle = '#9a3a2a'; c.beginPath(); c.moveTo(mx - 56, my - 33); c.lineTo(mx - 35, my - 48); c.lineTo(mx - 14, my - 33); c.fill();
-    c.fillStyle = '#ffcf7a'; c.fillRect(mx - 31, my - 26, 6, 5);
+    const [mx, my] = TB.mini; model(c, S.t.place || 'tavern', mx - 35, my - 12);
     B.table.PLAYERS.forEach((p, i) => { const x = mx - 6 + i * 13, y = my - 4 + (i % 2) * 6; c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(x, y + 1, 5.5, 2.2, 0, 0, 7); c.fill();
       c.fillStyle = '#2a2a2a'; c.beginPath(); c.ellipse(x, y, 5, 2, 0, 0, 7); c.fill(); c.fillStyle = p.col; c.fillRect(x - 3, y - 11, 6, 10); c.fillStyle = p.skin; c.beginPath(); c.arc(x, y - 13.5, 2.8, 0, 7); c.fill(); c.fillStyle = p.hair; c.fillRect(x - 2.8, y - 16.6, 5.6, 2); });
   }
@@ -384,14 +407,63 @@
       const g = c.createRadialGradient(x, fy - 6, 0, x, fy - 6, 46 * f); g.addColorStop(0, 'rgba(255,220,140,.5)'); g.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, fy - 6, 46 * f, 0, 7); c.fill();
       c.fillStyle = '#ffb04a'; c.beginPath(); c.moveTo(x - 5 * f, fy); c.quadraticCurveTo(x - 6 * f, fy - 10 * f, x + Math.sin(performance.now() / 160) * 1.5, fy - 22 * f); c.quadraticCurveTo(x + 6 * f, fy - 10 * f, x + 5 * f, fy); c.closePath(); c.fill();
       c.fillStyle = '#fff4c8'; c.beginPath(); c.ellipse(x, fy - 5 * f, 2.4 * f, 5 * f, 0, 0, 7); c.fill(); } }
+  // The DM's notebook. It starts closed by his screen; he slides it across to the players and it opens in front of us.
+  // Tapping it brings it up full screen to read, a spread at a time. S.t.book = { x, y, s, open, a, k, page, fs, hint,
+  // title, sub, notes }: k entries are written in (the newest fading in), page is the spread shown, fs the full view.
+  const BK = { x: 480, y: 478 }, FS0 = 7.8, scratch = document.createElement('canvas').getContext('2d');   // scratch: for measuring text
+  const SLOTS = [[{ x: -140, y: 14, w: 124, h: 30 }, { x: 14, y: -30, w: 132, h: 66 }], [{ x: -140, y: -30, w: 124, h: 70 }, { x: 14, y: -30, w: 132, h: 66 }]];   // the right page stops short of its page number
+  function layout(c, b) {               // the entries laid out over spreads: [[{ t, x, y, n }...], ...]
+    if (b._lay && b._lay.notes === b.notes) return b._lay.sp;
+    c.save(); c.font = 'italic ' + FS0 + 'px Georgia, serif'; const lh = FS0 * 1.22, sp = [[]]; let si = 0, cy = SLOTS[0][0].y;
+    const slot = () => SLOTS[sp.length === 1 ? 0 : 1][si];
+    const put = (t, n, first) => { if (cy > slot().y + slot().h - lh * 0.2) { si++; if (si > 1) { sp.push([]); si = 0; } cy = slot().y; } sp[sp.length - 1].push({ t, x: slot().x + (first ? 0 : 7), y: cy, n }); cy += lh; };
+    b.notes.forEach((note, n) => { let cur = '', first = true; for (const w of ('– ' + note).split(' ')) { const tr = cur ? cur + ' ' + w : w; if (c.measureText(tr).width > slot().w - 8 && cur) { put(cur, n, first); first = false; cur = w; } else cur = tr; } if (cur) put(cur, n, first); cy += lh * 0.35; });
+    c.restore(); b._lay = { notes: b.notes, sp }; return sp;
+  }
+  function bookArt(c, b, full) {     // drawn around BK, at the size it lies on the table
+    const x = BK.x, y = BK.y, op = Math.max(0, Math.min(1, b.open * 2 - 1)), cl = Math.max(0, Math.min(1, 1 - b.open * 2));
+    if (cl > 0) { c.save(); c.globalAlpha *= cl;           // closed: dark red leather, a d20 tooled in gold
+      c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(x - 76, y - 40, 160, 100); c.fillStyle = '#5a1a20'; c.fillRect(x - 80, y - 48, 160, 100); c.fillStyle = '#e8dcc0'; c.fillRect(x + 76, y - 44, 4, 92);
+      c.strokeStyle = '#c8a050'; c.lineWidth = 1.4; c.strokeRect(x - 72, y - 40, 144, 84); c.beginPath(); for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + i * Math.PI / 3; c[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * 18, y + 2 + Math.sin(a) * 18); } c.closePath(); c.stroke();
+      c.beginPath(); c.moveTo(x, y - 16); c.lineTo(x - 15.6, y + 11); c.lineTo(x + 15.6, y + 11); c.closePath(); c.stroke(); c.restore(); }
+    if (op <= 0) return;
+    c.save(); c.globalAlpha *= op;
+    if (!full) { c.fillStyle = 'rgba(0,0,0,.45)'; c.beginPath(); c.moveTo(x - 160, y - 40); c.lineTo(x + 160, y - 40); c.lineTo(x + 172, y + 58); c.lineTo(x - 172, y + 58); c.closePath(); c.fill(); }
+    c.fillStyle = '#4a2a1a'; c.beginPath(); c.moveTo(x - 158, y - 46); c.lineTo(x + 158, y - 46); c.lineTo(x + 168, y + 52); c.lineTo(x - 168, y + 52); c.closePath(); c.fill();
+    for (const sd of [-1, 1]) { c.fillStyle = sd < 0 ? '#e6d8b8' : '#ece0c2'; c.beginPath(); c.moveTo(x + sd * 3, y - 44); c.quadraticCurveTo(x + sd * 70, y - 50, x + sd * 152, y - 42); c.lineTo(x + sd * 161, y + 46); c.quadraticCurveTo(x + sd * 80, y + 40, x + sd * 3, y + 50); c.closePath(); c.fill(); }
+    const g = c.createLinearGradient(x - 24, 0, x + 24, 0); g.addColorStop(0, 'rgba(90,60,30,0)'); g.addColorStop(0.5, 'rgba(90,60,30,.35)'); g.addColorStop(1, 'rgba(90,60,30,0)'); c.fillStyle = g; c.fillRect(x - 24, y - 48, 48, 98);
+    if (!full) { c.fillStyle = '#7a1e24'; c.fillRect(x + 3, y - 46, 3.5, 112); c.beginPath(); c.moveTo(x + 3, y + 66); c.lineTo(x + 4.75, y + 61); c.lineTo(x + 6.5, y + 66); c.fillStyle = '#1a0c08'; c.fill(); }   // a ribbon off the table edge
+    const sp = layout(c, b), pg = Math.min(b.page || 0, sp.length - 1);
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    if (pg === 0) { c.fillStyle = '#3a2412'; c.font = 'italic 13px Georgia, serif'; c.fillText(b.title, x - 140, y - 24);
+      c.font = '9px Georgia, serif'; c.fillStyle = 'rgba(58,36,18,.8)'; c.fillText(b.sub, x - 140, y - 12);
+      c.strokeStyle = 'rgba(58,36,18,.5)'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(x - 140, y - 7); c.lineTo(x - 40, y - 7); c.stroke();
+      c.font = 'italic 8px Georgia, serif'; c.fillStyle = 'rgba(58,36,18,.7)'; c.fillText('What they chose', x - 140, y + 3); }
+    if (!b.notes.length && pg === 0) { c.font = 'italic ' + FS0 + 'px Georgia, serif'; c.fillStyle = 'rgba(58,36,18,.7)'; c.fillText('– Nothing they will be asked about later.', x - 140, y + 16); }
+    c.font = 'italic ' + FS0 + 'px Georgia, serif';
+    for (const L of sp[pg] || []) { const shown = L.n < Math.floor(b.k) ? 1 : L.n < b.k ? b.k - L.n : 0; if (shown <= 0) continue; c.fillStyle = 'rgba(58,36,18,' + (0.92 * shown) + ')'; c.fillText(L.t, x + L.x, y + L.y); }
+    if (sp.length > 1) { c.font = '7px Georgia, serif'; c.fillStyle = 'rgba(58,36,18,.6)'; c.textAlign = 'center'; c.fillText((pg + 1) + ' / ' + sp.length, x + 80, y + 44); }
+    c.restore();
+  }
+  function book(c) { const b = S.t.book; if (!b || b.a <= 0) return;
+    c.save(); c.globalAlpha = b.a; c.translate(b.x, b.y); c.scale(b.s, b.s); c.translate(-BK.x, -BK.y);
+    if (b.hint > 0) { const k = (0.5 + 0.5 * Math.sin(performance.now() / 260)) * b.hint; c.save(); c.shadowColor = 'rgba(255,210,120,' + k + ')'; c.shadowBlur = 18; c.strokeStyle = 'rgba(255,214,130,' + (0.7 * k) + ')'; c.lineWidth = 2; c.strokeRect(BK.x - 170, BK.y - 50, 340, 104); c.restore(); }
+    bookArt(c, b, false); c.restore(); }
+  function bookFull(c) { const b = S.t.book; if (!b || !(b.fs > 0)) return;      // the notebook held up close, filling the screen
+    c.save(); c.fillStyle = 'rgba(6,4,4,' + (0.72 * b.fs) + ')'; c.fillRect(0, 0, W, H);
+    const k = 2.55 * (0.86 + 0.14 * b.fs); c.globalAlpha = b.fs; c.translate(W / 2, H / 2 - 12); c.scale(k, k); c.translate(-BK.x, -BK.y); bookArt(c, b, true); c.restore();
+    const sp = layout(c, b), last = (b.page || 0) >= sp.length - 1;
+    c.save(); c.globalAlpha = b.fs; c.fillStyle = 'rgba(240,226,200,.85)'; c.font = '15px Georgia, serif'; c.textAlign = 'center';
+    c.fillText(last ? (OP.keyA || 'A') + ': close the notebook' : (OP.keyA || 'A') + ': turn the page', W / 2, H - 22); c.restore(); }
   const sceneT = {
+    overlay(c) { bookFull(c); },
     back(c, cam) { const T = S.t, now = performance.now(), PL = B.table.PLAYERS;
       c.fillStyle = '#0b0806'; c.fillRect(-400, -200, W + 800, H + 400);
       c.fillStyle = '#140e0a'; for (let x = -40; x < W + 40; x += 150) c.fillRect(x, -200, 14, 560); c.fillStyle = '#100b08'; c.fillRect(-400, 40, W + 800, 8);
       B.table.paintDM(c, TB.dmx, TB.dmy, TB.dms, now, { eyes: T.eyes, grin: T.grin, wide: T.wide, hands: false });
       tableTop(c);
       B.table.screenAt(c, TB.dmx, 328, 3.4);
-      candle(c);
+      candle(c); book(c);
       // the players: one at each side, two at the near end with their backs to us; just breathing
       // held back in the dark: the near two are little more than shapes against the candlelight
       const pp = (x, y, sc, k, front, br, turn) => { c.save(); c.filter = 'brightness(' + br + '%)'; B.table.paintPlayer(c, x, y, sc, PL[k], front, now, k, { still: true, dim: 1, turn }); c.restore(); };
@@ -428,7 +500,7 @@
     const atTable = typeof B !== 'undefined' && !!(B.table && B.table.paintDM), T = S.t;
     // T: the table in the dark. His eyes first, then a match, then the candle
     if (atTable) {
-      OP.setScene(sceneT); Object.assign(T, { lit: 0, eyes: 0, grin: 0, wide: 1, match: null, low: 0 }); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 }); view.fade = 1;
+      OP.setScene(sceneT); Object.assign(T, { lit: 0, eyes: 0, grin: 0, wide: 1, match: null, low: 0, book: null, place: 'tavern' }); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 }); view.fade = 1;
       await sleep(900); await tween(T, { eyes: 1 }, 1400); await sleep(700);
       T.match = { x: 700, y: 250, a: 1, f: 0 }; OP.sfx('fire'); await tween(T.match, { f: 1.3 }, 120); await tween(T.match, { f: 1 }, 260);
       await tween(T.match, { x: TB.cx + 4, y: TB.cy - 64 }, 900); await sleep(250);
@@ -519,7 +591,7 @@
     await fade(0, 1400);
     // T again: the candle lower now. Then down into the little tavern on the board
     if (atTable) {
-      OP.setScene(sceneT); Object.assign(T, { lit: 1, eyes: 1, grin: 1, wide: 1, match: null, low: 1 }); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 });
+      OP.setScene(sceneT); Object.assign(T, { lit: 1, eyes: 1, grin: 1, wide: 1, match: null, low: 1, book: null, place: 'tavern' }); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 });
       await fade(1, 1200);
       await tween(T, { wide: 1.35 }, 600);
       await say(DM, 'Which brings us to tonight. Four friends, three weeks on the road, and, where else, a tavern.', 'happy');
@@ -531,12 +603,35 @@
     window.DONE_ANIM = true;
   }
   OP.play = play;
-})();
-
-/* ---------- in the game: ['anim', 'opening'] plays it over the screen ---------- */
-(function () {
-  G.playAnim = async function (name) {
-    if (name !== 'opening' || G.fast) return;
+  // A chapter ends at the table: the candle a little shorter each time and a model of the chapter's place on the board.
+  // The DM has a line on what the party did, then slides his notebook across: tap it to read what they chose, full
+  // screen, a spread at a time. Then next time's title. o = { ch, title, sub, line, mood, notes, next, place }
+  OP.playChapterEnd = async function (o) {
+    const { say, fade, cam, sleep, tween, view } = OP, T = S.t, DM = 'The Dungeon Master';
+    OP.setScene(sceneT); Object.assign(OP.cam0, { x: 0, y: 0, z: 1 }); view.fade = 0;
+    Object.assign(T, { lit: 1, eyes: 1, grin: 1, wide: 1, match: null, low: Math.min(1.5, 0.25 + (o.ch || 1) * 0.25), place: o.place || 'tavern',
+      book: { x: 480, y: 338, s: 0.4, open: 0, a: 1, k: 0, page: 0, fs: 0, hint: 0, title: o.title, sub: o.sub || '', notes: o.notes || [] } });
+    await fade(1, 1300);
+    if (o.line) await say(DM, o.line, o.mood || 'happy');
+    await say(DM, 'Here you go. Want to see everything you did?', 'happy');
+    // he slides it across the table to the players; it opens in front of us
+    OP.sfx('move'); await tween(T.book, { y: BK.y, s: 1, open: 1 }, 1400, t => 1 - (1 - t) * (1 - t));
+    const note0 = view.note; view.note = OP.touch ? 'Tap the notebook to read it' : (OP.keyA || 'A') + ': read the notebook';
+    T.book.hint = 1; await OP.waitTap(); T.book.hint = 0; view.note = null;
+    // full screen, written in spread by spread
+    const sp = layout(scratch, T.book);
+    await tween(T.book, { fs: 1 }, 500);
+    for (let pg = 0; pg < sp.length; pg++) { T.book.page = pg;
+      const ns = [...new Set(sp[pg].map(L => L.n))];
+      for (const n of ns) if (n + 1 > T.book.k) { OP.sfx('text'); await tween(T.book, { k: n + 1 }, 420); await sleep(110); }
+      await OP.waitTap(); }
+    await tween(T.book, { fs: 0 }, 450); T.book.page = 0; view.note = note0;
+    if (o.next) await say(DM, 'Next time: ' + o.next + '.', 'happy');
+    await tween(T, { wide: 1.35 }, 500); await sleep(400);
+    await fade(0, 1400);
+  };
+  G.playAnim = async function (name, arg) {
+    if (!(name === 'opening' || name === 'chapterEnd') || G.fast) return;
     const box = document.createElement('div'); box.className = 'animbox';
     box.style.cssText = 'position:absolute;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center';
     const cv = document.createElement('canvas'); cv.style.cssText = 'width:100%;height:100%;display:block'; box.appendChild(cv); UI.root.appendChild(box);
@@ -545,11 +640,12 @@
     OP.onSfx = n => G.audio.sfx(n);
     cv.addEventListener('pointerdown', () => { G.audio.unlock(); OP.tap(); });
     const modal = { press: b => { if (b === 'a') OP.tap(); }, skip: () => { const i = G.modals.indexOf(modal); if (i >= 0) G.modals.splice(i, 1); OP.skip(); } };   // skip must leave the modal stack, or G.skipPress spins
-    G.modals.push(modal); G.audio.music('omen');
+    G.modals.push(modal); if (name === 'opening') G.audio.music('omen');
+    OP.touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || document.body.classList.contains('touch'); OP.keyA = OP.touch ? 'A' : G.keyText('{a}');
     OP.mount(cv, { h: 720 }); OP.view.note = ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? 'A next   B twice: skip' : G.keyText('{a} next   {b} twice: skip');
     const watch = setInterval(() => { if (G.fast) OP.skip(); }, 100);
     let skipped; const sk = new Promise(r => { skipped = r; }); const sk0 = OP.skip; OP.skip = () => { sk0(); skipped(); };
-    try { await Promise.race([OP.play(), sk]); }   // a skip ends it at once; the abandoned timeline stops with the frames
+    try { await Promise.race([name === 'chapterEnd' ? OP.playChapterEnd(arg || {}) : OP.play(), sk]); }   // a skip ends it at once; the abandoned timeline stops with the frames
     finally { OP.skip = sk0; clearInterval(watch); OP.unmount(); box.remove(); const i = G.modals.indexOf(modal); if (i >= 0) G.modals.splice(i, 1); }
   };
 })();

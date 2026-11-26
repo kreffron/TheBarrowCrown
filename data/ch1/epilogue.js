@@ -95,8 +95,7 @@
       ['fade', 'out', 800],
 
       ['card', 'End of Chapter One', "The Thane's Barrow"],
-      ['recap', 'What you chose', 1],
-      ['card', 'Coming next', 'Chapter Two: The Drowned Abbey']
+      ['tableEnd', 1]                 // the DM's line, his notebook of what they chose, and next time (data/ch9_world/table_ends.js)
     ]],
     ['set', 'cs.farewell', 0],
     ['warp', 'brackenford', 'a', 'down'],

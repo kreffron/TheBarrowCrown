@@ -402,6 +402,13 @@ our side, he and his screen fade to a faint see-through outline (Options > DM fr
 Hidden, which leaves them out). The board is drawn smaller (`zk`) and
 lower (`zy`); `B.isoPos` and `B.isoPick` are wrapped so labels and taps still land on the right squares. Option
 `table: false` turns it all off. `B.table.paintDM`, `paintPlayer` and `screenAt` are also used by the opening.
+The table runs further past the board only when players sit at it (`M` 1.7 at bosses, 1.0 otherwise), so ordinary
+fights draw the board larger (`zk` 0.72 against 0.62). He reacts (`T.reactTo`, `mood()`): a wider grin and brighter
+eyes when a hero goes down or a foe lands a critical hit (`cruel`), wide eyes and a smaller grin at a hero's critical
+(`wow`), a flare when a boss turns (`B.phase2`, `flare`); and `T.lean` eases him toward the board while the party is
+under a third of its health. Each attack plays a soft dice clatter (`dice` in src/audio.js). On a phone, each fight
+holds the whole table for 2.4 seconds before the usual zoom (`B.camUpdate` wrapper). The Guide has a page on it
+(Combat > The table).
 Weather, drifting specks and fog are clipped to a column over the board (`B.table.clipBoard`), so rain and snow fall
 on the little world rather than in the DM's room; the board's wall torches (`B.isoTorches`) and their light move with
 the smaller board. Switching from flat back to diamond mid-fight reopens on the DM's view.
@@ -907,6 +914,14 @@ line, and the view goes into the flame, which flares and clears into the burning
 Thane's Barrow it comes back to the table, with the candle burned lower, for one more line, then sinks into the little
 tavern on the board before the Chapter One card. The four players only sit and breathe: their talking is the game.
 `OP.state` exposes the scenes' state for tests; `view.flare` is the flame-light wash.
+
+Chapters One to Four end at the table too (`['tableEnd', n]`, data/ch9_world/table_ends.js, `OP.playChapterEnd`): after the
+"End of Chapter" card, the candle stands a little shorter each chapter and a model of the chapter's place sits on the
+board (barrow, abbey, cairn, Highmoor's wall). The DM has one line on the chapter, picked by its biggest choice (the
+first of `lines` whose condition holds, else `fallback`), then says "Here you go. Want to see everything you did?" and
+slides his notebook across to the players. Tapping it (or A) brings it up full screen: the chapter's title and what they
+chose, written in an entry at a time, a spread per page (A turns, A on the last closes). Then "Next time: ..." With option
+`table: false`, or when running fast, it falls back to the old "What you chose" and "Coming next" cards.
 
 ## The epilogue, painted
 

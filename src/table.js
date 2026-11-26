@@ -1,14 +1,17 @@
-/* The end-of-chapter boss fights are played at a table: the diamond board sits on it in a dark back room, a hooded
-   Dungeon Master with glowing eyes and a grin sits behind his screen at the enemies' end, and four players in the
-   party's colours sit round the other sides. Drawn around B.isoBoard; the board is drawn smaller and lower so the
-   table fits, and B.isoPos / B.isoPick follow it. Turn the board to walk round the table. */
+/* Every fight on the diamond board is played at a table: the board sits on it in a dark back room, and a hooded
+   Dungeon Master with glowing eyes and a grin sits behind his screen at the enemies' end. At the end-of-chapter bosses
+   four players in the party's colours sit round the other sides too. Drawn around B.isoBoard; the board is drawn
+   smaller and lower so the table fits, and B.isoPos / B.isoPick follow it. Turn the board to walk round the table.
+   He reacts to the game: a wider grin when a hero goes down or a foe lands a critical hit, wide eyes at a hero's
+   critical, a flare when a boss turns, and he leans in while the party is nearly beaten. */
 (function () {
   const T = B.table = { on: false };
   const FIGHTS = ['grukk', 'grukk_duo', 'prior', 'giant', 'colossus', 'corr', 'corr_shaken', 'corrveyra', 'king'], FINAL = ['corr', 'corr_shaken', 'corrveyra', 'king'];
   T.dmOn = () => !!(B.N && B.c && B.isIso && B.isIso() && G.opts.table !== false);
   T.active = T.dmOn;                                   // the table and the DM: every fight on the diamond board
   T.players = () => FIGHTS.includes(B.gid);           // the four players: chapter bosses only
-  const SLAB = 9, M = 1.7, zk = () => 0.62, zy = () => 24;   // ZK, ZY: the board drawn smaller and lower, so the table and its people fit around it                     // the slab's depth; how far the table runs past the board, in squares
+  const SLAB = 9; let M = 1.7; const zk = () => T.players() ? 0.62 : 0.72, zy = () => T.players() ? 24 : 21;
+  const syncM = () => { M = T.players() ? 1.7 : 1.0; };   // M: how far the table runs past the board; room for players at the bosses   // ZK, ZY: the board drawn smaller and lower, so the table and its people fit around it                     // the slab's depth; how far the table runs past the board, in squares
   const al = (h, a) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
   const sh = (h, p) => { const n = parseInt(h.slice(1), 16), f = v => Math.max(0, Math.min(255, Math.round(v + (p > 0 ? (255 - v) * p / 100 : v * p / 100)))); return '#' + [f(n >> 16), f((n >> 8) & 255), f(n & 255)].map(v => v.toString(16).padStart(2, '0')).join(''); };
   function glow(c, x, y, r, col, a) { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(' + col + ',' + a + ')'); g.addColorStop(1, 'rgba(' + col + ',0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }
@@ -17,8 +20,6 @@
   function edgeOf() { if (T._for === B.c && T._edge) return T._edge; const N = B.N, P = B.isoP, foes = B.c.filter(u => u.side === 1); let ax = 0, ay = 0; foes.forEach(u => { ax += u.gx; ay += u.gy; }); ax /= foes.length || 1; ay /= foes.length || 1;
     const mids = { top: [N / 2, 0], bottom: [N / 2, N], left: [0, N / 2], right: [N, N / 2] }, far = Object.keys(mids).sort((a, b) => P(...mids[a], 0)[1] - P(...mids[b], 0)[1]).slice(0, 2);
     const d = e => Math.hypot(mids[e][0] - ax, mids[e][1] - ay); T._edge = d(far[0]) < d(far[1]) ? far[0] : far[1]; T._for = B.c; return T._edge; }
-  function edgeOfOld() { if (T._for === B.c && T._edge) return T._edge; const N = B.N, foes = B.c.filter(u => u.side === 1); let ax = 0, ay = 0; foes.forEach(u => { ax += u.gx; ay += u.gy; }); ax /= foes.length || 1; ay /= foes.length || 1;
-    const d = { top: ay, bottom: N - 1 - ay, left: ax, right: N - 1 - ax }; T._edge = Object.keys(d).sort((a, b) => d[a] - d[b])[0]; T._for = B.c; return T._edge; }
   // a seat: a point beyond the table's edge, in grid terms; 'along' runs 0..1 along that edge
   function seat(edge, along, out, m) { const N = B.N, mm = m == null ? M : m, a = -mm - out, b = N + mm + out, s = along * N;
     return edge === 'top' ? [s, a] : edge === 'bottom' ? [N - s, b] : edge === 'left' ? [a, N - s] : [b, s]; }
@@ -64,9 +65,29 @@
   }
 
   /* ---------- the Dungeon Master ---------- */
+  // what he reacts to: T.react = { kind, t0 } for a moment; T.lean eases toward 1 while the party is nearly beaten
+  const REACT = { cruel: 1700, wow: 1300, flare: 1800 };
+  T.reactTo = kind => { if (T.dmOn()) T.react = { kind, t0: G.time }; };
+  function watch() {
+    const party = B.c.filter(x => x.side === 0 && !x.guest), downs = party.filter(x => x.down).length;
+    if (T._downs != null && downs > T._downs) T.reactTo('cruel');                 // a hero falls: the grin spreads
+    T._downs = downs;
+    if (B.phase2 && !T._ph) T.reactTo('flare'); T._ph = !!B.phase2;              // a boss turns: his eyes flare
+    const hp = party.reduce((a, x) => a + (x.down ? 0 : x.hp), 0), mx = party.reduce((a, x) => a + x.maxHp, 0) || 1, want = B.over && B.over() ? 0 : hp / mx < 0.35 ? 1 : 0;
+    T.lean = (T.lean || 0) + (want - (T.lean || 0)) * 0.04;
+  }
+  function mood(t) {
+    const r = T.react, o = { wide: null, eyes: 1, eyeOpen: 1, glowR: 1 }; if (!r) return o;
+    const k = (t - r.t0) / REACT[r.kind]; if (k > 1 || k < 0) { T.react = null; return o; }
+    const e = Math.sin(Math.min(1, k * 1.6) * Math.PI / 2) * (k > 0.7 ? (1 - k) / 0.3 : 1);   // quick in, hold, ease out
+    if (r.kind === 'cruel') { o.wide = 1 + 0.75 * e; o.eyes = 1 + 0.7 * e; o.glowR = 1 + 0.5 * e; }
+    if (r.kind === 'wow') { o.wide = 1 - 0.45 * e; o.eyeOpen = 1 + 0.9 * e; }              // a hero's critical: even he is impressed
+    if (r.kind === 'flare') { o.eyes = 1 + 1.3 * e; o.glowR = 1 + 1.2 * e; o.wide = 1 + 0.3 * e; }
+    return o;
+  }
   function dm(c, P, edge, t, back) {
-    const fin = FINAL.includes(B.gid), [gx, gy] = seat(edge, 0.5, back ? 1.0 : fin ? 1.1 : 1.4), base = P(gx, gy, -SLAB);
-    paintDM(c, base[0], base[1] + (back ? 6 : fin ? -4 : 0), back ? 2.3 : fin ? 2.6 : 2.3, t, { back, fin, hands: false });
+    const fin = FINAL.includes(B.gid), ln = back ? 0 : T.lean || 0, [gx, gy] = seat(edge, 0.5, back ? (T.players() ? 1.0 : 1.8) : (fin ? 1.1 : 1.4) - ln * 0.35), base = P(gx, gy, -SLAB), m = mood(t);
+    paintDM(c, base[0], base[1] + (back ? 6 : fin ? -4 : 0) + ln * 3, (back ? 2.3 : fin ? 2.6 : 2.3) * (1 + ln * 0.1), t, { back, fin: fin || ln > 0.5, hands: false, wide: m.wide, eyes: m.eyes * (1 + ln * 0.25), eyeOpen: m.eyeOpen, glowR: m.glowR });
   }
   function paintDM(c, x, y, s, t, o) {
     const back = o.back, br = Math.sin(t / 1400) * 0.6, tilt = Math.sin(t / 5200) * 0.04;
@@ -82,7 +103,8 @@
     c.strokeStyle = 'rgba(120,100,140,.22)'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(-6, -2); c.quadraticCurveTo(-6, 6, 0, 7.4); c.quadraticCurveTo(6, 6, 6, -2); c.stroke();
     // eyes that glow, and blink now and then
     const pulse = (o.fin ? 1.15 : 0.75) * (o.eyes == null ? 1 : o.eyes) + 0.25 * Math.sin(t / 700), blink = (t % 5200) < 140 ? 0.15 : 1;
-    for (const ex of [-3.2, 3.2]) { glow(c, ex, -3, 5, '255,220,90', 0.45 * pulse); c.fillStyle = 'rgba(255,236,150,' + (0.95 * blink * (o.eyes == null ? 1 : o.eyes)) + ')'; c.beginPath(); c.ellipse(ex, -3, 1.4, 0.75 * blink, ex < 0 ? 0.25 : -0.25, 0, 7); c.fill(); }
+    const gr = o.glowR || 1, op = o.eyeOpen || 1;
+    for (const ex of [-3.2, 3.2]) { glow(c, ex, -3, 5 * gr, '255,220,90', Math.min(0.9, 0.45 * pulse)); c.fillStyle = 'rgba(255,236,150,' + Math.min(1, 0.95 * blink * (o.eyes == null ? 1 : o.eyes)) + ')'; c.beginPath(); c.ellipse(ex, -3, 1.4 * (1 + (op - 1) * 0.3), 0.75 * blink * op, ex < 0 ? 0.25 : -0.25, 0, 7); c.fill(); }
     // the grin: a thin crescent of teeth, that widens now and then
     const wide = o.wide != null ? o.wide : 1 + 0.35 * Math.max(0, Math.sin(t / 2600)) ** 6;
     c.fillStyle = 'rgba(230,220,200,' + (0.75 * (o.grin == null ? 1 : o.grin)) + ')'; c.beginPath(); c.moveTo(-4.6 * wide, 2.4); c.quadraticCurveTo(0, 6.4 + wide, 4.6 * wide, 2.4); c.quadraticCurveTo(0, 4.4 + wide * 0.6, -4.6 * wide, 2.4); c.fill();
@@ -171,10 +193,17 @@
   T.paintDM = paintDM; T.paintPlayer = paintPlayer; T.screenAt = (c, x, y, s) => { c.save(); c.translate(x, y); c.scale(s / 1.25, s / 1.25); c.translate(-x, -y); screenPanels(c, x, y); c.restore(); }; T.PLAYERS = PLAYERS;
 
   /* ---------- hook it around the board ---------- */
+  const hurt0 = B.hurt; B.hurt = function (t, dmg, o) { if (o && o.crit && t) T.reactTo(t.side === 0 ? 'cruel' : 'wow'); return hurt0.apply(this, arguments); };
+  const att0 = B.attack; B.attack = function () { if (T.dmOn() && !G.fast) G.audio.sfx('dice'); return att0.apply(this, arguments); };   // dice on the table
+  // on a phone the board zooms in on the action: first, a moment to see the whole table
+  const cu0 = B.camUpdate; B.camUpdate = function () { if (!(T.dmOn() && T._t0 != null && G.time - T._t0 < 2400 && B.zoomFlip == null)) return cu0.apply(this, arguments);
+    B.zoomFlip = false; try { return cu0.apply(this, arguments); } finally { B.zoomFlip = null; } };
   const pos0 = B.isoPos; B.isoPos = function (gx, gy) { const p = pos0.call(this, gx, gy); if (T.inside || !T.dmOn()) return p; const ZK = zk(), ZY = zy(); return { x: 168 + (p.x - 168) * ZK, y: 122 + (p.y - 122 + ZY) * ZK }; };
   const pick0 = B.isoPick; B.isoPick = function (lx, ly) { if (!T.dmOn()) return pick0.call(this, lx, ly); const ZK = zk(), ZY = zy(); return pick0.call(this, 168 + (lx - 168) / ZK, 122 + (ly - 122) / ZK - ZY); };
   // the opening view puts the DM at the top right, clear of the command menu on the left
-  const nf0 = B.isoNewFight; B.isoNewFight = function () { nf0.apply(this, arguments); if (!T.dmOn()) return; T._for = null; const e = edgeOf(), N = B.N, mid = { top: [N / 2, -M], bottom: [N / 2, N + M], left: [-M, N / 2], right: [N + M, N / 2] }[e];
+  const nf0 = B.isoNewFight; B.isoNewFight = function () { nf0.apply(this, arguments); if (!T.dmOn()) return; syncM(); T._for = null; T._t0 = G.time; T.react = null; T.lean = 0; T._downs = null; T._ph = false;
+    if (B.cam) Object.assign(B.cam, { z: 1, x: 160, y: 120 });   // start each fight seeing the whole table
+    const e = edgeOf(), N = B.N, mid = { top: [N / 2, -M], bottom: [N / 2, N + M], left: [-M, N / 2], right: [N + M, N / 2] }[e];
     const t0 = G.time; let bump = 0; const at = () => { G.time = t0 + (++bump) * 1e-6; B.isoTurning(); G.time = t0; return B.isoP(mid[0], mid[1], 0); }, c0 = B.rot, p0 = at(), ok = p => p[0] > 168 && p[1] < 122;
     if (!ok(p0)) for (const d of [1, -1]) { B.rot = c0 + d; if (ok(at())) return; } B.rot = c0; at(); };
   // the board's own outline on the screen (scaled onto the table), and a clip to it raised by `up`: weather and fog
@@ -192,6 +221,7 @@
   B.isoBoard = function (c, dt, units) {
     if (!T.dmOn()) return orig.call(this, c, dt, units);
     if (B._isoFor !== B.c && B.isoNewFight) B.isoNewFight();    // the opening view first, so the DM's edge is read from it
+    syncM(); watch();
     const P = B.isoP, t = G.time, edge = edgeOf(), mid = P(B.N / 2, B.N / 2, -SLAB);
     const seats = [{ kind: 'dm', edge, along: 0.5 }];
     const opp = OPP[edge], [s1, s2] = SIDES[edge];

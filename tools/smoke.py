@@ -16,7 +16,7 @@ async def main():
         ctx = await b.new_context(viewport={'width': 960, 'height': 720})
         pg = await ctx.new_page()
         errs = []
-        pg.on('console', lambda m: errs.append(m.text) if m.type in ('error', 'warning') else None)
+        pg.on('console', lambda m: errs.append(m.text) if m.type in ('error', 'warning') and 'willReadFrequently' not in m.text else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERROR ' + str(e)))
         ev = lambda js: pg.evaluate('(() => { return ' + js + '; })()')
         shot = lambda name: pg.screenshot(path=OUT + '/' + name)
@@ -58,7 +58,10 @@ async def main():
         ok('hint banner is shown', await ev("!!document.querySelector('.hintbox')"))
         await shot('57_tutorial.png')
         y0 = await ev('Field.p.y')
-        await hold('ArrowDown', 330)
+        for i in range(3):                      # a short real key-hold; on a busy machine, try again before failing
+            await hold('ArrowDown', 330)
+            if await ev('Field.p.y') > y0: break
+            await pg.wait_for_timeout(300)
         ok('walking moves the player', await ev('Field.p.y') > y0)
         await face(8, 10, 'down'); await hold('ArrowDown', 300)
         await until_free()

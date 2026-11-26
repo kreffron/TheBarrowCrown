@@ -119,8 +119,7 @@
       ['say', '???', 'Not while I keep it.'],
       ['fade', 'out', 900],
       ['card', 'End of Chapter Four', 'The Pale Hand'],
-      ['recap', 'What you chose', 4],
-      ['card', 'Coming next', 'Chapter Five: The Barrow King']
+      ['tableEnd', 4]                 // the DM's line, his notebook of what they chose, and next time (data/ch9_world/table_ends.js)
     ]],
     ['set', 'ch4done'],
     ['warp', 'highmoor', 'c', 'down'],

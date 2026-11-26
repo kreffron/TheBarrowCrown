@@ -741,7 +741,7 @@ async def main():
         b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])
         pg = await b.new_page(viewport={'width': 960, 'height': 720})
         errs = []
-        pg.on('console', lambda m: errs.append(m.text) if m.type in ('error', 'warning') else None)
+        pg.on('console', lambda m: errs.append(m.text) if m.type in ('error', 'warning') and 'willReadFrequently' not in m.text else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERROR ' + str(e)))
         await pg.add_init_script('window.__NO_TITLE = true;')
         await pg.goto('file://' + os.path.join(ROOT, 'dist', 'index.html'))

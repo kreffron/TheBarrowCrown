@@ -116,8 +116,7 @@
       ['say', 'Hooded Man', 'Forgive it. Publicly. Gratitude is a leash, Master Orrin, and it costs nothing to hold.'],
       ['fade', 'out', 800],
       ['card', 'End of Chapter Three', 'The Oath of Stone'],
-      ['recap', 'What you chose', 3],
-      ['card', 'Coming next', 'Chapter Four: The Pale Hand']
+      ['tableEnd', 3]                 // the DM's line, his notebook of what they chose, and next time (data/ch9_world/table_ends.js)
     ]],
     ['set', 'ch3done'],
     ['warp', 'karrow', 'a', 'down'],
