@@ -114,9 +114,9 @@ async def main():
           all.forEach((o, i) => { o.gx = spots[i][0]; o.gy = spots[i][1]; });
           if (B.isoNewFight) B.isoNewFight();
           if (B.table && B.table.dmOn()) {
-            const k = B.table.players() ? 0.62 : 0.72, miss = [];
+            const miss = [];
             for (const o of all) { const q = B.isoPos(o.gx, o.gy); o.px = q.x; o.py = q.y; }
-            for (const o of all) { const hit = B.isoPick(o.px, o.py - 11 * B.pieceSize(o) * k); if (!hit || hit[0] !== o.gx || hit[1] !== o.gy) miss.push(o.name + '@' + o.gx + ',' + o.gy + '->' + hit); }
+            for (const o of all) { const hit = B.isoPick(o.px, o.py - 11 * B.pieceSize(o)); if (!hit || hit[0] !== o.gx || hit[1] !== o.gy) miss.push(o.name + '@' + o.gx + ',' + o.gy + '->' + hit); }
             out.push('table pick misses: ' + JSON.stringify(miss)); ok('clicks on pieces land at the table', miss.length === 0);
           }
           // 5. a fight on every shape plays out, on the diamond board and the flat one

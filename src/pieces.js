@@ -528,7 +528,7 @@
       else if (o.fx.k === 'cast' && a < 300) pos.y -= Math.sin(a / 300 * Math.PI) * 3;
       else if (o.fx.k === 'hit' && a < 300) {                  // knocked back a step's worth, held through the hit-stop, then eased home
         const hold = B.stopDur || 45, k = a < hold ? 1 : 1 - (a - hold) / (300 - hold);
-        if (o.fx.dx || o.fx.dy) push(o.fx.dx, o.fx.dy, 3.5 * k * k / B.pieceSize(o) / (o.def && (o.def.scale || 3) >= 4 ? 1.6 : 1)); else pos.x += (Math.floor(a / 40) % 2 ? 1 : -1);
+        if (o.fx.dx || o.fx.dy) push(o.fx.dx, o.fx.dy, 3.5 * k * k / (B.pieceSize0 || B.pieceSize)(o) / (o.def && (o.def.scale || 3) >= 4 ? 1.6 : 1)); else pos.x += (Math.floor(a / 40) % 2 ? 1 : -1);
       }
       else if (o.fx.k === 'enter' && a < 520) pos.x += (1 - a / 520) * 60;
     }
