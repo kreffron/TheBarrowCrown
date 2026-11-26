@@ -11776,7 +11776,7 @@ const Scenes = G.scenes = {};
   T.dmOn = () => !!(B.N && B.c && B.isIso && B.isIso() && G.opts.table !== false);
   T.active = T.dmOn;                                   // the table and the DM: every fight on the diamond board
   T.players = () => FIGHTS.includes(B.gid);           // the four players: chapter bosses only
-  const SLAB = 9; let M = 1.7; const zk = () => T.players() ? 0.62 : 0.72, zy = () => T.players() ? 24 : 21;
+  const SLAB = 9; let M = 1.7; const zk = () => T.players() ? 0.62 : (T.zkOrd || 0.72), zy = () => T.players() ? 24 : (T.zyOrd != null ? T.zyOrd : 21);   // T.zkOrd, T.zyOrd: tuning hooks
   const syncM = () => { M = T.players() ? 1.7 : 1.0; };   // M: how far the table runs past the board; room for players at the bosses   // ZK, ZY: the board drawn smaller and lower, so the table and its people fit around it                     // the slab's depth; how far the table runs past the board, in squares
   const al = (h, a) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
   const sh = (h, p) => { const n = parseInt(h.slice(1), 16), f = v => Math.max(0, Math.min(255, Math.round(v + (p > 0 ? (255 - v) * p / 100 : v * p / 100)))); return '#' + [f(n >> 16), f((n >> 8) & 255), f(n & 255)].map(v => v.toString(16).padStart(2, '0')).join(''); };
@@ -11852,8 +11852,8 @@ const Scenes = G.scenes = {};
     return o;
   }
   function dm(c, P, edge, t, back) {
-    const fin = FINAL.includes(B.gid), ln = back ? 0 : T.lean || 0, [gx, gy] = seat(edge, 0.5, back ? (T.players() ? 1.0 : 1.8) : (fin ? 1.1 : 1.4) - ln * 0.35), base = P(gx, gy, -SLAB), m = mood(t);
-    paintDM(c, base[0], base[1] + (back ? 6 : fin ? -4 : 0) + ln * 3, (back ? 2.3 : fin ? 2.6 : 2.3) * (1 + ln * 0.1), t, { back, fin: fin || ln > 0.5, hands: false, wide: m.wide, eyes: m.eyes * (1 + ln * 0.25), eyeOpen: m.eyeOpen, glowR: m.glowR });
+    const fin = FINAL.includes(B.gid), ln = back ? 0 : T.lean || 0, [gx, gy] = seat(edge, 0.5, back ? (T.players() ? 1.0 : 1.8) : (fin ? 1.1 : 1.4) - ln * 0.35 - (T.dmIn || 0)), base = P(gx, gy, -SLAB), m = mood(t);
+    paintDM(c, base[0], base[1] + (back ? 6 : fin ? -4 : 0) + ln * 3 + (back ? 0 : T.dmDrop || 0), (back ? 2.3 : fin ? 2.6 : 2.3) * (1 + ln * 0.1) * (back ? 1 : T.dmScale || 1), t, { back, fin: fin || ln > 0.5, hands: false, wide: m.wide, eyes: m.eyes * (1 + ln * 0.25), eyeOpen: m.eyeOpen, glowR: m.glowR });
   }
   function paintDM(c, x, y, s, t, o) {
     const back = o.back, br = Math.sin(t / 1400) * 0.6, tilt = Math.sin(t / 5200) * 0.04;
@@ -11884,7 +11884,7 @@ const Scenes = G.scenes = {};
   function dmScreen(c, P, edge, t, back, m, zz) {
     // three panels standing on the table along the DM's edge, in the table's own angle: the middle one square to the
     // edge, the wings folded back toward him. Art faces the players; seen from his side it is plain and see-through
-    const H = 30, z = zz == null ? -SLAB : zz, sp = [[0.26, -0.05], [0.4, -0.32], [0.6, -0.32], [0.74, -0.05]].map(([a, o]) => seat(edge, a, o, m)), panels = [[0, 1, 0], [1, 2, 1], [2, 3, 2]];
+    const H = T.scrH || 30, z = zz == null ? -SLAB : zz, sp = [[0.26, -0.05], [0.4, -0.32], [0.6, -0.32], [0.74, -0.05]].map(([a, o]) => seat(edge, a, o, m)), panels = [[0, 1, 0], [1, 2, 1], [2, 3, 2]];
     c.save();
     const order = panels.map(([i, j, k]) => ({ i, j, k, y: (P(sp[i][0], sp[i][1], z)[1] + P(sp[j][0], sp[j][1], z)[1]) / 2 })).sort((a, b) => a.y - b.y);
     for (const { i, j, k } of order) {
@@ -11962,8 +11962,23 @@ const Scenes = G.scenes = {};
   const hurt0 = B.hurt; B.hurt = function (t, dmg, o) { if (o && o.crit && t) T.reactTo(t.side === 0 ? 'cruel' : 'wow'); return hurt0.apply(this, arguments); };
   const att0 = B.attack; B.attack = function () { if (T.dmOn() && !G.fast) G.audio.sfx('dice'); return att0.apply(this, arguments); };   // dice on the table
   // on a phone the board zooms in on the action: first, a moment to see the whole table
-  const cu0 = B.camUpdate; B.camUpdate = function () { if (!(T.dmOn() && T._t0 != null && G.time - T._t0 < 2400 && B.zoomFlip == null)) return cu0.apply(this, arguments);
-    B.zoomFlip = false; try { return cu0.apply(this, arguments); } finally { B.zoomFlip = null; } };
+  // The camera. Each fight opens on the whole table for a moment; then, unless the board zoom is following the action,
+  // it closes in to frame just the board (Options > Board framing: Close, the default, or Wide). T.closeK runs 0..1 as it
+  // closes in: the DM shrinks into the space by the toolbar in ordinary fights, and the near players fade, so the
+  // board is clear.
+  T.closeOn = () => T.dmOn() && G.opts.bclose !== false;
+  T.frame = () => { const N = B.N, cs = [[0, 0], [N, 0], [N, N], [0, N]].map(([x, y]) => T.scr(B.isoP(x, y, 0)));
+    const xs = cs.map(p => p[0]), ys = cs.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys) - 22, y1 = Math.max(...ys) + 8;
+    const z = Math.min(330 / (x1 - x0), 172 / (y1 - y0)); return { z, x: (x0 + x1) / 2, y: (y0 + y1) / 2 - 6 / z }; };
+  const cu0 = B.camUpdate; B.camUpdate = function (dt) {
+    const hold = T.dmOn() && T._t0 != null && G.time - T._t0 < 2400 && B.zoomFlip == null;
+    if (hold) { T.closeK = 0; B.zoomFlip = false; try { return cu0.apply(this, arguments); } finally { B.zoomFlip = null; } }
+    if (!T.closeOn() || B.zoomOn()) { T.closeK = 0; return cu0.apply(this, arguments); }
+    const f = T.frame(), cam = B.cam, k = Math.min(1, (dt || 16) / 160);
+    cam.z += (f.z - cam.z) * k; cam.x += (f.x - cam.x) * k; cam.y += (f.y - cam.y) * k;
+    const hw = 160 / cam.z, hh = 120 / cam.z; cam.x = G.clamp(cam.x, hw, 320 - hw); cam.y = G.clamp(cam.y, hh, 240 - hh);
+    T.closeK = f.z > 1.01 ? G.clamp((cam.z - 1) / (f.z - 1), 0, 1) : 0;
+  };
   const pos0 = B.isoPos; B.isoPos = function (gx, gy) { const p = pos0.call(this, gx, gy); if (T.inside || !T.dmOn()) return p; const ZK = zk(), ZY = zy(); return { x: 168 + (p.x - 168) * ZK, y: 122 + (p.y - 122 + ZY) * ZK }; };
   // Pieces are drawn smaller with the board, so things placed above them on screen (health bars, bubbles, numbers,
   // previews) use a piece size scaled to match; inside the board's own drawing it stays full size.
@@ -11999,6 +12014,7 @@ const Scenes = G.scenes = {};
     if (!T.dmOn()) return orig.call(this, c, dt, units);
     if (B._isoFor !== B.c && B.isoNewFight) B.isoNewFight();    // the opening view first, so the DM's edge is read from it
     syncM(); watch();
+    const ck = T.closeK || 0; T.dmScale = 1 - 0.38 * ck; T.dmDrop = 10 * ck; T.scrH = 30 - 10 * ck;
     const P = B.isoP, t = G.time, edge = edgeOf(), mid = P(B.N / 2, B.N / 2, -SLAB);
     const seats = [{ kind: 'dm', edge, along: 0.5 }];
     const opp = OPP[edge], [s1, s2] = SIDES[edge];
@@ -12021,7 +12037,9 @@ const Scenes = G.scenes = {};
     c.save(); c.translate(168, 122); c.scale(zk(), zk()); c.translate(-168, -122 + zy());
     // from his side of the table he and his screen turn see-through, fading as the view comes round to them (Options: DM from behind)
     if (!dmFar && G.opts.dmBack !== 'hide') { const dy = seats[0].y - mid[1], a = 1 - 0.65 * Math.max(0, Math.min(1, dy / 40)); c.save(); c.globalAlpha = a; dmScreen(c, P, edge, t, true); dm(c, P, edge, t, true); c.restore(); }
+    c.save(); c.globalAlpha *= 1 - 0.65 * (T.closeK || 0);   // close in, the players nearest us fade like the DM from behind
     for (const st of seats.filter(s => !s.far).sort((a, b) => a.y - b.y)) if (st.kind !== 'dm') player(c, P, st.who, st.edge, st.along, t, st.i);
+    c.restore();
     c.restore();
   };
 })();
@@ -12620,7 +12638,7 @@ Menu.setVol = function (which, d, wrap) {
   if (which === 'sfx' && v) G.audio.sfx('select');
   return Menu.volText(v);
 };
-Menu.OPT_ORDER = [0, 1, 2, 6, 7, 8, 9, 12, 13, 14, 15, 10, 11, 5, 3, 4];   // the Options rows' values, in the order they are listed
+Menu.OPT_ORDER = [0, 1, 2, 6, 7, 8, 9, 12, 13, 14, 15, 16, 10, 11, 5, 3, 4];   // the Options rows' values, in the order they are listed
 Menu.options = async function () {
   let start = 0;
   for (;;) {
@@ -12636,9 +12654,9 @@ Menu.options = async function () {
       title: 'Options', style: Menu.NAV + 'width:164rem;max-height:186rem;', start,   // scrolls, clear of the description box below
       items: [
         { label: 'Music volume', right: Menu.volText(G.volMusic()), value: 0, vol: 'music' }, { label: 'Sound volume', right: Menu.volText(G.volSfx()), value: 1, vol: 'sfx' },
-        { label: 'Text', right: G.opts.textFast ? 'Fast' : 'Normal', value: 2 }, { label: 'Difficulty', right: B.diff().name, value: 6 }, { label: 'Battle board', right: G.opts.bview === 'flat' ? 'Flat' : 'Diamond', value: 7 }, { label: 'Battle speed', right: (B.SPEEDS[G.opts.bspeed || 'fast'] || B.SPEEDS.fast).name, value: 8 }, { label: 'Party chatter', right: B.chatter().name, value: 9 }, { label: 'Enemy health', right: G.opts.foeHp === 'always' ? 'Always' : 'On hover', value: 12 }, { label: 'Battle zoom', right: { auto: 'Auto', on: 'On', off: 'Off' }[G.opts.bzoom || 'auto'], value: 13 }, { label: 'Battle figures', right: G.opts.figures === 'classic' ? 'Classic' : 'Heroic', value: 14 }, { label: 'DM from behind', right: G.opts.dmBack === 'hide' ? 'Hidden' : 'Faint', value: 15 }, { label: 'Always run', right: G.opts.alwaysRun ? 'On' : 'Off', value: 10 }, { label: 'Interact prompts', right: G.opts.prompts === false ? 'Off' : 'On', value: 11 }, { label: 'Controls', value: 5 }, { label: 'Export save', value: 3 }, { label: 'Import save', value: 4 }
+        { label: 'Text', right: G.opts.textFast ? 'Fast' : 'Normal', value: 2 }, { label: 'Difficulty', right: B.diff().name, value: 6 }, { label: 'Battle board', right: G.opts.bview === 'flat' ? 'Flat' : 'Diamond', value: 7 }, { label: 'Battle speed', right: (B.SPEEDS[G.opts.bspeed || 'fast'] || B.SPEEDS.fast).name, value: 8 }, { label: 'Party chatter', right: B.chatter().name, value: 9 }, { label: 'Enemy health', right: G.opts.foeHp === 'always' ? 'Always' : 'On hover', value: 12 }, { label: 'Battle zoom', right: { auto: 'Auto', on: 'On', off: 'Off' }[G.opts.bzoom || 'auto'], value: 13 }, { label: 'Battle figures', right: G.opts.figures === 'classic' ? 'Classic' : 'Heroic', value: 14 }, { label: 'DM from behind', right: G.opts.dmBack === 'hide' ? 'Hidden' : 'Faint', value: 15 }, { label: 'Board framing', right: G.opts.bclose === false ? 'Wide' : 'Close', value: 16 }, { label: 'Always run', right: G.opts.alwaysRun ? 'On' : 'Off', value: 10 }, { label: 'Interact prompts', right: G.opts.prompts === false ? 'Off' : 'On', value: 11 }, { label: 'Controls', value: 5 }, { label: 'Export save', value: 3 }, { label: 'Import save', value: 4 }
       ],
-      onSide: (it, d) => it.vol ? Menu.setVol(it.vol, d) : null, onMove: it => side(it.value) || Menu.desc(['Music volume: left and right to set it, 0 to 10.', 'Sound effects volume: left and right to set it.', 'How quickly text and battle messages move.', 'Show a save code you can copy.', 'Load a game from a save code.', 'See and change which keys do what.', 'Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and they hit harder. Change it any time.', G.keyText('Diamond: the battle seen from an angle, with high ground standing up; turn it with {rot_l} and {rot_r} (or the buttons by the board). Flat: straight down. Switch any time, even mid-fight with {bview}.'), 'How quickly fights move: how long each message stays up and how fast pieces move and strike. Routine hits and misses are always quicker, since their numbers pop up over the pieces. Press to skip any message.', 'How often the party talks during a fight, in speech bubbles over their heads. The bubbles never hold up play.', 'Walk at a run without holding the Run key (Shift). With it on, holding Run walks.', 'A small key over whatever you can talk to, search or use when you face it.', 'On hover: an enemy\'s health bar shows only while you point at it or aim at it; otherwise read its wounds. Hurt foes bleed or crack, badly hurt ones darken, and one near death trembles. Always: every bar shows.', 'Auto: on a phone or tablet the board zooms in and follows whoever\'s turn it is (or your aim). On: always. Off: never. The 🔍 button by the board flips it for one fight.', 'Heroic: every figure on the board as a realistic painted miniature. Classic: the earlier, rounder figures with bigger heads.', 'When you turn the diamond board round to the Dungeon Master\'s side of the table. Faint: he and his screen fade to a see-through outline over your shoulder. Hidden: they are left out altogether.'][it.value])
+      onSide: (it, d) => it.vol ? Menu.setVol(it.vol, d) : null, onMove: it => side(it.value) || Menu.desc(['Music volume: left and right to set it, 0 to 10.', 'Sound effects volume: left and right to set it.', 'How quickly text and battle messages move.', 'Show a save code you can copy.', 'Load a game from a save code.', 'See and change which keys do what.', 'Easy: enemies have a quarter less health and hit a quarter softer. Hard: a fifth more health, and they hit harder. Change it any time.', G.keyText('Diamond: the battle seen from an angle, with high ground standing up; turn it with {rot_l} and {rot_r} (or the buttons by the board). Flat: straight down. Switch any time, even mid-fight with {bview}.'), 'How quickly fights move: how long each message stays up and how fast pieces move and strike. Routine hits and misses are always quicker, since their numbers pop up over the pieces. Press to skip any message.', 'How often the party talks during a fight, in speech bubbles over their heads. The bubbles never hold up play.', 'Walk at a run without holding the Run key (Shift). With it on, holding Run walks.', 'A small key over whatever you can talk to, search or use when you face it.', 'On hover: an enemy\'s health bar shows only while you point at it or aim at it; otherwise read its wounds. Hurt foes bleed or crack, badly hurt ones darken, and one near death trembles. Always: every bar shows.', 'Auto: on a phone or tablet the board zooms in and follows whoever\'s turn it is (or your aim). On: always. Off: never. The 🔍 button by the board flips it for one fight.', 'Heroic: every figure on the board as a realistic painted miniature. Classic: the earlier, rounder figures with bigger heads.', 'When you turn the diamond board round to the Dungeon Master\'s side of the table. Faint: he and his screen fade to a see-through outline over your shoulder. Hidden: they are left out altogether.', 'How the diamond board is framed in a fight. Close: the camera closes in on the board for bigger squares, with the DM tucked in at the top. Wide: the whole table and room.'][it.value])
     });
     if (pick == null) return false;
     start = Menu.OPT_ORDER.indexOf(pick);   // the list's start is a row, the pick a value
@@ -12649,6 +12667,7 @@ Menu.options = async function () {
     else if (pick === 10) G.opts.alwaysRun = !G.opts.alwaysRun;
     else if (pick === 11) G.opts.prompts = G.opts.prompts === false;
     else if (pick === 14) { G.opts.figures = G.opts.figures === 'classic' ? 'heroic' : 'classic'; B.clearPieces(); if (Field.hudEl) Field.hud(true); if (G.scene === 'battle' && B.drawTurns) B.drawTurns(); }   // every face repaints: leader bar, turn chips, and (as they open) dialogue and biographies
+    else if (pick === 16) G.opts.bclose = G.opts.bclose === false ? true : false;
     else if (pick === 15) G.opts.dmBack = G.opts.dmBack === 'hide' ? 'ghost' : 'hide';
     else if (pick === 13) G.opts.bzoom = { auto: 'on', on: 'off', off: 'auto' }[G.opts.bzoom || 'auto'];
     else if (pick === 12) G.opts.foeHp = G.opts.foeHp === 'always' ? 'hover' : 'always';
@@ -23936,7 +23955,7 @@ window.addEventListener('load', function () {
       ['Status effects',
         'Good: Blessed (+2 to hit and saves), Inspired (next attack +1d6 to hit and damage), Rage (+2 damage, hits taken -2), Warded (hits taken -3), Hidden (cannot be targeted; next attack is a critical), Regen, Lamp-ward, Taunt.\n\nBad: Rattled (worse to hit), Weakened (-2 to hit and AC), Marked (-3 AC, open to Sneak Attack), Poisoned, Asleep (damage wakes them), Stunned, Turned (attacks its own side).\n\nSaves resist many of them.'],
       ['The table',
-        'On the diamond board, every fight is played at a table. The Dungeon Master sits behind his screen at the enemies\' end, watching: he grins when things go badly for you and leans in when the party is nearly beaten. For each chapter\'s last fight, four players join him.\n\nTurn the board ({rot_l} {rot_r}) to walk round. From his side he fades to an outline; Options > DM from behind can hide him. The flat board has no table.'],
+        'On the diamond board, every fight is played at a table. The Dungeon Master sits behind his screen at the enemies\' end, watching: he grins when things go badly for you and leans in when the party is nearly beaten. For each chapter\'s last fight, four players join him.\n\nTurn the board ({rot_l} {rot_r}) to walk round. From his side he fades to an outline; Options > DM from behind can hide him, and Board framing shows the whole room. The flat board has no table.'],
       ['If the party falls',
         'You choose: try the fight again from the start, or retreat to your last rest, fully healed but a tenth of your gold poorer.']
     ]],
@@ -23962,7 +23981,7 @@ window.addEventListener('load', function () {
       ['Journal and map',
         'The journal groups open quests by region. A dot marks a new step; ◆ marks the story. Each quest ticks off the steps done and shows what is next. Completed quests, the chronicles, Biographies (who you have met, growing as the story does), the bestiary, Recent conversations and The last fight are there too.\n\nMap: Area is this place (+ Maren can pray, ♪ Finch can play); Region is the whole land, clouded where you have not been.'],
       ['Options',
-        '· Difficulty: Easy foes are weaker, Hard ones stronger.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· DM from behind: faint or hidden.\n· Music and sound: left and right.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
+        '· Difficulty: Easy foes are weaker, Hard ones stronger.\n· Battle board: diamond or flat ({bview} switches mid-fight; {rot_l} and {rot_r} turn the diamond).\n· Enemy health: bars when you point or aim, or always.\n· Battle figures: heroic or classic.\n· DM from behind; board framing.\n· Music and sound: left and right.\n· Battle zoom (phones zoom in), battle and text speed, chatter, always run, interact prompt.']
     ]]
   ];
 })();

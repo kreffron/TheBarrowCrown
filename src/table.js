@@ -10,7 +10,7 @@
   T.dmOn = () => !!(B.N && B.c && B.isIso && B.isIso() && G.opts.table !== false);
   T.active = T.dmOn;                                   // the table and the DM: every fight on the diamond board
   T.players = () => FIGHTS.includes(B.gid);           // the four players: chapter bosses only
-  const SLAB = 9; let M = 1.7; const zk = () => T.players() ? 0.62 : 0.72, zy = () => T.players() ? 24 : 21;
+  const SLAB = 9; let M = 1.7; const zk = () => T.players() ? 0.62 : (T.zkOrd || 0.72), zy = () => T.players() ? 24 : (T.zyOrd != null ? T.zyOrd : 21);   // T.zkOrd, T.zyOrd: tuning hooks
   const syncM = () => { M = T.players() ? 1.7 : 1.0; };   // M: how far the table runs past the board; room for players at the bosses   // ZK, ZY: the board drawn smaller and lower, so the table and its people fit around it                     // the slab's depth; how far the table runs past the board, in squares
   const al = (h, a) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
   const sh = (h, p) => { const n = parseInt(h.slice(1), 16), f = v => Math.max(0, Math.min(255, Math.round(v + (p > 0 ? (255 - v) * p / 100 : v * p / 100)))); return '#' + [f(n >> 16), f((n >> 8) & 255), f(n & 255)].map(v => v.toString(16).padStart(2, '0')).join(''); };
@@ -86,8 +86,8 @@
     return o;
   }
   function dm(c, P, edge, t, back) {
-    const fin = FINAL.includes(B.gid), ln = back ? 0 : T.lean || 0, [gx, gy] = seat(edge, 0.5, back ? (T.players() ? 1.0 : 1.8) : (fin ? 1.1 : 1.4) - ln * 0.35), base = P(gx, gy, -SLAB), m = mood(t);
-    paintDM(c, base[0], base[1] + (back ? 6 : fin ? -4 : 0) + ln * 3, (back ? 2.3 : fin ? 2.6 : 2.3) * (1 + ln * 0.1), t, { back, fin: fin || ln > 0.5, hands: false, wide: m.wide, eyes: m.eyes * (1 + ln * 0.25), eyeOpen: m.eyeOpen, glowR: m.glowR });
+    const fin = FINAL.includes(B.gid), ln = back ? 0 : T.lean || 0, [gx, gy] = seat(edge, 0.5, back ? (T.players() ? 1.0 : 1.8) : (fin ? 1.1 : 1.4) - ln * 0.35 - (T.dmIn || 0)), base = P(gx, gy, -SLAB), m = mood(t);
+    paintDM(c, base[0], base[1] + (back ? 6 : fin ? -4 : 0) + ln * 3 + (back ? 0 : T.dmDrop || 0), (back ? 2.3 : fin ? 2.6 : 2.3) * (1 + ln * 0.1) * (back ? 1 : T.dmScale || 1), t, { back, fin: fin || ln > 0.5, hands: false, wide: m.wide, eyes: m.eyes * (1 + ln * 0.25), eyeOpen: m.eyeOpen, glowR: m.glowR });
   }
   function paintDM(c, x, y, s, t, o) {
     const back = o.back, br = Math.sin(t / 1400) * 0.6, tilt = Math.sin(t / 5200) * 0.04;
@@ -118,7 +118,7 @@
   function dmScreen(c, P, edge, t, back, m, zz) {
     // three panels standing on the table along the DM's edge, in the table's own angle: the middle one square to the
     // edge, the wings folded back toward him. Art faces the players; seen from his side it is plain and see-through
-    const H = 30, z = zz == null ? -SLAB : zz, sp = [[0.26, -0.05], [0.4, -0.32], [0.6, -0.32], [0.74, -0.05]].map(([a, o]) => seat(edge, a, o, m)), panels = [[0, 1, 0], [1, 2, 1], [2, 3, 2]];
+    const H = T.scrH || 30, z = zz == null ? -SLAB : zz, sp = [[0.26, -0.05], [0.4, -0.32], [0.6, -0.32], [0.74, -0.05]].map(([a, o]) => seat(edge, a, o, m)), panels = [[0, 1, 0], [1, 2, 1], [2, 3, 2]];
     c.save();
     const order = panels.map(([i, j, k]) => ({ i, j, k, y: (P(sp[i][0], sp[i][1], z)[1] + P(sp[j][0], sp[j][1], z)[1]) / 2 })).sort((a, b) => a.y - b.y);
     for (const { i, j, k } of order) {
@@ -196,8 +196,23 @@
   const hurt0 = B.hurt; B.hurt = function (t, dmg, o) { if (o && o.crit && t) T.reactTo(t.side === 0 ? 'cruel' : 'wow'); return hurt0.apply(this, arguments); };
   const att0 = B.attack; B.attack = function () { if (T.dmOn() && !G.fast) G.audio.sfx('dice'); return att0.apply(this, arguments); };   // dice on the table
   // on a phone the board zooms in on the action: first, a moment to see the whole table
-  const cu0 = B.camUpdate; B.camUpdate = function () { if (!(T.dmOn() && T._t0 != null && G.time - T._t0 < 2400 && B.zoomFlip == null)) return cu0.apply(this, arguments);
-    B.zoomFlip = false; try { return cu0.apply(this, arguments); } finally { B.zoomFlip = null; } };
+  // The camera. Each fight opens on the whole table for a moment; then, unless the board zoom is following the action,
+  // it closes in to frame just the board (Options > Board framing: Close, the default, or Wide). T.closeK runs 0..1 as it
+  // closes in: the DM shrinks into the space by the toolbar in ordinary fights, and the near players fade, so the
+  // board is clear.
+  T.closeOn = () => T.dmOn() && G.opts.bclose !== false;
+  T.frame = () => { const N = B.N, cs = [[0, 0], [N, 0], [N, N], [0, N]].map(([x, y]) => T.scr(B.isoP(x, y, 0)));
+    const xs = cs.map(p => p[0]), ys = cs.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys) - 22, y1 = Math.max(...ys) + 8;
+    const z = Math.min(330 / (x1 - x0), 172 / (y1 - y0)); return { z, x: (x0 + x1) / 2, y: (y0 + y1) / 2 - 6 / z }; };
+  const cu0 = B.camUpdate; B.camUpdate = function (dt) {
+    const hold = T.dmOn() && T._t0 != null && G.time - T._t0 < 2400 && B.zoomFlip == null;
+    if (hold) { T.closeK = 0; B.zoomFlip = false; try { return cu0.apply(this, arguments); } finally { B.zoomFlip = null; } }
+    if (!T.closeOn() || B.zoomOn()) { T.closeK = 0; return cu0.apply(this, arguments); }
+    const f = T.frame(), cam = B.cam, k = Math.min(1, (dt || 16) / 160);
+    cam.z += (f.z - cam.z) * k; cam.x += (f.x - cam.x) * k; cam.y += (f.y - cam.y) * k;
+    const hw = 160 / cam.z, hh = 120 / cam.z; cam.x = G.clamp(cam.x, hw, 320 - hw); cam.y = G.clamp(cam.y, hh, 240 - hh);
+    T.closeK = f.z > 1.01 ? G.clamp((cam.z - 1) / (f.z - 1), 0, 1) : 0;
+  };
   const pos0 = B.isoPos; B.isoPos = function (gx, gy) { const p = pos0.call(this, gx, gy); if (T.inside || !T.dmOn()) return p; const ZK = zk(), ZY = zy(); return { x: 168 + (p.x - 168) * ZK, y: 122 + (p.y - 122 + ZY) * ZK }; };
   // Pieces are drawn smaller with the board, so things placed above them on screen (health bars, bubbles, numbers,
   // previews) use a piece size scaled to match; inside the board's own drawing it stays full size.
@@ -233,6 +248,7 @@
     if (!T.dmOn()) return orig.call(this, c, dt, units);
     if (B._isoFor !== B.c && B.isoNewFight) B.isoNewFight();    // the opening view first, so the DM's edge is read from it
     syncM(); watch();
+    const ck = T.closeK || 0; T.dmScale = 1 - 0.38 * ck; T.dmDrop = 10 * ck; T.scrH = 30 - 10 * ck;
     const P = B.isoP, t = G.time, edge = edgeOf(), mid = P(B.N / 2, B.N / 2, -SLAB);
     const seats = [{ kind: 'dm', edge, along: 0.5 }];
     const opp = OPP[edge], [s1, s2] = SIDES[edge];
@@ -255,7 +271,9 @@
     c.save(); c.translate(168, 122); c.scale(zk(), zk()); c.translate(-168, -122 + zy());
     // from his side of the table he and his screen turn see-through, fading as the view comes round to them (Options: DM from behind)
     if (!dmFar && G.opts.dmBack !== 'hide') { const dy = seats[0].y - mid[1], a = 1 - 0.65 * Math.max(0, Math.min(1, dy / 40)); c.save(); c.globalAlpha = a; dmScreen(c, P, edge, t, true); dm(c, P, edge, t, true); c.restore(); }
+    c.save(); c.globalAlpha *= 1 - 0.65 * (T.closeK || 0);   // close in, the players nearest us fade like the DM from behind
     for (const st of seats.filter(s => !s.far).sort((a, b) => a.y - b.y)) if (st.kind !== 'dm') player(c, P, st.who, st.edge, st.along, t, st.i);
+    c.restore();
     c.restore();
   };
 })();

@@ -412,6 +412,10 @@ eyes when a hero goes down or a foe lands a critical hit (`cruel`), wide eyes an
 under a third of its health. Each attack plays a soft dice clatter (`dice` in src/audio.js). On a phone, each fight
 holds the whole table for 2.4 seconds before the usual zoom (`B.camUpdate` wrapper). The Guide has a page on it
 (Combat > The table).
+Framing (`T.closeOn`, `T.frame`, the `B.camUpdate` wrapper): each fight opens on the whole table for 2.4 seconds, then the
+camera closes in to frame just the board (squares about 27% bigger, 44% at the bosses) unless the follow-zoom is on.
+`T.closeK` (0..1) tucks the DM in, smaller and lower (`dmScale`, `dmDrop`, `scrH`), and fades the near players to a third.
+Options > Board framing: Close (default) or Wide (`bclose: false`).
 Weather, drifting specks and fog are clipped to a column over the board (`B.table.clipBoard`), so rain and snow fall
 on the little world rather than in the DM's room; the board's wall torches (`B.isoTorches`) and their light move with
 the smaller board. Switching from flat back to diamond mid-fight reopens on the DM's view.
